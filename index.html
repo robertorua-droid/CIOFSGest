@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestionale Magazzino Didattico</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <!-- Stile personalizzato -->
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- Schermata di Login -->
+    <div id="login-container" class="container">
+        <div class="row justify-content-center align-items-center vh-100">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h3 class="card-title text-center mb-4">Accesso Gestionale</h3>
+                        <form id="login-form">
+                            <div class="mb-3"><label for="username" class="form-label">Username (Cognome)</label><input
+                                    type="text" class="form-control" id="username"
+                                    placeholder="Inserisci il tuo Cognome" required autofocus></div>
+                            <div class="mb-3"><label for="password" class="form-label">Password</label><input
+                                    type="password" class="form-control" id="password" required></div>
+                            <div id="error-message" class="text-danger mb-3 d-none">Cognome o password non corretti.
+                            </div><button type="submit" class="btn btn-primary w-100">Accedi</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Schermata Principale -->
+    <div id="main-app" class="d-none">
+        <div class="sidebar">
+            <h4 class="text-center my-3" id="company-name-sidebar">NAXSO BBT</h4>
+            <p class="text-center text-white-50 small" id="user-name-sidebar"></p>
+            <p class="text-center text-white-50" style="font-size: 0.7rem;" id="version-sidebar"></p>
+            <ul class="nav flex-column">
+                <li class="nav-item"><a class="nav-link active" href="#" data-target="home"><i class="fas fa-home"></i> Home</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" data-target="statistiche"><i class="fas fa-chart-line"></i> Statistiche</a></li>
+
+                <li class="nav-item">
+                    <h6 class="nav-section-title">Anagrafiche</h6>
+                </li>
+                <li class="nav-item menu-item" id="menu-anagrafica-clienti"><a class="nav-link" href="#"
+                        data-target="anagrafica-clienti"><i class="fas fa-users"></i> Anagrafica Clienti</a></li>
+                <li class="nav-item menu-item" id="menu-anagrafica-fornitori"><a class="nav-link" href="#"
+                        data-target="anagrafica-fornitori"><i class="fas fa-truck"></i> Anagrafica Fornitori</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" data-target="anagrafica-prodotti"><i
+                            class="fas fa-box"></i> Anagrafica Prodotti</a></li>
+
+                <li class="nav-item">
+                    <h6 class="nav-section-title">Magazzino</h6>
+                </li>
+                <li class="nav-item"><a class="nav-link" href="#" data-target="carico-manuale"><i
+                            class="fas fa-plus-circle"></i> Carico Manuale</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" data-target="scarico-manuale"><i
+                            class="fas fa-minus-circle"></i> Scarico Manuale</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" data-target="consultazione-giacenze"><i
+                            class="fas fa-search"></i> Giacenze</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" data-target="inventario"><i
+                            class="fas fa-clipboard-list"></i> Inventario</a></li>
+
+                <li class="nav-item">
+                    <h6 class="nav-section-title">Clienti</h6>
+                </li>
+                <li class="nav-item menu-item" id="menu-nuovo-ordine-cliente"><a class="nav-link" href="#"
+                        data-target="nuovo-ordine-cliente"><i class="fas fa-plus"></i> Nuovo Ordine Cliente</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" data-target="elenco-ordini-cliente"><i
+                            class="fas fa-list"></i> Elenco Ordini Cliente</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" data-target="nuovo-ddt-cliente"><i
+                            class="fas fa-file-alt"></i> Nuovo DDT Cliente</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" data-target="elenco-ddt-cliente"><i
+                            class="fas fa-list-alt"></i> Elenco DDT Cliente</a></li>
+                <li class="nav-item menu-item" id="menu-fatturazione"><a class="nav-link" href="#"
+                        data-target="fatturazione"><i class="fas fa-file-invoice-dollar"></i> Fatturazione</a></li>
+                <li class="nav-item menu-item" id="menu-elenco-fatture"><a class="nav-link" href="#"
+                        data-target="elenco-fatture"><i class="fas fa-list-ol"></i> Elenco Fatture</a></li>
+
+                <li class="nav-item">
+                    <h6 class="nav-section-title">Fornitori</h6>
+                </li>
+                <li class="nav-item menu-item" id="menu-nuovo-ordine-fornitore"><a class="nav-link" href="#"
+                        data-target="nuovo-ordine-fornitore"><i class="fas fa-plus-square"></i> Nuovo Ordine
+                        Fornitore</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" data-target="elenco-ordini-fornitore"><i
+                            class="fas fa-list-ul"></i> Elenco Ordini Fornitore</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" data-target="nuovo-ddt-fornitore"><i
+                            class="fas fa-file-invoice"></i> Nuovo DDT Fornitore</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" data-target="elenco-ddt-fornitore"><i
+                            class="fas fa-clipboard-list"></i> Elenco DDT Fornitore</a></li>
+
+                <li class="nav-item">
+                    <h6 class="nav-section-title">Impostazioni</h6>
+                </li>
+                <li class="nav-item menu-item" id="menu-anagrafica-azienda"><a class="nav-link" href="#"
+                        data-target="anagrafica-azienda"><i class="fas fa-building"></i> Anagrafica Azienda</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" data-target="anagrafica-utenti"><i
+                            class="fas fa-user-shield"></i> Anagrafica Utenti</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" data-target="avanzate"><i class="fas fa-cogs"></i>
+                        Avanzate</a></li>
+
+                <li class="nav-item mt-auto"><a class="nav-link" href="#" id="logout-btn"><i
+                            class="fas fa-sign-out-alt"></i> Logout</a></li>
+            </ul>
+        </div>
+
+        <div class="main-content">
+            <!-- Pagina Home -->
+            <div id="home" class="content-section">
+                <h2 id="welcome-message">Benvenuto</h2>
+                <p id="current-datetime" class="lead"></p>
+                <hr>
+                <div class="row mt-4">
+                    <div class="col-md-6 col-lg-5 mb-4">
+                        <div id="calendar-widget"></div>
+                    </div>
+                    <div class="col-md-6 col-lg-5 mb-4">
+                        <div id="notes-widget" class="card">
+                            <div class="card-body">
+                                <h5><i class="fas fa-clipboard"></i> Block-notes personale</h5>
+                                <textarea id="notes-textarea" class="form-control" rows="8" placeholder="Scrivi qui i tuoi appunti..."></textarea>
+                                <button class="btn btn-primary btn-sm mt-2" id="save-notes-btn">Salva note</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Pagina Statistiche -->
+            <div id="statistiche" class="content-section d-none">
+                <h2>Statistiche Principali</h2>
+                <div class="row">
+                    <div class="col-lg-8">
+                        <div class="card">
+                            <div class="card-header" id="chart1Title"></div>
+                            <div class="card-body"><canvas id="statChart1"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="card">
+                            <div class="card-header" id="chart2Title"></div>
+                            <div class="card-body"><canvas id="statChart2"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- (Sezioni Anagrafiche, Magazzino) -->
+            <div id="anagrafica-clienti" class="content-section d-none">
+                <h2>Anagrafica Clienti <button class="btn btn-success float-end" data-bs-toggle="modal"
+                        data-bs-target="#customerModal" id="newCustomerBtn"><i class="fas fa-plus"></i> Nuovo
+                        Cliente</button></h2>
+                
+                <div class="mb-3">
+                    <input type="text" id="customer-search-input" class="form-control" placeholder="Cerca cliente per nome, P.IVA o indirizzo...">
+                </div><table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Ragione Sociale</th>
+                            <th>P.IVA</th>
+                            <th>Indirizzo</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="customers-table-body"></tbody>
+                </table>
+            </div>
+            <div id="anagrafica-fornitori" class="content-section d-none">
+                <h2>Anagrafica Fornitori <button class="btn btn-success float-end" data-bs-toggle="modal"
+                        data-bs-target="#supplierModal" id="newSupplierBtn"><i class="fas fa-plus"></i> Nuovo
+                        Fornitore</button></h2>
+                
+                <div class="mb-3">
+                    <input type="text" id="supplier-search-input" class="form-control" placeholder="Cerca fornitore per nome, P.IVA o indirizzo...">
+                </div><table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Ragione Sociale</th>
+                            <th>P.IVA</th>
+                            <th>Indirizzo</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="suppliers-table-body"></tbody>
+                </table>
+            </div>
+            <div id="anagrafica-prodotti" class="content-section d-none">
+                <h2>Anagrafica Prodotti <button class="btn btn-success float-end" data-bs-toggle="modal"
+                        data-bs-target="#productModal" id="newProductBtn"><i class="fas fa-plus"></i> Nuovo
+                        Prodotto</button></h2>
+                
+                <div class="mb-3">
+                    <input type="text" id="product-search-input" class="form-control" placeholder="Cerca prodotto per codice o descrizione...">
+                </div><table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Codice</th>
+                            <th>Descrizione</th>
+                            <th>Prezzo Acq.</th>
+                            <th>Prezzo Ven.</th>
+                            <th>Collocazione</th>
+                            <th>Giacenza</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="products-table-body"></tbody>
+                </table>
+            </div>
+            <div id="carico-manuale" class="content-section d-none">
+                <h2>Carico Manuale a Magazzino</h2>
+                <form id="manual-load-form" class="mt-4 col-md-8 col-lg-6">
+                    <div class="mb-3"><label class="form-label">Seleziona Prodotto</label><select class="form-select"
+                            id="load-product-select" required></select></div>
+                    <div class="mb-3"><label class="form-label">Quantit&agrave; da Caricare</label><input type="number"
+                            class="form-control" id="load-product-qty" min="1" required></div>
+                    <div class="mb-3"><label class="form-label">Causale/Note</label><textarea class="form-control"
+                            id="load-product-reason" rows="2"
+                            placeholder="Es. Rettifica inventariale, reso da cliente..."></textarea></div><button
+                        type="submit" class="btn btn-primary">Esegui Carico</button>
+                </form>
+            </div>
+            <div id="scarico-manuale" class="content-section d-none">
+                <h2>Scarico Manuale da Magazzino</h2>
+                <form id="manual-unload-form" class="mt-4 col-md-8 col-lg-6">
+                    <div class="mb-3"><label class="form-label">Seleziona Prodotto</label><select class="form-select"
+                            id="unload-product-select" required></select></div>
+                    <div class="mb-3"><label class="form-label">Quantit&agrave; da Scaricare</label><input type="number"
+                            class="form-control" id="unload-product-qty" min="1" required></div>
+                    <div class="mb-3"><label class="form-label">Causale/Note</label><textarea class="form-control"
+                            id="unload-product-reason" rows="2"
+                            placeholder="Es. Rottura, uso interno, campione..."></textarea></div><button type="submit"
+                        class="btn btn-danger">Esegui Scarico</button>
+                </form>
+            </div>
+            <div id="consultazione-giacenze" class="content-section d-none">
+                <h2>Giacenze</h2>
+                <div class="mt-4 col-md-8 col-lg-6">
+                    <div class="mb-3"><label class="form-label">Seleziona Prodotto</label><select class="form-select"
+                            id="stock-query-product-select">
+                            <option selected disabled>Seleziona un prodotto...</option>
+                        </select></div>
+                    <div id="stock-query-result" class="card d-none">
+                        <div class="card-body">
+                            <h5 class="card-title" id="stock-query-product-name"></h5>
+                            <p class="card-text mb-1"><strong>Giacenza Attuale:</strong> <span class="fs-4"
+                                    id="stock-query-qty"></span></p>
+                            <p class="card-text"><strong>Collocazione:</strong> <span id="stock-query-location"></span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="inventario" class="content-section d-none">
+                <h2>Inventario Magazzino</h2>
+                <table class="table table-hover mt-4">
+                    <thead>
+                        <tr>
+                            <th>Codice</th>
+                            <th>Descrizione</th>
+                            <th>Collocazione (Corsia-Scaffale-Piano)</th>
+                            <th>Giacenza</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventory-table-body"></tbody>
+                </table>
+            </div>
+
+            <!-- (Sezioni Clienti, Fornitori, Impostazioni) -->
+            <div id="nuovo-ordine-cliente" class="content-section d-none">
+                <h2>Nuovo Ordine Cliente</h2>
+                <form id="new-customer-order-form">
+                    <div class="row">
+                        <div class="col-md-6 mb-3"><label class="form-label">Cliente</label><select class="form-select"
+                                id="order-customer-select" required></select></div>
+                        <div class="col-md-3 mb-3"><label class="form-label">Data Ordine</label><input type="date"
+                                class="form-control" id="order-customer-date" required></div>
+                        <div class="col-md-3 mb-3"><label class="form-label">Numero Ordine</label><input type="text"
+                                class="form-control" id="order-customer-number" readonly></div>
+                    </div>
+                    <hr>
+                    <h5>Aggiungi Prodotti</h5>
+                    <div class="row align-items-end g-3">
+                        <div class="col-md-5"><label class="form-label">Prodotto</label><select class="form-select"
+                                id="order-product-select"></select></div>
+                        <div class="col-md-2"><label class="form-label">Quantit&agrave;</label><input type="number"
+                                class="form-control" id="order-product-qty" value="1" min="1"></div>
+                        <div class="col-md-2"><label class="form-label">Prezzo</label><input type="number" step="0.01"
+                                class="form-control" id="order-product-price"></div>
+                        <div class="col-md-3"><button type="button" class="btn btn-secondary"
+                                id="add-product-to-order-btn">Aggiungi Riga</button></div>
+                    </div>
+                    <table class="table mt-4">
+                        <thead>
+                            <tr>
+                                <th>Prodotto</th>
+                                <th>Qt&agrave;</th>
+                                <th>Prezzo</th>
+                                <th>Subtotale</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="order-lines-tbody"></tbody>
+                    </table>
+                    <div class="text-end">
+                        <h3>Totale: <span id="order-total">? 0.00</span></h3>
+                    </div><button type="submit" class="btn btn-primary mt-3">Salva Ordine</button>
+                </form>
+            </div>
+            <div id="elenco-ordini-cliente" class="content-section d-none">
+                <h2>Elenco Ordini Clienti</h2>
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Numero</th>
+                            <th>Data</th>
+                            <th>Cliente</th>
+                            <th>Importo</th>
+                            <th>Stato</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="customer-orders-table-body"></tbody>
+                </table>
+            </div>
+            <div id="nuovo-ddt-cliente" class="content-section d-none">
+                <h2>Nuovo DDT Cliente</h2>
+                <form id="new-customer-ddt-form">
+                    <div class="row">
+                        <div class="col-md-6 mb-3"><label class="form-label"><strong>Seleziona Ordine da
+                                    Evadere</strong></label><select class="form-select" id="ddt-order-select" required>
+                                <option selected disabled value="">Seleziona un ordine...</option>
+                            </select></div>
+                    </div>
+                    <div id="ddt-details-section" class="d-none">
+                        <hr>
+                        <div class="row">
+                            <div class="col-md-6 mb-3"><label>Cliente</label><input type="text" id="ddt-customer-name"
+                                    class="form-control" readonly></div>
+                            <div class="col-md-3 mb-3"><label>Numero DDT</label><input type="text" id="ddt-number"
+                                    class="form-control" readonly></div>
+                            <div class="col-md-3 mb-3"><label>Data DDT</label><input type="date" class="form-control"
+                                    id="ddt-date" required></div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-3"><label for="ddt-aspetto-beni" class="form-label">Aspetto beni</label><input type="text" class="form-control" id="ddt-aspetto-beni" maxlength="32"></div>
+                            <div class="col-md-3"><label for="ddt-num-colli" class="form-label">Num. Colli</label><input type="text" class="form-control" id="ddt-num-colli" maxlength="32"></div>
+                            <div class="col-md-3"><label for="ddt-peso" class="form-label">Peso</label><input type="text" class="form-control" id="ddt-peso" maxlength="32"></div>
+                            <div class="col-md-3"><label for="ddt-vettore" class="form-label">Vettore</label><input type="text" class="form-control" id="ddt-vettore" maxlength="32"></div>
+                        </div>
+                        <div class="row mb-3 align-items-end">
+                            <div class="col-md-3"><label for="ddt-data-trasporto" class="form-label">Data inizio trasporto</label><input type="date" class="form-control" id="ddt-data-trasporto"></div>
+                            <div class="col-md-3"><label>Firma</label><div style="border-bottom: 1px solid #dee2e6; height: 38px;"></div></div>
+                            <div class="col-md-3"><label for="ddt-data-ricezione" class="form-label">Data ricezione</label><input type="date" class="form-control" id="ddt-data-ricezione"></div>
+                            <div class="col-md-3"><label>Firma</label><div style="border-bottom: 1px solid #dee2e6; height: 38px;"></div></div>
+                        </div>
+                        <h5 class="mt-4">Prodotti da Spedire</h5>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Prodotto</th>
+                                    <th>Qt&agrave; Ordinata</th>
+                                    <th>Qt&agrave; Residua</th>
+                                    <th><strong>Qt&agrave; da Spedire</strong></th>
+                                </tr>
+                            </thead>
+                            <tbody id="ddt-products-tbody"></tbody>
+                        </table><button type="submit" class="btn btn-primary">Genera DDT</button>
+                    </div>
+                </form>
+            </div>
+            <div id="elenco-ddt-cliente" class="content-section d-none">
+                <h2>Elenco DDT Clienti</h2>
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Numero</th>
+                            <th>Data</th>
+                            <th>Cliente</th>
+                            <th>Rif. Ordine</th>
+                            <th>Stato</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="customer-ddts-table-body"></tbody>
+                </table>
+            </div>
+            <div id="fatturazione" class="content-section d-none">
+                <h2>Fatturazione da DDT</h2>
+                <div class="row">
+                    <div class="col-md-6 mb-3"><label class="form-label"><strong>Seleziona
+                                Cliente</strong></label><select class="form-select" id="invoice-customer-select"
+                            required>
+                            <option selected disabled value="">Seleziona un cliente...</option>
+                        </select></div>
+                </div>
+                <div id="invoice-ddt-section" class="d-none mt-3">
+                    <hr>
+                    <h5>Seleziona DDT da Fatturare</h5>
+                    <div id="invoice-ddt-list"></div><button class="btn btn-primary mt-3"
+                        id="generate-invoice-preview-btn">Crea Anteprima Fattura</button>
+                </div>
+                <div id="invoice-preview-section" class="d-none mt-4">
+                    <hr>
+                    <h3>Anteprima Fattura</h3>
+                    <div class="row">
+                        <div class="col-md-6 mb-3"><label>Cliente</label><input type="text"
+                                id="invoice-preview-customer" class="form-control" readonly></div>
+                        <div class="col-md-3 mb-3"><label>Numero Fattura</label><input type="text"
+                                id="invoice-preview-number" class="form-control" readonly></div>
+                        <div class="col-md-3 mb-3"><label>Data Fattura</label><input type="date"
+                                id="invoice-preview-date" class="form-control"></div>
+                    </div>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Descrizione</th>
+                                <th>Quantit&agrave;</th>
+                                <th>Prezzo Unitario</th>
+                                <th>Imponibile</th>
+                                <th>IVA</th>
+                            </tr>
+                        </thead>
+                        <tbody id="invoice-preview-lines-tbody"></tbody>
+                    </table>
+                    <div class="row justify-content-end">
+                        <div class="col-md-5">
+                            <div id="invoice-summary"></div><button class="btn btn-success w-100 mt-3"
+                                id="confirm-invoice-btn">Genera Fattura Definitiva</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="elenco-fatture" class="content-section d-none">
+                <h2>Elenco Fatture Clienti</h2>
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Numero</th>
+                            <th>Data</th>
+                            <th>Cliente</th>
+                            <th>Totale Fattura</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="invoices-table-body"></tbody>
+                </table>
+            </div>
+            <div id="nuovo-ordine-fornitore" class="content-section d-none">
+                <h2>Nuovo Ordine Fornitore</h2>
+                <form id="new-supplier-order-form">
+                    <div class="row">
+                        <div class="col-md-6 mb-3"><label class="form-label">Fornitore</label><select
+                                class="form-select" id="order-supplier-select" required></select></div>
+                        <div class="col-md-3 mb-3"><label class="form-label">Data Ordine</label><input type="date"
+                                class="form-control" id="order-supplier-date" required></div>
+                        <div class="col-md-3 mb-3"><label class="form-label">Numero Ordine</label><input type="text"
+                                class="form-control" id="order-supplier-number" readonly></div>
+                    </div>
+                    <hr>
+                    <h5>Aggiungi Prodotti</h5>
+                    <div class="row align-items-end g-3">
+                        <div class="col-md-5"><label class="form-label">Prodotto</label><select class="form-select"
+                                id="order-supplier-product-select"></select></div>
+                        <div class="col-md-2"><label class="form-label">Quantit&agrave;</label><input type="number"
+                                class="form-control" id="order-supplier-product-qty" value="1" min="1"></div>
+                        <div class="col-md-2"><label class="form-label">Prezzo Acq.</label><input type="number"
+                                step="0.01" class="form-control" id="order-supplier-product-price"></div>
+                        <div class="col-md-3"><button type="button" class="btn btn-secondary"
+                                id="add-product-to-supplier-order-btn">Aggiungi Riga</button></div>
+                    </div>
+                    <table class="table mt-4">
+                        <thead>
+                            <tr>
+                                <th>Prodotto</th>
+                                <th>Qt&agrave;</th>
+                                <th>Prezzo</th>
+                                <th>Subtotale</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="supplier-order-lines-tbody"></tbody>
+                    </table>
+                    <div class="text-end">
+                        <h3>Totale: <span id="supplier-order-total">? 0.00</span></h3>
+                    </div><button type="submit" class="btn btn-primary mt-3">Salva Ordine Fornitore</button>
+                </form>
+            </div>
+            <div id="elenco-ordini-fornitore" class="content-section d-none">
+                <h2>Elenco Ordini Fornitori</h2>
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Numero</th>
+                            <th>Data</th>
+                            <th>Fornitore</th>
+                            <th>Importo</th>
+                            <th>Stato</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="supplier-orders-table-body"></tbody>
+                </table>
+            </div>
+            <div id="nuovo-ddt-fornitore" class="content-section d-none">
+                <h2>Nuovo DDT Fornitore (Merce in Entrata)</h2>
+                <form id="new-supplier-ddt-form">
+                    <div class="row">
+                        <div class="col-md-6 mb-3"><label class="form-label"><strong>Seleziona Ordine Fornitore da
+                                    Ricevere</strong></label><select class="form-select" id="ddt-supplier-order-select"
+                                required>
+                                <option selected disabled value="">Seleziona un ordine...</option>
+                            </select></div>
+                    </div>
+                    <div id="ddt-supplier-details-section" class="d-none">
+                        <hr>
+                        <div class="row">
+                            <div class="col-md-6 mb-3"><label>Fornitore</label><input type="text" id="ddt-supplier-name"
+                                    class="form-control" readonly></div>
+                            <div class="col-md-3 mb-3"><label>Numero DDT Fornitore</label><input type="text"
+                                    id="ddt-supplier-number" class="form-control" placeholder="Numero del documento"
+                                    required></div>
+                            <div class="col-md-3 mb-3"><label>Data DDT Fornitore</label><input type="date"
+                                    class="form-control" id="ddt-supplier-date" required></div>
+                        </div>
+                        <h5>Prodotti da Ricevere</h5>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Prodotto</th>
+                                    <th>Qt&agrave; Ordinata</th>
+                                    <th>Qt&agrave; Residua</th>
+                                    <th><strong>Qt&agrave; Ricevuta</strong></th>
+                                </tr>
+                            </thead>
+                            <tbody id="ddt-supplier-products-tbody"></tbody>
+                        </table><button type="submit" class="btn btn-primary">Registra Merce in Entrata</button>
+                    </div>
+                </form>
+            </div>
+            <div id="elenco-ddt-fornitore" class="content-section d-none">
+                <h2>Elenco DDT Fornitori Ricevuti</h2>
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Numero DDT</th>
+                            <th>Data DDT</th>
+                            <th>Fornitore</th>
+                            <th>Destinatario</th>
+                            <th>Rif. Nostro Ordine</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="supplier-ddts-table-body"></tbody>
+                </table>
+            </div>
+            <div id="anagrafica-azienda" class="content-section d-none">
+                <h2>Anagrafica Azienda</h2>
+                <p>Questi dati verranno usati nell'intestazione dei documenti e in altre parti del gestionale.</p>
+                <form id="company-info-form" class="mt-4">
+                    <div class="row">
+                        <div class="col-md-6 mb-3"><label for="company-name" class="form-label">Ragione
+                                Sociale</label><input type="text" class="form-control" id="company-name" required></div>
+                        <div class="col-md-6 mb-3"><label for="company-address" class="form-label">Indirizzo (Via e
+                                numero)</label><input type="text" class="form-control" id="company-address"></div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3"><label for="company-city"
+                                class="form-label">Citt&agrave;</label><input type="text" class="form-control"
+                                id="company-city"></div>
+                        <div class="col-md-3 mb-3"><label for="company-zip" class="form-label">CAP</label><input
+                                type="text" class="form-control" id="company-zip"></div>
+                        <div class="col-md-3 mb-3"><label for="company-province" class="form-label">Provincia (es.
+                                TO)</label><input type="text" class="form-control" id="company-province"></div>
+                    </div><button type="submit" class="btn btn-primary mt-3"><i class="fas fa-save"></i> Salva Dati
+                        Azienda</button>
+                </form>
+            </div>
+            <div id="anagrafica-utenti" class="content-section d-none">
+                <h2>Anagrafica Utenti <button class="btn btn-success float-end" data-bs-toggle="modal"
+                        data-bs-target="#userModal" id="newUserBtn"><i class="fas fa-plus"></i> Nuovo Utente</button>
+                </h2>
+                <p>Il **Cognome** e la **Password** sono usati per il Login.</p>
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Cognome (Login)</th>
+                            <th>Nome</th>
+                            <th>Ruolo</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-table-body"></tbody>
+                </table>
+            </div>
+            <div id="avanzate" class="content-section d-none">
+                <h2>Operazioni Avanzate sul Database Locale</h2>
+                <p>Usa queste funzioni per salvare, ripristinare o cancellare lo stato del gestionale.</p>
+                <div class="card mt-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Invia Dati per Revisione</h5>
+                        <p class="card-text">Invia una copia di tutti i dati del gestionale al docente per la verifica degli esercizi.</p>
+                        <button class="btn btn-success" id="send-data-btn"><i class="fas fa-paper-plane"></i> Invia Dati</button>
+                    </div>
+                </div>
+                <div class="card mt-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Esporta Dati</h5>
+                        <p class="card-text">Salva tutti i dati attuali in un file <code>.json</code> sul tuo computer.
+                        </p><button class="btn btn-info" id="export-data-btn"><i class="fas fa-download"></i> Esporta
+                            Dati</button>
+                    </div>
+                </div>
+                <div class="card mt-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Importa Dati</h5>
+                        <p class="card-text">Carica un file <code>.json</code> di backup. <strong>Attenzione:</strong>
+                            sovrascriver&agrave; tutti i dati attuali.</p><label for="import-file-input"
+                            class="btn btn-warning"><i class="fas fa-upload"></i> Seleziona File per
+                            l'Importazione</label><input type="file" id="import-file-input" class="d-none"
+                            accept=".json">
+                    </div>
+                </div>
+                <div class="card mt-4 bg-light border-danger">
+                    <div class="card-body">
+                        <h5 class="card-title text-danger">Zona Pericolosa</h5>
+                        <p class="card-text">Questa operazione canceller&agrave; permanentemente tutti i dati del
+                            gestionale dal tuo browser.</p><button class="btn btn-danger" id="delete-all-data-btn"><i
+                                class="fas fa-trash-alt"></i> Cancella Tutti i Dati</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Utente -->
+    <div class="modal fade" id="userModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="userModalTitle">Nuovo Utente</h5><button type="button" class="btn-close"
+                        data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="userForm"><input type="hidden" id="user-id">
+                        <div class="mb-3"><label class="form-label">Cognome (Login)</label><input type="text"
+                                class="form-control" id="user-surname" required></div>
+                        <div class="mb-3"><label class="form-label">Nome</label><input type="text" class="form-control"
+                                id="user-name" required></div>
+                        <div class="mb-3"><label class="form-label">Password</label>
+                            <div class="input-group"><input type="password" class="form-control" id="user-password"
+                                    required><button class="btn btn-outline-secondary" type="button"
+                                    id="togglePassword"><i class="fas fa-eye"></i></button></div>
+                        </div>
+                        <div class="mb-3"><label class="form-label">Ruolo</label><select class="form-select"
+                                id="user-role">
+                                <option value="User">User</option>
+                                <option value="Supervisor">Supervisor</option>
+                                <option value="Admin">Admin</option>
+                            </select></div>
+                    </form>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary"
+                        data-bs-dismiss="modal">Annulla</button><button type="button" class="btn btn-primary"
+                        id="saveUserBtn">Salva Utente</button></div>
+            </div>
+        </div>
+    </div>
+    <!-- (Altri Modal) -->
+    <div class="modal fade" id="customerModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="customerModalTitle">Nuovo Cliente</h5><button type="button"
+                        class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="customerForm"><input type="hidden" id="customer-id">
+                        <div class="mb-3"><label class="form-label">Ragione Sociale</label><input type="text"
+                                class="form-control" id="customer-name" required></div>
+                        <div class="mb-3"><label class="form-label">Partita IVA</label><input type="text"
+                                class="form-control" id="customer-piva"></div>
+                        <div class="mb-3"><label class="form-label">Indirizzo</label><input type="text"
+                                class="form-control" id="customer-address"></div>
+                    </form>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary"
+                        data-bs-dismiss="modal">Annulla</button><button type="button" class="btn btn-primary"
+                        id="saveCustomerBtn">Salva Cliente</button></div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="supplierModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="supplierModalTitle">Nuovo Fornitore</h5><button type="button"
+                        class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="supplierForm"><input type="hidden" id="supplier-id">
+                        <div class="mb-3"><label class="form-label">Ragione Sociale</label><input type="text"
+                                class="form-control" id="supplier-name" required></div>
+                        <div class="mb-3"><label class="form-label">Partita IVA</label><input type="text"
+                                class="form-control" id="supplier-piva"></div>
+                        <div class="mb-3"><label class="form-label">Indirizzo</label><input type="text"
+                                class="form-control" id="supplier-address"></div>
+                    </form>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary"
+                        data-bs-dismiss="modal">Annulla</button><button type="button" class="btn btn-primary"
+                        id="saveSupplierBtn">Salva Fornitore</button></div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="productModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="productModalTitle">Nuovo Prodotto</h5><button type="button"
+                        class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="productForm"><input type="hidden" id="product-id">
+                        <div class="row">
+                            <div class="col-md-8 mb-3"><label class="form-label">Descrizione</label><input type="text"
+                                    class="form-control" id="product-description" required></div>
+                            <div class="col-md-4 mb-3"><label class="form-label">Codice</label><input type="text"
+                                    class="form-control" id="product-code" required></div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-3"><label class="form-label">Prezzo Acquisto</label><input
+                                    type="number" step="0.01" class="form-control" id="product-purchase-price"></div>
+                            <div class="col-md-4 mb-3"><label class="form-label">Prezzo Vendita</label><input
+                                    type="number" step="0.01" class="form-control" id="product-sale-price"></div>
+                            <div class="col-md-4 mb-3"><label class="form-label">Aliquota I.V.A.</label><select
+                                    class="form-select" id="product-iva">
+                                    <option value="22">22%</option>
+                                    <option value="10">10%</option>
+                                    <option value="5">5%</option>
+                                    <option value="4">4%</option>
+                                </select></div>
+                        </div>
+                        <hr>
+                        <h6 class="mb-3">Collocazione a Magazzino</h6>
+                        <div class="row">
+                            <div class="col-md-4 mb-3"><label class="form-label">Corsia</label><input type="text"
+                                    class="form-control" id="product-loc-corsia"></div>
+                            <div class="col-md-4 mb-3"><label class="form-label">Scaffale</label><input type="text"
+                                    class="form-control" id="product-loc-scaffale"></div>
+                            <div class="col-md-4 mb-3"><label class="form-label">Piano</label><input type="text"
+                                    class="form-control" id="product-loc-piano"></div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary"
+                        data-bs-dismiss="modal">Annulla</button><button type="button" class="btn btn-primary"
+                        id="saveProductBtn">Salva Prodotto</button></div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="ddtDetailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header no-print">
+                    <h5 class="modal-title" id="ddtDetailModalTitle">Dettaglio DDT Cliente</h5><button type="button"
+                        class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="ddtDetailModalBody"></div>
+                <div class="modal-footer no-print">
+                    <button type="button" class="btn btn-primary" id="print-ddt-btn"><i class="fas fa-print"></i> Stampa</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="supplierDdtDetailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="supplierDdtDetailModalTitle">Dettaglio DDT Fornitore</h5><button
+                        type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="supplierDdtDetailModalBody"></div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary"
+                        data-bs-dismiss="modal">Chiudi</button></div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="customerOrderDetailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="customerOrderDetailModalTitle">Dettaglio Ordine Cliente</h5><button
+                        type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="customerOrderDetailModalBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger me-auto" id="delete-customer-order-btn">Elimina Ordine</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="supplierOrderDetailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="supplierOrderDetailModalTitle">Dettaglio Ordine Fornitore</h5><button
+                        type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="supplierOrderDetailModalBody"></div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary"
+                        data-bs-dismiss="modal">Chiudi</button></div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="invoiceDetailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header no-print">
+                    <h5 class="modal-title" id="invoiceDetailModalTitle">Dettaglio Fattura</h5><button type="button" class="btn-close"
+                        data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="invoiceDetailModalBody"></div>
+                <div class="modal-footer no-print">
+                    <button type="button" class="btn btn-primary" id="print-invoice-btn"><i class="fas fa-print"></i> Stampa</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        <!-- Pulsante Help: apre il manuale in una nuova scheda -->
+    <button id="help-btn" class="btn btn-info rounded-pill shadow-sm">
+        <i class="fas fa-question me-1"></i> Help (F1)
+    </button>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>
