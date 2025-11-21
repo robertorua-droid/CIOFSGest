@@ -89,3 +89,8 @@ Il pulsante **Help (F1)** apre in una **nuova scheda** il manuale utente, con co
 
 Carica tutti questi file in una cartella (ad esempio in un repository GitHub),
 apri `index.html` con un browser moderno e il gestionale &egrave; pronto per l'uso.
+
+
+### Novità
+- Badge di stato con tooltip (ordini, DDT, fatture)
+- Benvenuto in home con Nome Cognome sincronizzato

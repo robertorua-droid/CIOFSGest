@@ -1,1625 +1,1205 @@
-$(document).ready(function() {
+/* Gestionale Magazzino Didattico – Versione OL
+ * JS principale
+ * - Persistenza: LocalStorage (chiave: 'gestionale_ol_db')
+ * - Librerie: jQuery, Bootstrap 5, Chart.js, jsPDF
+ */
 
-    // VARIABILE GLOBALE PER L'UTENTE LOGGATO
-    let currentUser = null; 
-    let dateTimeInterval = null; // Per l'orologio
-    let isSetupMode = false; // Modalità setup iniziale (admin/gestionale unico utente)
+(function() {
+  'use strict';
 
-    // --- DATABASE LOCALE (LOCAL STORAGE) ---
-    const DB_KEYS = ['companyInfo', 'products', 'customers', 'suppliers', 'customerOrders', 'customerDdts', 'supplierOrders', 'supplierDdts', 'users', 'invoices', 'notes'];
+  const DB_KEY = 'gestionale_ol_db';
+  const VERSION = 'OL 0.15.12';
+  const FORMSPREE_ENDPOINT = 'https://formspree.io/f/xwpagyqy';
 
-    // Funzione per controllare e creare i dati di esempio all'avvio, PRIMA del login
-    function checkAndSeedData() {
-        if (!localStorage.getItem('companyInfo')) { // Usa companyInfo come indicatore di prima installazione
-            console.log("Creazione dati di esempio nel Local Storage...");
-            const sampleData = {
-                companyInfo: { name: "NAXSO BBT S.R.L.", address: "Via L. Einaudi, 6", city: "Rivalta di Torino", zip: "10040", province: "TO" },
-                products: [
-                    { id: 'PRD1', code: 'Inchiostro', description: 'Inchiostro per biro', purchasePrice: 2.50, salePrice: 5.00, iva: 22, corsia: 'A', scaffale: '12', piano: '3', giacenza: 150 },
-                    { id: 'PRD2', code: 'Fusto', description: 'Fusto per biro', purchasePrice: 0.80, salePrice: 1.50, iva: 22, corsia: 'A', scaffale: '12', piano: '3', giacenza: 500 },
-                    { id: 'PRD3', code: 'Tappino', description: 'Tappino posteriore per biro', purchasePrice: 0.10, salePrice: 0.30, iva: 10, corsia: 'B', scaffale: '02', piano: '1', giacenza: 1200 },
-                    { id: 'PRD4', code: 'PRD002', description: 'Prodotto 002', purchasePrice: 12.00, salePrice: 17.00, iva: 22, corsia: '', scaffale: '', piano: '', giacenza: 45 }
-                ],
-                customers: [ { id: 1, name: 'Lavorazioni Meccaniche SAS', piva: '01122334455', address: 'Via Cagliari 32, 10100 Torino (TO)'}, { id: 2, name: 'Rossi S.p.A.', piva: '09988776655', address: 'Via Roma 1, 10123 Torino (TO)'}, ],
-                suppliers: [ { id: 1, name: 'Euroliquidi 2000', piva: '06382641006', address: 'Via Garibaldi, 76, 06024 Gubbio (PG)' }, { id: 2, name: 'Multitech SNC', piva: '00488410010', address: 'Via Po, 2, 10099 San Maruto Torinese (TO)' } ],
-                users: [ { id: 1, surname: 'admin', name: 'Amministratore', password: 'gestionale', role: 'Admin' } ]
-            };
-            DB_KEYS.forEach(key => localStorage.setItem(key, JSON.stringify(sampleData[key] || [])));
-        }
+  // Stato runtime
+  let db = null;
+  let currentUser = null;
+  let isSetupMode = false; // attivo solo se login con admin/gestionale ed è l'unico utente
+
+  // --- Utility ---
+  function loadDB() {
+    const raw = localStorage.getItem(DB_KEY);
+    if (raw) {
+      try { db = JSON.parse(raw); }
+      catch(e) { console.error('DB corrotto, ripristino struttura vuota', e); db = freshDB(); saveDB(); }
+    } else {
+      db = freshDB();
+      saveDB();
     }
-
-    checkAndSeedData(); // Esegui il controllo all'avvio dell'applicazione
-
-    // Prefill login al primo accesso con le credenziali di emergenza admin/gestionale
-    (function prefillLoginIfFirstAccess() {
-        const usersRaw = localStorage.getItem('users');
-        let users = [];
-        if (usersRaw) {
-            try {
-                users = JSON.parse(usersRaw) || [];
-            } catch (e) {
-                users = [];
-            }
-        }
-        // Se non ci sono utenti, crea l'admin di emergenza
-        if (!users || users.length === 0) {
-            const adminUser = { id: 1, surname: 'admin', name: 'Amministratore', password: 'gestionale', role: 'Admin' };
-            users = [adminUser];
-            localStorage.setItem('users', JSON.stringify(users));
-            console.log("Creato utente admin/gestionale di emergenza (nessun utente presente).");
-        }
-        // Se esiste solo l'utente admin/gestionale, precompila i campi di login
-        if (users.length === 1 && users[0].surname && users[0].surname.toLowerCase() === 'admin' && users[0].password === 'gestionale') {
-            $('#username').val('admin');
-            $('#password').val('gestionale');
-        }
-    })();
-
-    function initializeApp() {
-        // Mostra la nuova home page di default
-        $('.content-section').addClass('d-none');
-        $('#home').removeClass('d-none');
-        $('.sidebar .nav-link').removeClass('active');
-        $('.sidebar .nav-link[data-target="home"]').addClass('active');
-        
-        renderAll();
+    // Se non ci sono utenti, crea admin/gestionale
+    if (!db.users || db.users.length === 0) {
+      db.users = [{ id: 1, surname: 'admin', name: 'Amministratore', password: 'gestionale', role: 'Admin' }];
+      saveDB();
     }
-
-    function getData(key) { return JSON.parse(localStorage.getItem(key)) || []; }
-    function saveData(key, data) { localStorage.setItem(key, JSON.stringify(data)); }
-    function getNextId(items) { return items.length > 0 ? Math.max(...items.map(i => i.id)) + 1 : 1; }
-
-    // --- RENDERIZZAZIONE ---
-    function renderAll() {
-        renderCompanyInfoForm(); 
-        updateCompanyUI(); 
-        renderProductsTable(); 
-        renderCustomersTable(); 
-        renderSuppliersTable();
-        renderInventoryTable(); 
-        renderCustomerOrdersTable(); 
-        renderCustomerDdtsTable(); 
-        renderSupplierOrdersTable(); 
-        renderSupplierDdtsTable();
-        renderUsersTable(); 
-        renderInvoicesTable();
-        populateDropdowns(); 
-        renderStatisticsPage();
-        renderHomePage();
-        updateMenuVisibility();
-        applySetupModeMenu();
-    }
-
-    function updateCompanyUI() { 
-        const company = getData('companyInfo'); 
-        if(company.name) $('#company-name-sidebar').text(company.name);
-        
-        if(currentUser) {
-            $('#user-name-sidebar').text('Utente: ' + currentUser.surname);
-        } else {
-            $('#user-name-sidebar').text('');
-        }
-        $('#version-sidebar').text('(Release 1.0.14.11.25)');
-    }
-
-    function renderCompanyInfoForm() { const company = getData('companyInfo'); $('#company-name').val(company.name); $('#company-address').val(company.address); $('#company-city').val(company.city); $('#company-zip').val(company.zip); $('#company-province').val(company.province); }
-    function renderProductsTable() { 
-        const products = getData('products'); 
-        const tableBody = $('#products-table-body').empty(); 
-        products.forEach(p => { 
-            const purchasePrice = p.purchasePrice ? `€ ${p.purchasePrice.toFixed(2)}` : '-';
-            const salePrice = p.salePrice ? `€ ${p.salePrice.toFixed(2)}` : '-';
-            const location = `${p.corsia || '-'} / ${p.scaffale || '-'} / ${p.piano || '-'}`; 
-            tableBody.append(`<tr>
-                <td>${p.code}</td>
-                <td>${p.description}</td>
-                <td>${purchasePrice}</td>
-                <td>${salePrice}</td>
-                <td>${location}</td>
-                <td><strong>${p.giacenza || 0}</strong></td>
-                <td><button class="btn btn-sm btn-primary btn-edit-product" data-id="${p.id}"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-danger btn-delete-product" data-id="${p.id}"><i class="fas fa-trash"></i></button></td>
-            </tr>`); 
-        }); 
-    }
-    function renderInventoryTable() { const products = getData('products'); const tableBody = $('#inventory-table-body').empty(); products.forEach(p => { const location = `${p.corsia || '-'} / ${p.scaffale || '-'} / ${p.piano || '-'}`; tableBody.append(`<tr><td>${p.code}</td><td>${p.description}</td><td>${location}</td><td><strong>${p.giacenza || 0}</strong></td></tr>`); }); }
-    function renderCustomersTable() { const customers = getData('customers'); const tableBody = $('#customers-table-body').empty(); customers.forEach(c => tableBody.append(`<tr><td>${c.id}</td><td>${c.name}</td><td>${c.piva}</td><td>${c.address}</td><td><button class="btn btn-sm btn-primary btn-edit-customer" data-id="${c.id}"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-danger btn-delete-customer" data-id="${c.id}"><i class="fas fa-trash"></i></button></td></tr>`)); }
-    function renderSuppliersTable() { const suppliers = getData('suppliers'); const tableBody = $('#suppliers-table-body').empty(); suppliers.forEach(s => tableBody.append(`<tr><td>${s.id}</td><td>${s.name}</td><td>${s.piva}</td><td>${s.address}</td><td><button class="btn btn-sm btn-primary btn-edit-supplier" data-id="${s.id}"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-danger btn-delete-supplier" data-id="${s.id}"><i class="fas fa-trash"></i></button></td></tr>`)); }
-    function renderCustomerOrdersTable() { const orders = getData('customerOrders'); const customers = getData('customers'); const tableBody = $('#customer-orders-table-body').empty(); orders.forEach(o => { const customer = customers.find(c => c.id == o.customerId) || { name: 'Sconosciuto' }; let statusBadge; if (o.status === 'In lavorazione') statusBadge = `<span class="badge bg-warning text-dark">${o.status}</span>`; else if (o.status === 'Parzialmente Evaso') statusBadge = `<span class="badge bg-info">${o.status}</span>`; else if (o.status === 'Evaso') statusBadge = `<span class="badge bg-success">${o.status}</span>`; tableBody.append(`<tr><td>${o.number}</td><td>${o.date}</td><td>${customer.name}</td><td>€ ${o.total.toFixed(2)}</td><td>${statusBadge}</td><td><button class="btn btn-sm btn-info btn-view-customer-order" data-id="${o.id}" data-bs-toggle="modal" data-bs-target="#customerOrderDetailModal">Visualizza</button></td></tr>`); }); }
-    function renderCustomerDdtsTable() { 
-        const ddts = getData('customerDdts'); 
-        const customers = getData('customers'); 
-        const tableBody = $('#customer-ddts-table-body').empty(); 
-        ddts.forEach(d => { 
-            const customer = customers.find(c => c.id == d.customerId) || { name: 'Sconosciuto' }; 
-            const status = d.status === 'Fatturato' ? `<span class="badge bg-success">${d.status}</span>` : `<span class="badge bg-secondary">${d.status}</span>`; 
-            let actions = `<button class="btn btn-sm btn-secondary btn-view-ddt" data-id="${d.id}" data-bs-toggle="modal" data-bs-target="#ddtDetailModal">Visualizza</button>`;
-            if (currentUser && (currentUser.role === 'Admin' || currentUser.role === 'Supervisor')) {
-                actions += ` <button class="btn btn-sm btn-danger btn-delete-ddt" data-id="${d.id}"><i class="fas fa-trash"></i></button>`;
-            }
-            tableBody.append(`<tr><td>${d.number}</td><td>${d.date}</td><td>${customer.name}</td><td>${d.orderNumber}</td><td>${status}</td><td>${actions}</td></tr>`); 
-        }); 
-    }
-    function renderSupplierOrdersTable() { const orders = getData('supplierOrders'); const suppliers = getData('suppliers'); const tableBody = $('#supplier-orders-table-body').empty(); orders.forEach(o => { const supplier = suppliers.find(s => s.id == o.supplierId) || { name: 'Sconosciuto' }; let statusBadge; if (o.status === 'Inviato') statusBadge = `<span class="badge bg-primary">${o.status}</span>`; else if (o.status === 'Parzialmente Ricevuto') statusBadge = `<span class="badge bg-info">${o.status}</span>`; else if (o.status === 'Ricevuto') statusBadge = `<span class="badge bg-success">${o.status}</span>`; tableBody.append(`<tr><td>${o.number}</td><td>${o.date}</td><td>${supplier.name}</td><td>€ ${o.total.toFixed(2)}</td><td>${statusBadge}</td><td><button class="btn btn-sm btn-info btn-view-supplier-order" data-id="${o.id}" data-bs-toggle="modal" data-bs-target="#supplierOrderDetailModal">Visualizza</button></td></tr>`); }); }
-    function renderSupplierDdtsTable() { const ddts = getData('supplierDdts'); const suppliers = getData('suppliers'); const company = getData('companyInfo'); const tableBody = $('#supplier-ddts-table-body').empty(); ddts.forEach(d => { const supplier = suppliers.find(s => s.id == d.supplierId) || { name: 'Sconosciuto' }; const destination = `${company.name}<br><small>${company.address}, ${company.zip} ${company.city} (${company.province})</small>`; tableBody.append(`<tr><td>${d.number}</td><td>${d.date}</td><td>${supplier.name}</td><td>${destination}</td><td>${d.orderNumber}</td><td><button class="btn btn-sm btn-secondary btn-view-supplier-ddt" data-id="${d.id}" data-bs-toggle="modal" data-bs-target="#supplierDdtDetailModal">Visualizza</button></td></tr>`); }); }
-    function renderUsersTable() { const users = getData('users'); const tableBody = $('#users-table-body').empty(); users.forEach(u => tableBody.append(`<tr><td>${u.id}</td><td>${u.surname}</td><td>${u.name}</td><td>${u.role}</td><td><button class="btn btn-sm btn-primary btn-edit-user" data-id="${u.id}"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-danger btn-delete-user" data-id="${u.id}"><i class="fas fa-trash"></i></button></td></tr>`)); }
-    
-    function renderInvoicesTable() { 
-        const invoices = getData('invoices'); 
-        const customers = getData('customers'); 
-        const tableBody = $('#invoices-table-body').empty(); 
-        invoices.forEach(inv => { 
-            const customer = customers.find(c => c.id == inv.customerId) || { name: 'Sconosciuto' }; 
-            let actions = `<button class="btn btn-sm btn-info btn-view-invoice" data-id="${inv.id}" data-bs-toggle="modal" data-bs-target="#invoiceDetailModal">Dettagli</button>`;
-            if (currentUser && (currentUser.role === 'Admin' || currentUser.role === 'Supervisor')) {
-                actions += ` <button class="btn btn-sm btn-danger btn-delete-invoice" data-id="${inv.id}"><i class="fas fa-trash"></i></button>`;
-            }
-            tableBody.append(`<tr><td>${inv.number}</td><td>${inv.date}</td><td>${customer.name}</td><td>€ ${inv.total.toFixed(2)}</td><td>${actions}</td></tr>`); 
-        }); 
-    }
-
-    // --- LOGIN E NAVIGAZIONE ---
-    $('#login-form').on('submit', function(e) {
-        e.preventDefault();
-        const username = $('#username').val();
-        const password = $('#password').val();
-        
-        let users = getData('users');
-        if (users.length === 0) { 
-            const adminUser = { id: 1, surname: 'admin', name: 'Amministratore', password: 'gestionale', role: 'Admin' };
-            users = [adminUser];
-            saveData('users', users);
-            console.log("Anagrafica utenti vuota. Creato utente admin di default.");
-        }
-        
-        const user = users.find(u => u.surname.toLowerCase() === username.toLowerCase() && u.password === password);
-
-        if (user) {
-            currentUser = user; 
-
-            // Modalità di primo avvio: se esiste solo l'utente admin/gestionale creato di default
-            const isDefaultAdmin = user.surname && user.surname.toLowerCase() === 'admin' && user.password === 'gestionale';
-            const onlyOneUser = users.length === 1;
-            isSetupMode = isDefaultAdmin && onlyOneUser;
-
-            $('#login-container').addClass('d-none');
-            $('#main-app').removeClass('d-none');
-            initializeApp();
-        } else {
-            $('#error-message').removeClass('d-none');
-        }
-    });
-    $('#logout-btn').on('click', function(e) { 
-        e.preventDefault(); 
-        currentUser = null; 
-        if (dateTimeInterval) clearInterval(dateTimeInterval);
-        location.reload(); 
-    });
-    $('.sidebar .nav-link').on('click', function(e) {
-        if ($(this).attr('id') === 'logout-btn') return;
-        e.preventDefault();
-        $('.sidebar .nav-link').removeClass('active');
-        $(this).addClass('active');
-        $('.content-section').addClass('d-none');
-        $('#' + $(this).data('target')).removeClass('d-none');
-    });
-
-    function updateMenuVisibility() {
-        if (currentUser && currentUser.role === 'User') {
-            $('#menu-nuovo-ordine-cliente, #menu-nuovo-ordine-fornitore').hide();
-            $('#menu-anagrafica-clienti, #menu-anagrafica-fornitori, #menu-anagrafica-azienda').hide();
-            $('#menu-fatturazione, #menu-elenco-fatture').hide();
-        } else {
-            $('#menu-nuovo-ordine-cliente, #menu-nuovo-ordine-fornitore').show();
-            $('#menu-anagrafica-clienti, #menu-anagrafica-fornitori, #menu-anagrafica-azienda').show();
-            $('#menu-fatturazione, #menu-elenco-fatture').show();
-        }
-    }
-
-    // --- MENU DI PRIMO AVVIO (SETUP) ---
-    function applySetupModeMenu() {
-        if (!isSetupMode) {
-            return;
-        }
-
-        // Nascondi tutte le voci del menu
-        $('.sidebar .nav-item').hide();
-
-        // Mostra Home
-        $('.sidebar .nav-link[data-target="home"]').closest('.nav-item').show();
-
-        // Mostra sezione "Impostazioni"
-        $('.sidebar .nav-section-title').filter(function() {
-            return $(this).text().trim().toLowerCase() === 'impostazioni';
-        }).closest('.nav-item').show();
-
-        // Mostra le tre voci: Anagrafica Azienda, Anagrafica Utenti, Avanzate
-        $('#menu-anagrafica-azienda').show();
-        $('.sidebar .nav-link[data-target="anagrafica-utenti"]').closest('.nav-item').show();
-        $('.sidebar .nav-link[data-target="avanzate"]').closest('.nav-item').show();
-
-        // Mostra Logout
-        $('#logout-btn').closest('.nav-item').show();
-    }
-
-    // --- FILTRI DI RICERCA ANAGRAFICHE ---
-    function applySearchFilter(inputSelector, tableBodySelector) {
-        $(inputSelector).on('keyup', function() {
-            const term = $(this).val().toLowerCase();
-            $(`${tableBodySelector} tr`).each(function() {
-                const rowText = $(this).text().toLowerCase();
-                $(this).toggle(rowText.indexOf(term) !== -1);
-            });
-        });
-    }
-
-    applySearchFilter('#customer-search-input', '#customers-table-body');
-    applySearchFilter('#supplier-search-input', '#suppliers-table-body');
-    applySearchFilter('#product-search-input', '#products-table-body');
-
-    // --- CRUD ANAGRAFICHE ---
-    function prepareNewItemModal(type) {
-        const form = $(`#${type}Form`);
-        if (form.length) form[0].reset();
-        $(`#${type}-id`).val('');
-        $(`#${type}ModalTitle`).text(`Nuovo ${type.charAt(0).toUpperCase() + type.slice(1)}`);
-        if (type === 'user') {
-            $('#togglePassword i').removeClass('fa-eye-slash').addClass('fa-eye');
-            $('#user-password').attr('type', 'password');
-        }
-    }
-
-    function editItem(type, id) {
-        const items = getData(`${type}s`);
-        const item = items.find(i => i.id == id);
-        if (!item) return;
-
-        prepareNewItemModal(type);
-        $(`#${type}ModalTitle`).text(`Modifica ${type.charAt(0).toUpperCase() + type.slice(1)}`);
-
-        for (const key in item) {
-            if (Object.prototype.hasOwnProperty.call(item, key)) {
-                const field = $(`#${type}-${key}`);
-                if (field.length) {
-                    field.val(item[key]);
-                }
-            }
-        }
-
-        if (type === 'product') {
-            $('#product-purchase-price').val(item.purchasePrice);
-            $('#product-sale-price').val(item.salePrice);
-            $('#product-loc-corsia').val(item.corsia);
-            $('#product-loc-scaffale').val(item.scaffale);
-            $('#product-loc-piano').val(item.piano);
-        }
-
-        $(`#${type}-id`).val(item.id);
-        $(`#${type}Modal`).modal('show');
-    }
-
-    function deleteItem(type, id) {
-        const typePlural = `${type}s`;
-        const items = getData(typePlural);
-        const item = items.find(i => i.id == id);
-        if (!item) return;
-
-        const itemName = item.name || item.description || item.surname;
-        if (confirm(`Sei sicuro di voler eliminare "${itemName}"?`)) {
-            const updatedItems = items.filter(i => i.id != id);
-            saveData(typePlural, updatedItems);
-            
-            switch(type) {
-                case 'product': renderProductsTable(); renderInventoryTable(); populateDropdowns(); break;
-                case 'customer': renderCustomersTable(); populateDropdowns(); break;
-                case 'supplier': renderSuppliersTable(); populateDropdowns(); break;
-                case 'user': renderUsersTable(); break;
-            }
-        }
-    }
-
-    ['product', 'customer', 'supplier', 'user'].forEach(type => {
-        $(`#new${type.charAt(0).toUpperCase() + type.slice(1)}Btn`).on('click', function() {
-            prepareNewItemModal(type);
-        });
-
-        $(`#save${type.charAt(0).toUpperCase() + type.slice(1)}Btn`).on('click', function() {
-            const typePlural = `${type}s`;
-            let items = getData(typePlural);
-            const id = $(`#${type}-id`).val();
-            
-            let itemData = {};
-            if (type === 'product') {
-                itemData = {
-                    code: $('#product-code').val(),
-                    description: $('#product-description').val(),
-                    purchasePrice: parseFloat($('#product-purchase-price').val()) || 0,
-                    salePrice: parseFloat($('#product-sale-price').val()) || 0,
-                    iva: parseInt($('#product-iva').val()) || 22,
-                    corsia: $('#product-loc-corsia').val(),
-                    scaffale: $('#product-loc-scaffale').val(),
-                    piano: $('#product-loc-piano').val(),
-                };
-            } else if (type === 'customer') {
-                itemData = { name: $('#customer-name').val(), piva: $('#customer-piva').val(), address: $('#customer-address').val() };
-            } else if (type === 'supplier') {
-                itemData = { name: $('#supplier-name').val(), piva: $('#supplier-piva').val(), address: $('#supplier-address').val() };
-            } else if (type === 'user') {
-                itemData = { surname: $('#user-surname').val(), name: $('#user-name').val(), password: $('#user-password').val(), role: $('#user-role').val() };
-            }
-
-            if (id) {
-                const index = items.findIndex(i => i.id == id);
-                if (index > -1) {
-                    items[index] = { ...items[index], ...itemData };
-                }
-            } else {
-                if (type === 'product') {
-                    let maxIdNum = 0;
-                    items.forEach(p => {
-                        const numId = parseInt(String(p.id).replace('PRD', ''));
-                        if (!isNaN(numId) && numId > maxIdNum) maxIdNum = numId;
-                    });
-                    itemData.id = 'PRD' + (maxIdNum + 1);
-                    itemData.giacenza = 0;
-                } else {
-                    itemData.id = getNextId(items);
-                }
-                items.push(itemData);
-            }
-
-            saveData(typePlural, items);
-
-            switch(type) {
-                case 'product': renderProductsTable(); renderInventoryTable(); populateDropdowns(); break;
-                case 'customer': renderCustomersTable(); populateDropdowns(); break;
-                case 'supplier': renderSuppliersTable(); populateDropdowns(); break;
-                case 'user': renderUsersTable(); break;
-            }
-            $(`#${type}Modal`).modal('hide');
-        });
-
-        const tableBodyId = `#${type}s-table-body`;
-        $(tableBodyId).on('click', `.btn-edit-${type}`, function() { editItem(type, $(this).data('id')); });
-        $(tableBodyId).on('click', `.btn-delete-${type}`, function() { deleteItem(type, $(this).data('id')); });
-    });
-
-    $('#togglePassword').on('click', function() {
-        const passwordField = $('#user-password');
-        const type = passwordField.attr('type') === 'password' ? 'text' : 'password';
-        passwordField.attr('type', type);
-        $(this).find('i').toggleClass('fa-eye fa-eye-slash');
-    });
-
-    // --- HOME PAGE ---
-    function renderHomePage() {
-        if(currentUser) {
-            $('#welcome-message').text(`Benvenuto, ${currentUser.name} ${currentUser.surname}`);
-        }
-        
-        function updateDateTime() {
-            const now = new Date();
-            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
-            $('#current-datetime').text(now.toLocaleDateString('it-IT', options));
-        }
-        
-        if (dateTimeInterval) clearInterval(dateTimeInterval);
-        updateDateTime();
-        dateTimeInterval = setInterval(updateDateTime, 1000);
-
-        renderCalendar();
-        loadUserNotes();
-    }
-
-    function renderCalendar() {
-        const calendarWidget = $('#calendar-widget');
-        const now = new Date();
-        const month = now.getMonth();
-        const year = now.getFullYear();
-        const today = now.getDate();
-    
-        const firstDay = new Date(year, month, 1);
-        const lastDay = new Date(year, month + 1, 0);
-    
-        const monthName = firstDay.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
-        
-        let html = `<h5 class="text-center">${monthName}</h5>`;
-        html += '<table class="table table-bordered">';
-        html += '<thead><tr><th>Dom</th><th>Lun</th><th>Mar</th><th>Mer</th><th>Gio</th><th>Ven</th><th>Sab</th></tr></thead>';
-        html += '<tbody><tr>';
-    
-        let dayOfWeek = firstDay.getDay();
-        for (let i = 0; i < dayOfWeek; i++) {
-            html += '<td></td>';
-        }
-    
-        for (let day = 1; day <= lastDay.getDate(); day++) {
-            if (dayOfWeek === 7) {
-                dayOfWeek = 0;
-                html += '</tr><tr>';
-            }
-            const isToday = (day === today) ? ' class="today"' : '';
-            html += `<td${isToday}>${day}</td>`;
-            dayOfWeek++;
-        }
-    
-        for (let i = dayOfWeek; i < 7; i++) {
-            html += '<td></td>';
-        }
-    
-        html += '</tr></tbody></table>';
-        calendarWidget.html(html);
-    }
-    
-    function loadUserNotes() {
-        if (!currentUser) return;
-        const notes = getData('notes');
-        const userNote = notes.find(note => note.userId === currentUser.id);
-        if (userNote) {
-            $('#notes-textarea').val(userNote.text);
-        } else {
-            $('#notes-textarea').val('');
-        }
-    }
-
-    $('#save-notes-btn').on('click', function() {
-        if (!currentUser) return;
-        let notes = getData('notes');
-        const noteText = $('#notes-textarea').val();
-        const userNoteIndex = notes.findIndex(note => note.userId === currentUser.id);
-
-        if (userNoteIndex > -1) {
-            notes[userNoteIndex].text = noteText;
-        } else {
-            notes.push({ userId: currentUser.id, text: noteText });
-        }
-        saveData('notes', notes);
-        alert("Appunti salvati!");
-    });
-
-
-    // --- MOVIMENTI MAGAZZINO ---
-    $('#manual-load-form').on('submit', function(e) {
-        e.preventDefault();
-        const productId = $('#load-product-select').val();
-        const qty = parseInt($('#load-product-qty').val());
-        
-        if(!productId || !qty || qty <= 0) {
-            alert("Seleziona un prodotto e inserisci una quantità valida.");
-            return;
-        }
-
-        let products = getData('products');
-        const productIndex = products.findIndex(p => p.id === productId);
-        if(productIndex > -1) {
-            products[productIndex].giacenza = (products[productIndex].giacenza || 0) + qty;
-            saveData('products', products);
-            alert(`Caricati ${qty} pz di "${products[productIndex].description}". Nuova giacenza: ${products[productIndex].giacenza}`);
-            renderInventoryTable();
-            renderProductsTable();
-            $(this)[0].reset();
-        }
-    });
-
-    $('#manual-unload-form').on('submit', function(e) {
-        e.preventDefault();
-        const productId = $('#unload-product-select').val();
-        const qty = parseInt($('#unload-product-qty').val());
-
-        if(!productId || !qty || qty <= 0) {
-            alert("Seleziona un prodotto e inserisci una quantità valida.");
-            return;
-        }
-
-        let products = getData('products');
-        const productIndex = products.findIndex(p => p.id === productId);
-        if(productIndex > -1) {
-            if((products[productIndex].giacenza || 0) < qty) {
-                alert("Errore: Giacenza insufficiente per effettuare lo scarico.");
-                return;
-            }
-            products[productIndex].giacenza -= qty;
-            saveData('products', products);
-            alert(`Scaricati ${qty} pz di "${products[productIndex].description}". Nuova giacenza: ${products[productIndex].giacenza}`);
-            renderInventoryTable();
-            renderProductsTable();
-            $(this)[0].reset();
-        }
-    });
-
-    $('#stock-query-product-select').on('change', function() {
-        const productId = $(this).val();
-        const resultCard = $('#stock-query-result');
-
-        if (!productId) {
-            resultCard.addClass('d-none');
-            return;
-        }
-
-        const products = getData('products');
-        const product = products.find(p => p.id === productId);
-
-        if (product) {
-            $('#stock-query-product-name').text(`${product.code} - ${product.description}`);
-            $('#stock-query-qty').text(product.giacenza || 0);
-            const location = `${product.corsia || '-'} / ${product.scaffale || '-'} / ${product.piano || '-'}`;
-            $('#stock-query-location').text(location);
-            resultCard.removeClass('d-none');
-        } else {
-            resultCard.addClass('d-none');
-        }
-    });
-    
-    // --- CICLO ATTIVO (CLIENTI) ---
-    let currentOrderLines = [];
-
-    function updateOrderTotal() {
-        const total = currentOrderLines.reduce((sum, line) => sum + line.subtotal, 0);
-        $('#order-total').text(`€ ${total.toFixed(2)}`);
-    }
-
-    function renderOrderLines() {
-        const tbody = $('#order-lines-tbody').empty();
-        currentOrderLines.forEach((line, index) => {
-            tbody.append(`<tr>
-                <td>${line.productName}</td>
-                <td>${line.qty}</td>
-                <td>€ ${line.price.toFixed(2)}</td>
-                <td>€ ${line.subtotal.toFixed(2)}</td>
-                <td><button type="button" class="btn btn-sm btn-danger remove-order-line" data-index="${index}"><i class="fas fa-times"></i></button></td>
-            </tr>`);
-        });
-        updateOrderTotal();
-    }
-
-    $('#order-product-select').on('change', function() {
-        const productId = $(this).val();
-        if (!productId) {
-            $('#order-product-price').val('');
-            return;
-        }
-        const products = getData('products');
-        const product = products.find(p => p.id === productId);
-        if (product) {
-            $('#order-product-price').val(product.salePrice.toFixed(2));
-        }
-    });
-
-    $('#add-product-to-order-btn').on('click', function() {
-        const productId = $('#order-product-select').val();
-        const qty = parseInt($('#order-product-qty').val());
-        let price = parseFloat($('#order-product-price').val());
-        const products = getData('products');
-        const product = products.find(p => p.id === productId);
-
-        if (!product || !qty || qty <= 0) {
-            alert("Selezionare un prodotto e una quantità valida.");
-            return;
-        }
-        if (isNaN(price)) price = product.salePrice;
-
-        currentOrderLines.push({
-            productId: product.id,
-            productName: `${product.code} - ${product.description}`,
-            qty,
-            price,
-            subtotal: qty * price
-        });
-        renderOrderLines();
-
-        $('#order-product-qty').val(1);
-        $('#order-product-price').val('');
-        $('#order-product-select').val('');
-    });
-    
-    $('#order-lines-tbody').on('click', '.remove-order-line', function() {
-        const index = $(this).data('index');
-        currentOrderLines.splice(index, 1);
-        renderOrderLines();
-    });
-
-    $('#new-customer-order-form').on('submit', function(e) {
-        e.preventDefault();
-        const customerId = $('#order-customer-select').val();
-        if (!customerId || currentOrderLines.length === 0) {
-            alert("Selezionare un cliente e aggiungere almeno un prodotto all'ordine.");
-            return;
-        }
-
-        let orders = getData('customerOrders');
-        const total = currentOrderLines.reduce((sum, line) => sum + line.subtotal, 0);
-        const newOrder = {
-            id: getNextId(orders),
-            number: $('#order-customer-number').val(),
-            date: $('#order-customer-date').val(),
-            customerId: customerId,
-            lines: currentOrderLines,
-            total: total,
-            status: 'In lavorazione',
-        };
-        newOrder.lines.forEach(l => l.qtyEvasa = 0); 
-
-        orders.push(newOrder);
-        saveData('customerOrders', orders);
-
-        alert(`Ordine ${newOrder.number} salvato con successo!`);
-        currentOrderLines = [];
-        renderOrderLines();
-        $(this)[0].reset();
-        populateDropdowns();
-        renderCustomerOrdersTable();
-    });
-
-    $('#customer-orders-table-body').on('click', '.btn-view-customer-order', function() {
-        const orderId = $(this).data('id');
-        const orders = getData('customerOrders');
-        const order = orders.find(o => o.id == orderId);
-    
-        if (!order) {
-            alert("Ordine non trovato!");
-            return;
-        }
-
-        // Mostra o nascondi il pulsante elimina in base al ruolo
-        if (currentUser && currentUser.role === 'User') {
-            $('#delete-customer-order-btn').hide();
-        } else {
-            $('#delete-customer-order-btn').show();
-        }
-    
-        const customers = getData('customers');
-        const customer = customers.find(c => c.id == order.customerId) || { name: 'Sconosciuto' };
-    
-        $('#customerOrderDetailModalTitle').text(`Dettaglio Ordine N° ${order.number}`);
-    
-        let modalBodyHtml = `
-            <div class="row mb-3">
-                <div class="col-md-6"><strong>Cliente:</strong> ${customer.name}</div>
-                <div class="col-md-6"><strong>Data Ordine:</strong> ${order.date}</div>
-            </div>
-            <h5>Riepilogo Prodotti</h5>
-            <table class="table table-sm">
-                <thead><tr><th>Prodotto</th><th>Quantità</th><th>Prezzo Unitario</th><th>Subtotale</th></tr></thead>
-                <tbody>`;
-    
-        order.lines.forEach(line => {
-            modalBodyHtml += `
-                <tr>
-                    <td>${line.productName}</td>
-                    <td>${line.qty}</td>
-                    <td>€ ${line.price.toFixed(2)}</td>
-                    <td>€ ${line.subtotal.toFixed(2)}</td>
-                </tr>`;
-        });
-    
-        modalBodyHtml += `
-                </tbody>
-                <tfoot>
-                    <tr>
-                        <th colspan="3" class="text-end">Totale Ordine:</th>
-                        <th>€ ${order.total.toFixed(2)}</th>
-                    </tr>
-                </tfoot>
-            </table>
-            <div class="mt-3"><strong>Stato Ordine:</strong> ${order.status}</div>`;
-    
-        $('#customerOrderDetailModalBody').html(modalBodyHtml);
-        $('#delete-customer-order-btn').data('order-id', orderId); 
-    });
-
-    $('#delete-customer-order-btn').on('click', function() {
-        const orderId = $(this).data('order-id');
-        if (!orderId) return;
-
-        if (confirm("Sei sicuro di voler eliminare questo ordine? L'operazione non è reversibile.")) {
-            let orders = getData('customerOrders');
-            const updatedOrders = orders.filter(o => o.id != orderId);
-            saveData('customerOrders', updatedOrders);
-
-            $('#customerOrderDetailModal').modal('hide');
-            renderCustomerOrdersTable();
-            populateDropdowns();
-            alert("Ordine eliminato con successo.");
-        }
-    });
-
-    $('#ddt-order-select').on('change', function() {
-        const orderId = $(this).val();
-        const ddtSection = $('#ddt-details-section');
-        if (!orderId) {
-            ddtSection.addClass('d-none');
-            return;
-        }
-    
-        const orders = getData('customerOrders');
-        const order = orders.find(o => o.id == orderId);
-        const customers = getData('customers');
-        const customer = customers.find(c => c.id == order.customerId);
-    
-        $('#ddt-customer-name').val(customer.name);
-        $('#ddt-number').val('DDT-' + (getData('customerDdts').length + 1));
-        $('#ddt-date').val(new Date().toISOString().slice(0, 10));
-    
-        const tbody = $('#ddt-products-tbody').empty();
-        order.lines.forEach(line => {
-            const qtyResidua = line.qty - (line.qtyEvasa || 0);
-            if (qtyResidua > 0) {
-                tbody.append(`
-                    <tr>
-                        <td>${line.productName}</td>
-                        <td>${line.qty}</td>
-                        <td>${qtyResidua}</td>
-                        <td><input type="number" class="form-control form-control-sm ddt-ship-qty" 
-                                   min="0" max="${qtyResidua}" value="${qtyResidua}" 
-                                   data-product-id="${line.productId}" data-line-index="${order.lines.indexOf(line)}"></td>
-                    </tr>
-                `);
-            }
-        });
-    
-        ddtSection.removeClass('d-none');
-    });
-
-    $('#new-customer-ddt-form').on('submit', function(e) {
-        e.preventDefault();
-        const orderId = $('#ddt-order-select').val();
-        if (!orderId) return;
-    
-        let orders = getData('customerOrders');
-        const orderIndex = orders.findIndex(o => o.id == orderId);
-        if (orderIndex === -1) return;
-    
-        const ddtLines = [];
-        let isAnyProductShipped = false;
-    
-        $('.ddt-ship-qty').each(function() {
-            const qtyToShip = parseInt($(this).val());
-            if (qtyToShip > 0) {
-                isAnyProductShipped = true;
-                const lineIndex = $(this).data('line-index');
-                const originalLine = orders[orderIndex].lines[lineIndex];
-                
-                ddtLines.push({
-                    productId: originalLine.productId,
-                    productName: originalLine.productName,
-                    qty: qtyToShip,
-                    price: originalLine.price,
-                    subtotal: qtyToShip * originalLine.price
-                });
-                
-                orders[orderIndex].lines[lineIndex].qtyEvasa = (orders[orderIndex].lines[lineIndex].qtyEvasa || 0) + qtyToShip;
-            }
-        });
-    
-        if (!isAnyProductShipped) {
-            alert("Nessun prodotto selezionato per la spedizione. Inserire una quantità maggiore di zero.");
-            return;
-        }
-    
-        let totalQtyOrdered = orders[orderIndex].lines.reduce((sum, l) => sum + l.qty, 0);
-        let totalQtyShipped = orders[orderIndex].lines.reduce((sum, l) => sum + (l.qtyEvasa || 0), 0);
-    
-        if (totalQtyShipped >= totalQtyOrdered) {
-            orders[orderIndex].status = 'Evaso';
-        } else {
-            orders[orderIndex].status = 'Parzialmente Evaso';
-        }
-        saveData('customerOrders', orders);
-    
-        let ddts = getData('customerDdts');
-        const newDdt = {
-            id: getNextId(ddts),
-            number: $('#ddt-number').val(),
-            date: $('#ddt-date').val(),
-            customerId: orders[orderIndex].customerId,
-            orderNumber: orders[orderIndex].number,
-            lines: ddtLines,
-            status: 'Da Fatturare',
-            aspettoBeni: $('#ddt-aspetto-beni').val(),
-            numColli: $('#ddt-num-colli').val(),
-            peso: $('#ddt-peso').val(),
-            vettore: $('#ddt-vettore').val(),
-            dataTrasporto: $('#ddt-data-trasporto').val(),
-            dataRicezione: $('#ddt-data-ricezione').val()
-        };
-        ddts.push(newDdt);
-        saveData('customerDdts', ddts);
-    
-        let products = getData('products');
-        ddtLines.forEach(line => {
-            const productIndex = products.findIndex(p => p.id === line.productId);
-            if (productIndex !== -1) {
-                products[productIndex].giacenza -= line.qty;
-            }
-        });
-        saveData('products', products);
-    
-        alert(`DDT ${newDdt.number} generato con successo!`);
-        $(this)[0].reset();
-        $('#ddt-details-section').addClass('d-none');
-        renderAll();
-    });
-
-    $('#customer-ddts-table-body').on('click', '.btn-view-ddt', function() {
-        const ddtId = $(this).data('id');
-        const ddts = getData('customerDdts');
-        const ddt = ddts.find(d => d.id == ddtId);
-
-        if (!ddt) {
-            alert("DDT non trovato!");
-            return;
-        }
-
-        const customers = getData('customers');
-        const customer = customers.find(c => c.id == ddt.customerId) || { name: 'Sconosciuto' };
-
-        $('#ddtDetailModalTitle').text(`Dettaglio DDT N° ${ddt.number}`);
-
-        let modalBodyHtml = `
-            <div class="row mb-3">
-                <div class="col-md-6"><strong>Cliente:</strong> ${customer.name}</div>
-                <div class="col-md-3"><strong>Data DDT:</strong> ${ddt.date}</div>
-                <div class="col-md-3"><strong>Rif. Ordine:</strong> ${ddt.orderNumber}</div>
-            </div>
-            <div class="row mb-3">
-                <div class="col-md-3"><strong>Aspetto Beni:</strong> ${ddt.aspettoBeni || '-'}</div>
-                <div class="col-md-3"><strong>Num. Colli:</strong> ${ddt.numColli || '-'}</div>
-                <div class="col-md-3"><strong>Peso:</strong> ${ddt.peso || '-'}</div>
-                <div class="col-md-3"><strong>Vettore:</strong> ${ddt.vettore || '-'}</div>
-            </div>
-            <div class="row mb-3">
-                <div class="col-md-6"><strong>Data Inizio Trasporto:</strong> ${ddt.dataTrasporto || '-'}</div>
-                <div class="col-md-6"><strong>Data Ricezione:</strong> ${ddt.dataRicezione || '-'}</div>
-            </div>
-            <h5 class="mt-4">Prodotti Spediti</h5>
-            <table class="table table-sm">
-                <thead><tr><th>Prodotto</th><th>Quantità</th><th>Prezzo Unitario</th><th>Subtotale</th></tr></thead>
-                <tbody>`;
-
-        ddt.lines.forEach(line => {
-            modalBodyHtml += `
-                <tr>
-                    <td>${line.productName}</td>
-                    <td>${line.qty}</td>
-                    <td>€ ${line.price.toFixed(2)}</td>
-                    <td>€ ${line.subtotal.toFixed(2)}</td>
-                </tr>`;
-        });
-        
-        const total = ddt.lines.reduce((sum, line) => sum + line.subtotal, 0);
-
-        modalBodyHtml += `
-                </tbody>
-                <tfoot>
-                    <tr>
-                        <th colspan="3" class="text-end">Totale Imponibile:</th>
-                        <th>€ ${total.toFixed(2)}</th>
-                    </tr>
-                </tfoot>
-            </table>
-            <div class="mt-3"><strong>Stato DDT:</strong> ${ddt.status}</div>`;
-
-        $('#ddtDetailModalBody').html(modalBodyHtml);
-    });
-    
-    $('#customer-ddts-table-body').on('click', '.btn-delete-ddt', function() {
-        const ddtId = $(this).data('id');
-        if (!ddtId) return;
-    
-        let ddts = getData('customerDdts');
-        const ddtIndex = ddts.findIndex(d => d.id == ddtId);
-        if (ddtIndex === -1) return;
-    
-        const ddtToDelete = ddts[ddtIndex];
-    
-        if (ddtToDelete.status === 'Fatturato') {
-            alert("Impossibile eliminare un DDT che è già stato fatturato. Eliminare prima la fattura corrispondente.");
-            return;
-        }
-    
-        if (confirm(`Sei sicuro di voler eliminare il DDT N° ${ddtToDelete.number}? L'operazione ripristinerà le giacenze e lo stato dell'ordine collegato.`)) {
-            // 1. Ripristina giacenze
-            let products = getData('products');
-            ddtToDelete.lines.forEach(line => {
-                const productIndex = products.findIndex(p => p.id === line.productId);
-                if (productIndex !== -1) {
-                    products[productIndex].giacenza += line.qty;
-                }
-            });
-            saveData('products', products);
-    
-            // 2. Aggiorna stato ordine
-            let orders = getData('customerOrders');
-            const orderIndex = orders.findIndex(o => o.number === ddtToDelete.orderNumber);
-            if (orderIndex !== -1) {
-                ddtToDelete.lines.forEach(ddtLine => {
-                    const orderLine = orders[orderIndex].lines.find(ol => ol.productId === ddtLine.productId);
-                    if (orderLine) {
-                        orderLine.qtyEvasa = (orderLine.qtyEvasa || 0) - ddtLine.qty;
-                    }
-                });
-    
-                let totalQtyShipped = orders[orderIndex].lines.reduce((sum, l) => sum + (l.qtyEvasa || 0), 0);
-                if (totalQtyShipped <= 0) {
-                    orders[orderIndex].status = 'In lavorazione';
-                } else {
-                    orders[orderIndex].status = 'Parzialmente Evaso';
-                }
-                saveData('customerOrders', orders);
-            }
-    
-            // 3. Elimina DDT
-            ddts.splice(ddtIndex, 1);
-            saveData('customerDdts', ddts);
-    
-            alert("DDT eliminato con successo.");
-            renderAll();
-        }
-    });
-
-    $('#print-ddt-btn').on('click', function() {
-        window.print();
-    });
-
-    function populateDropdowns() {
-        const customers = getData('customers');
-        const suppliers = getData('suppliers');
-        const products = getData('products');
-        const productOptions = products.map(p => `<option value="${p.id}">${p.code} - ${p.description}</option>`).join('');
-        
-        $('#order-customer-select, #invoice-customer-select').empty().append('<option selected disabled value="">Seleziona...</option>').append(customers.map(c => `<option value="${c.id}">${c.name}</option>`));
-        $('#order-product-select, #load-product-select, #unload-product-select, #stock-query-product-select, #order-supplier-product-select').empty().append('<option selected disabled value="">Seleziona...</option>').append(productOptions);
-        
-        $('#order-customer-number').val('ORD-C-' + (getData('customerOrders').length + 1));
-        $('#order-customer-date').val(new Date().toISOString().slice(0, 10));
-        
-        const openOrders = getData('customerOrders').filter(o => o.status === 'In lavorazione' || o.status === 'Parzialmente Evaso');
-        $('#ddt-order-select').empty().append('<option selected disabled value="">Seleziona un ordine...</option>').append(openOrders.map(o => { const c = customers.find(c => c.id == o.customerId); return `<option value="${o.id}">${o.number} - ${c.name}</option>`; }));
-        
-        $('#order-supplier-select').empty().append('<option selected disabled value="">Seleziona...</option>').append(suppliers.map(s => `<option value="${s.id}">${s.name}</option>`));
-        $('#order-supplier-number').val('ORD-F-' + (getData('supplierOrders').length + 1));
-        $('#order-supplier-date').val(new Date().toISOString().slice(0, 10));
-        
-        const openSupplierOrders = getData('supplierOrders').filter(o => o.status === 'Inviato' || o.status === 'Parzialmente Ricevuto');
-        $('#ddt-supplier-order-select').empty().append('<option selected disabled value="">Seleziona...</option>').append(openSupplierOrders.map(o => { const s = suppliers.find(s => s.id == o.supplierId); return `<option value="${o.id}">${o.number} - ${s.name}</option>`; }));
-    }
-    
-    // --- FATTURAZIONE ---
-    $('#invoice-customer-select').on('change', function() {
-        const customerId = $(this).val();
-        const ddts = getData('customerDdts');
-        const ddtsToInvoice = ddts.filter(d => d.customerId == customerId && d.status === 'Da Fatturare');
-        
-        const listContainer = $('#invoice-ddt-list').empty();
-        $('#invoice-preview-section').addClass('d-none');
-        $('#generate-invoice-preview-btn').show();
-
-        if (ddtsToInvoice.length > 0) {
-            ddtsToInvoice.forEach(d => {
-                listContainer.append(`<div class="form-check"><input class="form-check-input ddt-to-invoice-check" type="checkbox" value="${d.id}" id="ddt-check-${d.id}"><label class="form-check-label" for="ddt-check-${d.id}">DDT N° ${d.number} del ${d.date}</label></div>`);
-            });
-        } else {
-            listContainer.html('<div class="alert alert-warning">Non ci sono DDT da fatturare per il cliente selezionato.</div>');
-            $('#generate-invoice-preview-btn').hide();
-        }
-        $('#invoice-ddt-section').removeClass('d-none');
-    });
-    
-    $('#generate-invoice-preview-btn').on('click', function() {
-        const selectedDdtIds = $('.ddt-to-invoice-check:checked').map(function() {
-            return $(this).val();
-        }).get();
-    
-        if (selectedDdtIds.length === 0) {
-            alert("Selezionare almeno un DDT da fatturare.");
-            return;
-        }
-    
-        const allDdts = getData('customerDdts');
-        const products = getData('products');
-        const customers = getData('customers');
-        const customerId = $('#invoice-customer-select').val();
-        const customer = customers.find(c => c.id == customerId);
-    
-        const ddtsToInvoice = allDdts.filter(d => selectedDdtIds.includes(String(d.id)));
-    
-        const invoiceLines = {};
-        ddtsToInvoice.forEach(ddt => {
-            ddt.lines.forEach(line => {
-                const product = products.find(p => p.id === line.productId);
-                const iva = product ? product.iva : 22;
-                const key = `${line.productId}_${line.price}_${iva}`;
-    
-                if (!invoiceLines[key]) {
-                    invoiceLines[key] = {
-                        description: line.productName,
-                        qty: 0,
-                        price: line.price,
-                        iva: iva,
-                        imponibile: 0
-                    };
-                }
-                invoiceLines[key].qty += line.qty;
-                invoiceLines[key].imponibile += line.subtotal;
-            });
-        });
-        
-        const previewTbody = $('#invoice-preview-lines-tbody').empty();
-        Object.values(invoiceLines).forEach(line => {
-            previewTbody.append(`
-                <tr>
-                    <td>${line.description}</td>
-                    <td>${line.qty}</td>
-                    <td>€ ${line.price.toFixed(2)}</td>
-                    <td>€ ${line.imponibile.toFixed(2)}</td>
-                    <td>${line.iva}%</td>
-                </tr>
-            `);
-        });
-    
-        const summary = {};
-        let totalImponibile = 0;
-        Object.values(invoiceLines).forEach(line => {
-            if (!summary[line.iva]) {
-                summary[line.iva] = { imponibile: 0, imposta: 0 };
-            }
-            summary[line.iva].imponibile += line.imponibile;
-            totalImponibile += line.imponibile;
-        });
-        
-        let totalImposta = 0;
-        let summaryHtml = '<table class="table table-sm">';
-        for (const iva in summary) {
-            summary[iva].imposta = summary[iva].imponibile * (iva / 100);
-            totalImposta += summary[iva].imposta;
-            summaryHtml += `
-                <tr><td>Imponibile ${iva}%</td><td class="text-end">€ ${summary[iva].imponibile.toFixed(2)}</td></tr>
-                <tr><td>IVA ${iva}%</td><td class="text-end">€ ${summary[iva].imposta.toFixed(2)}</td></tr>
-            `;
-        }
-        summaryHtml += `
-            <tr class="fw-bold fs-5">
-                <td>Totale Fattura</td>
-                <td class="text-end">€ ${(totalImponibile + totalImposta).toFixed(2)}</td>
-            </tr>
-        </table>`;
-        $('#invoice-summary').html(summaryHtml);
-    
-        $('#invoice-preview-customer').val(customer.name);
-        $('#invoice-preview-number').val('FATT-' + (getData('invoices').length + 1));
-        $('#invoice-preview-date').val(new Date().toISOString().slice(0, 10));
-    
-        $('#confirm-invoice-btn').data('invoiceData', {
-            ddtIds: selectedDdtIds,
-            lines: Object.values(invoiceLines),
-            summary: summary,
-            total: totalImponibile + totalImposta,
-            customerId: customerId
-        });
-    
-        $('#invoice-preview-section').removeClass('d-none');
-    });
-    
-    $('#confirm-invoice-btn').on('click', function() {
-        const data = $(this).data('invoiceData');
-        if (!data) {
-            alert("Errore: dati fattura non trovati.");
-            return;
-        }
-    
-        let invoices = getData('invoices');
-        const newInvoice = {
-            id: getNextId(invoices),
-            number: $('#invoice-preview-number').val(),
-            date: $('#invoice-preview-date').val(),
-            customerId: data.customerId,
-            ddts: data.ddtIds,
-            lines: data.lines,
-            summary: data.summary,
-            total: data.total
-        };
-        invoices.push(newInvoice);
-        saveData('invoices', invoices);
-    
-        let allDdts = getData('customerDdts');
-        allDdts.forEach(ddt => {
-            if (data.ddtIds.includes(String(ddt.id))) {
-                ddt.status = 'Fatturato';
-            }
-        });
-        saveData('customerDdts', allDdts);
-        
-        alert(`Fattura ${newInvoice.number} creata con successo!`);
-        $('#invoice-customer-select').val('');
-        $('#invoice-ddt-section').addClass('d-none');
-        $('#invoice-preview-section').addClass('d-none');
-        renderInvoicesTable();
-        renderCustomerDdtsTable();
-    });
-
-    $('#invoices-table-body').on('click', '.btn-view-invoice', function() {
-        const invoiceId = $(this).data('id');
-        const invoices = getData('invoices');
-        const invoice = invoices.find(inv => inv.id == invoiceId);
-
-        if (!invoice) {
-            alert("Fattura non trovata!");
-            return;
-        }
-
-        const customers = getData('customers');
-        const customer = customers.find(c => c.id == invoice.customerId) || { name: 'Sconosciuto' };
-
-        $('#invoiceDetailModalTitle').text(`Dettaglio Fattura N° ${invoice.number}`);
-
-        const allDdts = getData('customerDdts');
-        const ddtNumbers = invoice.ddts.map(ddtId => {
-            const ddt = allDdts.find(d => d.id == ddtId);
-            return ddt ? ddt.number : `ID:${ddtId}`;
-        }).join(', ');
-
-        let modalBodyHtml = `
-            <div class="row mb-3">
-                <div class="col-md-6"><strong>Cliente:</strong> ${customer.name}</div>
-                <div class="col-md-3"><strong>Data Fattura:</strong> ${invoice.date}</div>
-                <div class="col-md-3"><strong>Numero:</strong> ${invoice.number}</div>
-            </div>
-            <p><strong>DDT Inclusi:</strong> ${ddtNumbers}</p>
-            <h5>Riepilogo Prodotti</h5>
-            <table class="table table-sm">
-                <thead>
-                    <tr>
-                        <th>Descrizione</th>
-                        <th>Quantità</th>
-                        <th>Prezzo Unitario</th>
-                        <th>Imponibile</th>
-                        <th>IVA</th>
-                    </tr>
-                </thead>
-                <tbody>`;
-
-        invoice.lines.forEach(line => {
-            modalBodyHtml += `
-                <tr>
-                    <td>${line.description}</td>
-                    <td>${line.qty}</td>
-                    <td>€ ${line.price.toFixed(2)}</td>
-                    <td>€ ${line.imponibile.toFixed(2)}</td>
-                    <td>${line.iva}%</td>
-                </tr>`;
-        });
-
-        modalBodyHtml += `</tbody></table>`;
-        
-        let summaryHtml = '<div class="row justify-content-end"><div class="col-md-6"><table class="table table-sm">';
-        summaryHtml += '<thead><tr><th>Riepilogo IVA</th><th class="text-end">Importo</th></tr></thead><tbody>'
-
-        let totalImponibileFattura = 0;
-        for (const iva in invoice.summary) {
-            totalImponibileFattura += invoice.summary[iva].imponibile;
-        }
-        summaryHtml += `<tr><td>Totale Imponibile</td><td class="text-end">€ ${totalImponibileFattura.toFixed(2)}</td></tr>`;
-        
-        for (const iva in invoice.summary) {
-            const imposta = invoice.summary[iva].imposta;
-            summaryHtml += `<tr><td>IVA ${iva}%</td><td class="text-end">€ ${imposta.toFixed(2)}</td></tr>`;
-        }
-
-        summaryHtml += `
-            <tr class="fw-bold fs-5 border-top">
-                <td>Totale Fattura</td>
-                <td class="text-end">€ ${invoice.total.toFixed(2)}</td>
-            </tr>
-        </tbody></table></div></div>`;
-
-        modalBodyHtml += summaryHtml;
-
-        $('#invoiceDetailModalBody').html(modalBodyHtml);
-    });
-
-    $('#invoices-table-body').on('click', '.btn-delete-invoice', function() {
-        const invoiceId = $(this).data('id');
-        if (!invoiceId) return;
-    
-        if (confirm("Sei sicuro di voler eliminare questa fattura? I DDT collegati torneranno allo stato 'Da Fatturare'.")) {
-            let invoices = getData('invoices');
-            const invoiceIndex = invoices.findIndex(inv => inv.id == invoiceId);
-            if (invoiceIndex === -1) return;
-    
-            const invoiceToDelete = invoices[invoiceIndex];
-            
-            // Ripristina lo stato dei DDT
-            let ddts = getData('customerDdts');
-            ddts.forEach(ddt => {
-                if (invoiceToDelete.ddts.includes(String(ddt.id))) {
-                    ddt.status = 'Da Fatturare';
-                }
-            });
-            saveData('customerDdts', ddts);
-    
-            // Elimina la fattura
-            invoices.splice(invoiceIndex, 1);
-            saveData('invoices', invoices);
-    
-            alert("Fattura eliminata con successo.");
-            renderInvoicesTable();
-            renderCustomerDdtsTable();
-        }
-    });
-
-    $('#print-invoice-btn').on('click', function() {
-        window.print();
-    });
-
-    // --- CICLO PASSIVO (FORNITORI) ---
-    let currentSupplierOrderLines = [];
-
-    function updateSupplierOrderTotal() {
-        const total = currentSupplierOrderLines.reduce((sum, line) => sum + line.subtotal, 0);
-        $('#supplier-order-total').text(`€ ${total.toFixed(2)}`);
-    }
-
-    function renderSupplierOrderLines() {
-        const tbody = $('#supplier-order-lines-tbody').empty();
-        currentSupplierOrderLines.forEach((line, index) => {
-            tbody.append(`<tr>
-                <td>${line.productName}</td>
-                <td>${line.qty}</td>
-                <td>€ ${line.price.toFixed(2)}</td>
-                <td>€ ${line.subtotal.toFixed(2)}</td>
-                <td><button type="button" class="btn btn-sm btn-danger remove-supplier-order-line" data-index="${index}"><i class="fas fa-times"></i></button></td>
-            </tr>`);
-        });
-        updateSupplierOrderTotal();
-    }
-
-    $('#add-product-to-supplier-order-btn').on('click', function() {
-        const productId = $('#order-supplier-product-select').val();
-        const qty = parseInt($('#order-supplier-product-qty').val());
-        let price = parseFloat($('#order-supplier-product-price').val());
-        const products = getData('products');
-        const product = products.find(p => p.id === productId);
-
-        if (!product || !qty || qty <= 0) {
-            alert("Selezionare un prodotto e una quantità valida.");
-            return;
-        }
-        if (isNaN(price)) price = product.purchasePrice;
-
-        currentSupplierOrderLines.push({
-            productId: product.id,
-            productName: `${product.code} - ${product.description}`,
-            qty,
-            price,
-            subtotal: qty * price
-        });
-        renderSupplierOrderLines();
-
-        $('#order-supplier-product-qty').val(1);
-        $('#order-supplier-product-price').val('');
-        $('#order-supplier-product-select').val('');
-    });
-
-    $('#supplier-order-lines-tbody').on('click', '.remove-supplier-order-line', function() {
-        const index = $(this).data('index');
-        currentSupplierOrderLines.splice(index, 1);
-        renderSupplierOrderLines();
-    });
-
-    $('#new-supplier-order-form').on('submit', function(e) {
-        e.preventDefault();
-        const supplierId = $('#order-supplier-select').val();
-        if (!supplierId || currentSupplierOrderLines.length === 0) {
-            alert("Selezionare un fornitore e aggiungere almeno un prodotto all'ordine.");
-            return;
-        }
-
-        let orders = getData('supplierOrders');
-        const total = currentSupplierOrderLines.reduce((sum, line) => sum + line.subtotal, 0);
-        const newOrder = {
-            id: getNextId(orders),
-            number: $('#order-supplier-number').val(),
-            date: $('#order-supplier-date').val(),
-            supplierId: supplierId,
-            lines: currentSupplierOrderLines,
-            total: total,
-            status: 'Inviato', // Stati possibili: Inviato, Parzialmente Ricevuto, Ricevuto
-            ricevuto: 0 
-        };
-
-        orders.push(newOrder);
-        saveData('supplierOrders', orders);
-
-        alert(`Ordine fornitore ${newOrder.number} salvato con successo!`);
-        currentSupplierOrderLines = [];
-        renderSupplierOrderLines();
-        $(this)[0].reset();
-        populateDropdowns();
-        renderSupplierOrdersTable();
-    });
-
-
-    // --- STATISTICHE ---
-    let statChart1Instance = null; 
-    let statChart2Instance = null;
-
-    function renderStatisticsPage() {
-        if (!currentUser) return;
-    
-        if (statChart1Instance) statChart1Instance.destroy();
-        if (statChart2Instance) statChart2Instance.destroy();
-    
-        if (currentUser.role === 'Admin' || currentUser.role === 'Supervisor') {
-            $('#chart1Title').text('Fatturato Ordini per Mese');
-            $('#chart2Title').text('Valore Ordini per Cliente');
-    
-            // Grafico 1: Fatturato Mensile
-            const orders = getData('customerOrders');
-            const monthlySales = {};
-            orders.forEach(o => {
-                const month = o.date.substring(0, 7);
-                if (!monthlySales[month]) monthlySales[month] = 0;
-                monthlySales[month] += o.total;
-            });
-            const salesLabels = Object.keys(monthlySales).sort();
-            const salesData = salesLabels.map(label => monthlySales[label]);
-            statChart1Instance = new Chart($('#statChart1'), { type: 'bar', data: { labels: salesLabels, datasets: [{ label: 'Fatturato Mensile (€)', data: salesData, backgroundColor: 'rgba(0, 123, 255, 0.5)' }] }, options: { scales: { y: { beginAtZero: true } } } });
-    
-            // Grafico 2: Valore per Cliente
-            const customers = getData('customers');
-            const salesByCustomer = {};
-            orders.forEach(o => {
-                const customer = customers.find(c => c.id == o.customerId);
-                const customerName = customer ? customer.name : 'Sconosciuto';
-                if (!salesByCustomer[customerName]) salesByCustomer[customerName] = 0;
-                salesByCustomer[customerName] += o.total;
-            });
-            const customerLabels = Object.keys(salesByCustomer);
-            const customerData = Object.values(salesByCustomer);
-            statChart2Instance = new Chart($('#statChart2'), { type: 'pie', data: { labels: customerLabels, datasets: [{ data: customerData }] } });
-    
-        } else { // User
-            $('#chart1Title').text('Top 5 Prodotti per Giacenza');
-            $('#chart2Title').text('Top 5 Prodotti in Esaurimento (scorta < 50)');
-    
-            const products = getData('products');
-    
-            // Grafico 1: Top 5 Giacenze
-            const sortedByStock = [...products].sort((a, b) => (b.giacenza || 0) - (a.giacenza || 0)).slice(0, 5);
-            const stockLabels = sortedByStock.map(p => p.description);
-            const stockData = sortedByStock.map(p => p.giacenza || 0);
-            statChart1Instance = new Chart($('#statChart1'), { type: 'bar', data: { labels: stockLabels, datasets: [{ label: 'Quantità in Giacenza', data: stockData, backgroundColor: 'rgba(40, 167, 69, 0.5)' }] }, options: { scales: { y: { beginAtZero: true } } } });
-    
-            // Grafico 2: Prodotti in esaurimento
-            const lowStockProducts = [...products].filter(p => (p.giacenza || 0) < 50 && (p.giacenza || 0) > 0).sort((a, b) => (a.giacenza || 0) - (b.giacenza || 0)).slice(0, 5);
-            const lowStockLabels = lowStockProducts.map(p => p.description);
-            const lowStockData = lowStockProducts.map(p => p.giacenza || 0);
-            statChart2Instance = new Chart($('#statChart2'), { type: 'doughnut', data: { labels: lowStockLabels, datasets: [{ data: lowStockData, backgroundColor: ['rgba(255, 193, 7, 0.5)', 'rgba(220, 53, 69, 0.5)'] }] } });
-        }
-    }
-
-    // --- IMPOSTAZIONI E AVANZATE ---
-    $('#send-data-btn').on('click', function() {
-        if (!currentUser) {
-            alert("Per inviare i dati devi essere loggato.");
-            return;
-        }
-        if (!confirm("Vuoi davvero inviare una copia dei dati al docente per la revisione?")) {
-            return;
-        }
-
-        const payload = {};
-        DB_KEYS.forEach(function(key) {
-            try {
-                payload[key] = JSON.parse(localStorage.getItem(key) || 'null');
-            } catch (e) {
-                payload[key] = null;
-            }
-        });
-
-        const formData = new FormData();
-        formData.append('subject', 'Invio dati gestionale magazzino didattico');
-        formData.append('user', currentUser.surname + ' ' + (currentUser.name || ''));
-        formData.append('role', currentUser.role);
-        formData.append('json', JSON.stringify(payload, null, 2));
-
-        fetch('https://formspree.io/f/xwpagyqy', {
-            method: 'POST',
-            headers: { 'Accept': 'application/json' },
-            body: formData
-        }).then(function(response) {
-            if (response.ok) {
-                alert("Dati inviati correttamente al docente.");
-            } else {
-                alert("Si è verificato un problema durante l'invio dei dati (codice " + response.status + ").");
-            }
-        }).catch(function(error) {
-            console.error("Errore durante l'invio dei dati per revisione:", error);
-            alert("Si è verificato un errore di rete durante l'invio dei dati.");
-        });
-    });
-
-    $('#export-data-btn').on('click', function() {
-        if (!currentUser) {
-            alert("Utente non riconosciuto. Impossibile esportare.");
-            return;
-        }
-    
-        const allData = {};
-        DB_KEYS.forEach(key => {
-            allData[key] = getData(key);
-        });
-    
-        const dataStr = JSON.stringify(allData, null, 2);
-        const dataBlob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(dataBlob);
-    
-        const a = document.createElement('a');
-        const today = new Date().toISOString().slice(0, 10);
-        a.download = `${currentUser.surname}_gestionale_backup_${today}.json`;
-        a.href = url;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        console.log("Dati esportati con successo.");
-    });
-    
-    $('#import-file-input').on('change', function(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-    
-        if (!confirm("ATTENZIONE: L'importazione sovrascriverà tutti i dati attuali. Vuoi continuare?")) {
-            $(this).val('');
-            return;
-        }
-    
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const importedData = JSON.parse(e.target.result);
-                let isValid = true;
-                DB_KEYS.forEach(key => {
-                    if (typeof importedData[key] === 'undefined') {
-                        isValid = false;
-                    }
-                });
-    
-                if (!isValid) {
-                    alert("Errore: Il file di importazione non è valido o è corrotto. La struttura non corrisponde a quella attesa.");
-                    return;
-                }
-    
-                DB_KEYS.forEach(key => {
-                    saveData(key, importedData[key]);
-                });
-    
-                alert("Dati importati con successo! L'applicazione verrà ricaricata.");
-                location.reload();
-    
-            } catch (error) {
-                alert("Errore durante la lettura del file. Assicurati che sia un file JSON valido.");
-                console.error("Errore importazione:", error);
-            } finally {
-                $('#import-file-input').val('');
-            }
-        };
-        reader.readAsText(file);
-    });
-    
-    $('#delete-all-data-btn').on('click', function() {
-        if (confirm("SEI ASSOLUTAMENTE SICURO? Questa operazione cancellerà PERMANENTEMENTE tutti i dati (clienti, prodotti, ordini, ecc.). L'operazione non è reversibile.")) {
-            if (confirm("ULTIMA CONFERMA: Sei sicuro di voler cancellare tutto?")) {
-                localStorage.clear();
-                alert("Tutti i dati sono stati cancellati. L'applicazione verrà ricaricata.");
-                location.reload();
-            }
-        }
-    });
-
-    // --- HELP ---
-    const helpManualContent = {
-        user: `
-            <h3>Capitolo 1: Guida per il Ruolo "User"</h3>
-            <p>Il ruolo "User" è pensato per un operatore di magazzino con accesso limitato alle sole funzioni di consultazione e gestione della merce.</p>
-            <h4>1.1 Home Page</h4>
-            <p>Dopo il login, verrai accolto da una pagina di benvenuto con il tuo nome. In questa pagina troverai un calendario e un block-notes personale dove salvare i tuoi appunti.</p>
-            <h4>1.2 Statistiche</h4>
-            <p>Questa pagina mostra grafici relativi alla situazione del magazzino: i prodotti con maggiore giacenza e quelli in esaurimento.</p>
-            <h4>1.3 Gestione Anagrafiche (Accesso Limitato)</h4>
-            <p>Puoi visualizzare l'elenco dei prodotti e degli utenti, ma non puoi crearne di nuovi.</p>
-            <h4>1.4 Gestione Magazzino</h4>
-            <p>Questa è la tua sezione principale. Puoi effettuare un <strong>Carico Manuale</strong> per aumentare la giacenza di un prodotto, o uno <strong>Scarico Manuale</strong> per diminuirla. Puoi anche consultare le <strong>Giacenze</strong> di un singolo prodotto o visualizzare l'<strong>Inventario</strong> completo.</p>
-            <h4>1.5 Ciclo Attivo e Passivo (Sola Visualizzazione)</h4>
-            <p>Puoi consultare tutti i documenti emessi (Ordini, DDT, Fatture) ma non puoi crearli, modificarli o eliminarli. I pulsanti per eliminare documenti non sono visibili.</p>
-        `,
-        full: `
-            <h3>Manuale Utente - Gestionale Magazzino Didattico (Release 1.0.14.11.25)</h3>
-            <h4>Introduzione</h4>
-            <p>Questo software è uno strumento educativo per simulare le principali operazioni di un'azienda. Funziona interamente nel browser e salva i dati localmente.</p>
-            <hr>
-            <h3>Capitolo 1: Guida per il Ruolo "User"</h3>
-            <p>Il ruolo "User" è pensato per un operatore di magazzino con accesso limitato alle sole funzioni di consultazione e gestione della merce.</p>
-            <h4>1.1 Home Page</h4>
-            <p>Dopo il login, verrai accolto da una pagina di benvenuto con il tuo nome. In questa pagina troverai un calendario e un block-notes personale dove salvare i tuoi appunti.</p>
-            <h4>1.2 Statistiche</h4>
-            <p>Questa pagina mostra grafici relativi alla situazione del magazzino: i prodotti con maggiore giacenza e quelli in esaurimento.</p>
-            <h4>1.3 Gestione Anagrafiche (Accesso Limitato)</h4>
-            <p>Puoi visualizzare l'elenco dei prodotti e degli utenti, ma non puoi crearne di nuovi.</p>
-            <h4>1.4 Gestione Magazzino</h4>
-            <p>Questa è la tua sezione principale. Puoi effettuare un <strong>Carico Manuale</strong> per aumentare la giacenza di un prodotto, o uno <strong>Scarico Manuale</strong> per diminuirla. Puoi anche consultare le <strong>Giacenze</strong> di un singolo prodotto o visualizzare l'<strong>Inventario</strong> completo.</p>
-            <h4>1.5 Ciclo Attivo e Passivo (Sola Visualizzazione)</h4>
-            <p>Puoi consultare tutti i documenti emessi (Ordini, DDT, Fatture) ma non puoi crearli, modificarli o eliminarli. I pulsanti per eliminare documenti non sono visibili.</p>
-            <hr>
-            <h3>Capitolo 2: Guida per i Ruoli "Supervisor" e "Admin"</h3>
-            <p>Questi ruoli hanno accesso completo a tutte le funzionalità operative.</p>
-            <h4>2.1 Statistiche</h4>
-            <p>La pagina delle statistiche è orientata alle vendite e mostra il fatturato mensile e il valore degli ordini per cliente.</p>
-            <h4>2.2 Gestione Anagrafiche (Accesso Completo)</h4>
-            <p>Puoi creare, modificare ed eliminare liberamente Clienti, Fornitori e Prodotti.</p>
-            <h4>2.3 Flusso di Vendita (Ciclo Attivo)</h4>
-            <ol>
-                <li><strong>Nuovo Ordine Cliente:</strong> Crea un nuovo ordine selezionando cliente e prodotti. L'ordine viene salvato in stato "In lavorazione".</li>
-                <li><strong>Nuovo DDT Cliente:</strong> Seleziona un ordine aperto per evaderlo. Questa operazione scala la giacenza a magazzino e aggiorna lo stato dell'ordine in "Parzialmente Evaso" o "Evaso". Il DDT viene creato come "Da Fatturare".</li>
-                <li><strong>Fatturazione:</strong> Seleziona un cliente e i suoi DDT "Da Fatturare" per creare una fattura. Una volta generata, i DDT vengono contrassegnati come "Fatturati".</li>
-            </ol>
-            <h4>2.4 Gestione dei Documenti (Eliminazione e Ripristino)</h4>
-            <ul>
-                <li><strong>Eliminare un Ordine:</strong> Dal dettaglio ordine, il pulsante "Elimina Ordine" lo rimuove permanentemente.</li>
-                <li><strong>Eliminare un DDT:</strong> Puoi eliminare solo DDT non fatturati. Questa azione ripristina la giacenza e lo stato dell'ordine collegato.</li>
-                <li><strong>Eliminare una Fattura:</strong> Questa azione cancella la fattura e riporta i DDT collegati allo stato "Da Fatturare".</li>
-            </ul>
-            <hr>
-            <h3>Capitolo 3: Funzionalità per l'Admin</h3>
-            <p>L'Admin ha tutti i permessi degli altri ruoli, con in più la gestione del sistema.</p>
-            <h4>3.1 Anagrafica Azienda</h4>
-            <p>In Impostazioni, puoi definire i dati della tua azienda.</p>
-            <h4>3.2 Anagrafica Utenti</h4>
-            <p>In Impostazioni, puoi creare, modificare ed eliminare gli account utente e assegnare i loro ruoli.</p>
-            <h4>3.3 Funzionalità Avanzate</h4>
-            <p>Permette di esportare (backup) e importare (ripristino) l'intero database dell'applicazione, oppure di cancellare tutti i dati per ricominciare da capo.</p>
-        `
+  }
+
+  function freshDB() {
+    return {
+      companyInfo: { name: '', address: '', city: '', zip: '', province: '' },
+      products: [],
+      customers: [],
+      suppliers: [],
+      customerOrders: [],
+      customerDdts: [],
+      supplierOrders: [],
+      supplierDdts: [],
+      invoices: [],
+      users: [],
+      notes: []
     };
+  }
 
-    function showHelp() {
-        if (!currentUser) return;
-        const helpContent = (currentUser.role === 'User') ? helpManualContent.user : helpManualContent.full;
-        const helpWindow = window.open('', '_blank');
-        if (!helpWindow) {
-            alert("Il browser ha bloccato l'apertura della nuova scheda. Controlla le impostazioni dei popup.");
-            return;
-        }
-        
-        helpWindow.document.write(`
-            <!DOCTYPE html>
-            <html lang="it">
-            <head>
-                <meta charset="UTF-8">
-                <title>Manuale Utente</title>
-                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-                <style>
-                    body { padding: 2rem; }
-                    h3 { color: #0d6efd; }
-                    hr { margin: 2rem 0; }
-                </style>
-            </head>
-            <body>
-                <div class="container-fluid">
-                    ${helpContent}
-                </div>
-            </body>
-            </html>
-        `);
-        helpWindow.document.close();
+  function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+
+  function fmtCurrency(n) { return '€ ' + (Number(n || 0)).toFixed(2); }
+
+  function todayStr() {
+    const d = new Date();
+    return d.toISOString().slice(0,10);
+  }
+
+  function nextSequential(prefix, list, field) {
+    let max = 0;
+    (list || []).forEach(x => {
+      const num = String(x[field] || '').replace(prefix+'-','').replace(prefix,'');
+      const v = parseInt(num,10);
+      if(!isNaN(v)) max = Math.max(max, v);
+    });
+    return `${prefix}-${max+1}`;
+  }
+
+  function showToast(message, type='info', delay=3000) {
+    const container = document.querySelector('.toast-container');
+    const id = 't'+Date.now();
+    // Bootstrap 5 toast markup
+    const bg = ({
+      success: 'text-bg-success',
+      danger: 'text-bg-danger',
+      warning: 'text-bg-warning',
+      info: 'text-bg-info'
+    })[type] || 'text-bg-secondary';
+
+    const html = `
+      <div id="${id}" class="toast align-items-center ${bg} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+          <div class="toast-body">${message}</div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+      </div>`;
+    container.insertAdjacentHTML('beforeend', html);
+    const toastEl = document.getElementById(id);
+    const toast = new bootstrap.Toast(toastEl, { delay });
+    toast.show();
+    toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+  }
+
+  function findCustomerName(id) {
+    const c = db.customers.find(x => String(x.id) === String(id));
+    return c ? c.name : '';
+  }
+  function findSupplierName(id) {
+    const s = db.suppliers.find(x => String(x.id) === String(id));
+    return s ? s.name : '';
+  }
+  function findProduct(id) {
+    return db.products.find(x => String(x.id) === String(id));
+  }
+
+  // --- Login ---
+  function setupLoginPrefillIfNeeded() {
+    // Se l'unico utente è admin/gestionale => precompila i campi
+    if (db.users.length === 1 && db.users[0].surname === 'admin' && db.users[0].password === 'gestionale') {
+      $('#username').val('admin');
+      $('#password').val('gestionale');
     }
+  }
 
-    $('#help-btn').on('click', showHelp);
+  function handleLoginSubmit(ev) {
+    ev.preventDefault();
+    const u = $('#username').val().trim();
+    const p = $('#password').val().trim();
+    const user = db.users.find(x => x.surname === u && x.password === p);
+    if (!user) {
+      $('#error-message').removeClass('d-none');
+      return;
+    }
+    currentUser = user;
+    // setup mode: se esiste solo admin/gestionale
+    isSetupMode = (db.users.length === 1 && user.surname === 'admin' && user.password === 'gestionale');
+    $('#login-container').addClass('d-none');
+    $('#main-app').removeClass('d-none');
+    $('#user-name-sidebar').text(`${user.name} ${user.surname} • ${user.role}`);
+    $('#version-sidebar').text(VERSION);
+    $('#company-name-sidebar').text(db.companyInfo.name || 'Gestionale OL');
+    buildMenuVisibility();
+    renderAll();
+    startClock();
+    buildCalendar(new Date());
+    loadUserNotes();
+    showSection('home');
+    showToast(isSetupMode ? 'Modalità di prima configurazione attiva' : 'Accesso eseguito', 'success');
+  }
 
-    $(document).on('keydown', function(e) {
-        if (e.key === "F1") {
-            e.preventDefault();
-            showHelp();
+  function buildMenuVisibility() {
+    // Nascondi tutto tranne le voci consentite in setup mode
+    const allowedInSetup = new Set(['menu-anagrafica-azienda','menu-anagrafica-utenti','menu-avanzate']);
+    if (isSetupMode) {
+      document.querySelectorAll('.sidebar .menu-item').forEach(el => {
+        if (allowedInSetup.has(el.id)) el.classList.remove('d-none');
+        else el.classList.add('d-none');
+      });
+    } else {
+      // mostra tutto di default
+      document.querySelectorAll('.sidebar .menu-item').forEach(el => el.classList.remove('d-none'));
+      // Applica restrizioni di ruolo basilari (User meno privilegi)
+      if (currentUser.role === 'User') {
+        // User: nasconde creazione documenti, anagrafica utenti/azienda
+        const hideIds = [
+          'menu-nuovo-ordine-cliente','menu-nuovo-ddt-cliente','menu-fatturazione',
+          'menu-nuovo-ordine-fornitore','menu-nuovo-ddt-fornitore',
+          'menu-anagrafica-utenti','menu-anagrafica-azienda'
+        ];
+        hideIds.forEach(id => document.getElementById(id)?.classList.add('d-none'));
+      }
+    }
+  }
+
+  function logout() {
+    currentUser = null;
+    isSetupMode = false;
+    $('#main-app').addClass('d-none');
+    $('#login-container').removeClass('d-none');
+    $('#login-form')[0].reset();
+    setupLoginPrefillIfNeeded();
+  }
+
+  // --- Clock & Calendar ---
+  let clockTimer = null;
+  function startClock() {
+    function tick() {
+      $('#current-datetime').text(new Date().toLocaleString('it-IT'));
+    }
+    tick();
+    clockTimer = setInterval(tick, 1000);
+  }
+
+  function buildCalendar(date) {
+    const year = date.getFullYear();
+    const month = date.getMonth(); // 0-11
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month+1, 0);
+    const table = [];
+    table.push('<table class="table table-sm"><thead><tr><th colspan="7">'+date.toLocaleString('it-IT',{month:'long',year:'numeric'})+'</th></tr>');
+    table.push('<tr><th>Lu</th><th>Ma</th><th>Me</th><th>Gi</th><th>Ve</th><th>Sa</th><th>Do</th></tr></thead><tbody>');
+    let day = 1;
+    const start = (firstDay.getDay()+6)%7; // Monday=0
+    for (let r=0;r<6;r++) {
+      table.push('<tr>');
+      for (let c=0;c<7;c++) {
+        const idx = r*7+c;
+        if (idx<start || day>lastDay.getDate()) { table.push('<td></td>'); }
+        else {
+          const cls = (day===new Date().getDate() && month===new Date().getMonth() && year===new Date().getFullYear())?'today':'';
+          table.push('<td class="'+cls+'">'+day+'</td>'); day++;
         }
+      }
+      table.push('</tr>');
+    }
+    table.push('</tbody></table>');
+    $('#calendar-widget').html(table.join(''));
+  }
+
+  // --- Notes ---
+  function loadUserNotes() {
+    const rec = db.notes.find(n => n.userId === currentUser.id);
+    $('#notes-textarea').val(rec ? rec.text : '');
+  }
+  function saveUserNotes() {
+    const text = $('#notes-textarea').val();
+    let rec = db.notes.find(n => n.userId === currentUser.id);
+    if (!rec) { rec = { userId: currentUser.id, text }; db.notes.push(rec); }
+    else rec.text = text;
+    saveDB();
+    showToast('Note salvate', 'success');
+  }
+
+  // --- Navigation ---
+  function showSection(id) {
+    $('.content-section').addClass('d-none');
+    $('#'+id).removeClass('d-none');
+    $('.sidebar .nav-link').removeClass('active');
+    $('.sidebar .nav-link[data-target="'+id+'"]').addClass('active');
+  }
+
+  // --- Render helpers ---
+  function renderAll() {
+    renderCompanyInfoForm();
+    renderUsersTable();
+    renderCustomersTable();
+    renderSuppliersTable();
+    renderProductsTable();
+    renderInventoryTable();
+    fillCommonSelects();
+    renderCustomerOrdersList();
+    renderSupplierOrdersList();
+    renderCustomerDdtsList();
+    renderSupplierDdtsList();
+    renderInvoicesList();
+    renderCharts();
+  }
+
+  // Company
+  function renderCompanyInfoForm() {
+    $('#company-name').val(db.companyInfo.name || '');
+    $('#company-address').val(db.companyInfo.address || '');
+    $('#company-city').val(db.companyInfo.city || '');
+    $('#company-zip').val(db.companyInfo.zip || '');
+    $('#company-province').val(db.companyInfo.province || '');
+    $('#company-name-sidebar').text(db.companyInfo.name || 'Gestionale OL');
+  }
+
+  // Users
+  function renderUsersTable() {
+    const tbody = $('#users-table-body').empty();
+    db.users.forEach(u => {
+      // Nasconde l'utente admin/gestionale se siamo oltre il setup mode per semplicità
+      const hide = (!isSetupMode && u.surname==='admin' && u.password==='gestionale');
+      if (hide) return;
+      const tr = $(`<tr>
+        <td>${u.id}</td>
+        <td>${u.surname}</td>
+        <td>${u.name}</td>
+        <td>${u.role}</td>
+        <td>
+          <button class="btn btn-sm btn-primary me-2 edit-user" data-id="${u.id}"><i class="fas fa-pen"></i></button>
+          <button class="btn btn-sm btn-danger delete-user" data-id="${u.id}"><i class="fas fa-trash"></i></button>
+        </td>
+      </tr>`);
+      tbody.append(tr);
+    });
+  }
+
+  // Customers
+  function renderCustomersTable() {
+    const tbody = $('#customers-table-body').empty();
+    (db.customers || []).forEach(c => {
+      const tr = $(`<tr>
+        <td>${c.id}</td><td>${c.name}</td><td>${c.piva || ''}</td><td>${c.address || ''}</td>
+        <td>
+          <button class="btn btn-sm btn-primary me-2 edit-customer" data-id="${c.id}"><i class="fas fa-pen"></i></button>
+          <button class="btn btn-sm btn-danger delete-customer" data-id="${c.id}"><i class="fas fa-trash"></i></button>
+        </td>
+      </tr>`);
+      tbody.append(tr);
+    });
+    // Filtro ricerca
+    $('#customer-search-input').off('keyup').on('keyup', function() {
+      const q = $(this).val().toLowerCase();
+      $('#customers-table-body tr').each(function() {
+        const txt = $(this).text().toLowerCase();
+        $(this).toggle(txt.indexOf(q) >= 0);
+      });
+    });
+  }
+
+  // Suppliers
+  function renderSuppliersTable() {
+    const tbody = $('#suppliers-table-body').empty();
+    (db.suppliers || []).forEach(s => {
+      const tr = $(`<tr>
+        <td>${s.id}</td><td>${s.name}</td><td>${s.piva || ''}</td><td>${s.address || ''}</td>
+        <td>
+          <button class="btn btn-sm btn-primary me-2 edit-supplier" data-id="${s.id}"><i class="fas fa-pen"></i></button>
+          <button class="btn btn-sm btn-danger delete-supplier" data-id="${s.id}"><i class="fas fa-trash"></i></button>
+        </td>
+      </tr>`);
+      tbody.append(tr);
+    });
+    $('#supplier-search-input').off('keyup').on('keyup', function() {
+      const q = $(this).val().toLowerCase();
+      $('#suppliers-table-body tr').each(function() {
+        const txt = $(this).text().toLowerCase();
+        $(this).toggle(txt.indexOf(q) >= 0);
+      });
+    });
+  }
+
+  // Products
+  function renderProductsTable() {
+    const tbody = $('#products-table-body').empty();
+    (db.products || []).forEach(p => {
+      const loc = [p.corsia, p.scaffale, p.piano].filter(Boolean).join('-');
+      const tr = $(`<tr>
+        <td>${p.code || ''}</td>
+        <td>${p.description || ''}</td>
+        <td>${fmtCurrency(p.purchasePrice || 0)}</td>
+        <td>${fmtCurrency(p.salePrice || 0)}</td>
+        <td>${loc || ''}</td>
+        <td class="text-end">${p.giacenza || 0}</td>
+        <td>
+          <button class="btn btn-sm btn-primary me-2 edit-product" data-id="${p.id}"><i class="fas fa-pen"></i></button>
+          <button class="btn btn-sm btn-danger delete-product" data-id="${p.id}"><i class="fas fa-trash"></i></button>
+        </td>
+      </tr>`);
+      tbody.append(tr);
+    });
+    $('#product-search-input').off('keyup').on('keyup', function() {
+      const q = $(this).val().toLowerCase();
+      $('#products-table-body tr').each(function() {
+        const txt = $(this).text().toLowerCase();
+        $(this).toggle(txt.indexOf(q) >= 0);
+      });
+    });
+  }
+
+  // Inventory
+  function renderInventoryTable() {
+    const tbody = $('#inventory-table-body').empty();
+    (db.products || []).forEach(p => {
+      const loc = [p.corsia, p.scaffale, p.piano].filter(Boolean).join('-');
+      const tr = $(`<tr>
+        <td>${p.code || ''}</td>
+        <td>${p.description || ''}</td>
+        <td>${loc || ''}</td>
+        <td class="text-end">${p.giacenza || 0}</td>
+      </tr>`);
+      tbody.append(tr);
+    });
+  }
+
+  // Selects comuni
+  function fillCommonSelects() {
+    function fillSelect($sel, items, getVal, getText, placeholder) {
+      const currentVal = $sel.val();
+      $sel.empty();
+      if (placeholder) $sel.append(`<option value="" disabled selected>${placeholder}</option>`);
+      items.forEach(it => $sel.append(`<option value="${getVal(it)}">${getText(it)}</option>`));
+      if (currentVal) $sel.val(currentVal); // tenta di preservare
+    }
+    // Clienti
+    const customersSorted = [...db.customers].sort((a,b)=>a.name.localeCompare(b.name));
+    fillSelect($('#order-customer-select'), customersSorted, c=>c.id, c=>c.name, 'Seleziona un cliente...');
+    fillSelect($('#invoice-customer-select'), customersSorted, c=>c.id, c=>c.name, 'Seleziona un cliente...');
+
+    // Fornitori
+    const suppliersSorted = [...db.suppliers].sort((a,b)=>a.name.localeCompare(b.name));
+    fillSelect($('#order-supplier-select'), suppliersSorted, s=>s.id, s=>s.name, 'Seleziona un fornitore...');
+
+    // Prodotti (per ordini e movimenti)
+    const prodsSorted = [...db.products].sort((a,b)=> (a.code||'').localeCompare(b.code||''));
+    fillSelect($('#order-product-select'), prodsSorted, p=>p.id, p=>`${p.code} - ${p.description}`, 'Seleziona un prodotto...');
+    fillSelect($('#order-supplier-product-select'), prodsSorted, p=>p.id, p=>`${p.code} - ${p.description}`, 'Seleziona un prodotto...');
+    fillSelect($('#load-product-select'), prodsSorted, p=>p.id, p=>`${p.code} - ${p.description}`);
+    fillSelect($('#unload-product-select'), prodsSorted, p=>p.id, p=>`${p.code} - ${p.description}`);
+    fillSelect($('#stock-query-product-select'), prodsSorted, p=>p.id, p=>`${p.code} - ${p.description}`);
+
+    // Ordini cliente evadibili
+    const openCustOrders = db.customerOrders.filter(o => o.status !== 'Evaso');
+    const withLabel = openCustOrders.map(o => ({ id:o.id, label:`${o.number} – ${findCustomerName(o.customerId)} (${o.date})`}));
+    fillSelect($('#ddt-order-select'), withLabel, x=>x.id, x=>x.label, 'Seleziona un ordine...');
+
+    // Ordini fornitore ricevíbili
+    const openSuppOrders = db.supplierOrders.filter(o => o.status !== 'Completato');
+    const withLabel2 = openSuppOrders.map(o => ({ id:o.id, label:`${o.number} – ${findSupplierName(o.supplierId)} (${o.date})`}));
+    fillSelect($('#ddt-supplier-order-select'), withLabel2, x=>x.id, x=>x.label, 'Seleziona un ordine...');
+  }
+
+  // --- CRUD minimal ---
+  function nextId(arr) { return (arr.length? Math.max(...arr.map(x=>Number(x.id)||0)) : 0) + 1; }
+
+  // Salvataggio anagrafica azienda
+  $('#company-info-form').on('submit', function(e){
+    e.preventDefault();
+    db.companyInfo.name = $('#company-name').val().trim();
+    db.companyInfo.address = $('#company-address').val().trim();
+    db.companyInfo.city = $('#company-city').val().trim();
+    db.companyInfo.zip = $('#company-zip').val().trim();
+    db.companyInfo.province = $('#company-province').val().trim();
+    saveDB();
+    $('#company-name-sidebar').text(db.companyInfo.name || 'Gestionale OL');
+    showToast('Dati azienda salvati', 'success');
+  });
+
+  // Users add/edit/delete
+  $('#togglePassword').on('click', () => {
+    const inp = document.getElementById('user-password');
+    inp.type = (inp.type === 'password' ? 'text' : 'password');
+  });
+  $('#saveUserBtn').on('click', function(){
+    const id = $('#user-id').val();
+    const surname = $('#user-surname').val().trim();
+    const name = $('#user-name').val().trim();
+    const password = $('#user-password').val().trim();
+    const role = $('#user-role').val();
+    if (!surname || !name || !password) { showToast('Compila tutti i campi utente', 'warning'); return; }
+    if (id) {
+      const u = db.users.find(x => String(x.id)===String(id));
+      if (u) { u.surname=surname; u.name=name; u.password=password; u.role=role; }
+      showToast('Utente aggiornato', 'success');
+    } else {
+      const u = { id: nextId(db.users), surname, name, password, role };
+      db.users.push(u);
+      showToast('Utente creato', 'success');
+    }
+    saveDB();
+    renderUsersTable();
+    $('#userModal').modal('hide');
+    // Se viene creato un altro Admin oltre admin/gestionale, la prossima volta admin/gestionale non sarà più "speciale"
+  });
+  $(document).on('click','.edit-user', function(){
+    const id = $(this).data('id');
+    const u = db.users.find(x => String(x.id)===String(id));
+    if (!u) return;
+    $('#userModalTitle').text('Modifica Utente');
+    $('#user-id').val(u.id);
+    $('#user-surname').val(u.surname);
+    $('#user-name').val(u.name);
+    $('#user-password').val(u.password);
+    $('#user-role').val(u.role);
+    $('#userModal').modal('show');
+  });
+  $(document).on('click','.delete-user', function(){
+    const id = $(this).data('id');
+    if (!confirm('Eliminare l\'utente?')) return;
+    db.users = db.users.filter(x => String(x.id)!==String(id));
+    saveDB();
+    renderUsersTable();
+  });
+  $('#newUserBtn').on('click', () => {
+    $('#userModalTitle').text('Nuovo Utente');
+    $('#userForm')[0].reset();
+    $('#user-id').val('');
+  });
+
+  // Customers add/edit/delete
+  $('#saveCustomerBtn').on('click', function(){
+    const id = $('#customer-id').val();
+    const name = $('#customer-name').val().trim();
+    const piva = $('#customer-piva').val().trim();
+    const address = $('#customer-address').val().trim();
+    if (!name) { showToast('La ragione sociale è obbligatoria','warning'); return; }
+    if (id) {
+      const c = db.customers.find(x => String(x.id)===String(id));
+      if (c) { c.name=name; c.piva=piva; c.address=address; }
+      showToast('Cliente aggiornato','success');
+    } else {
+      db.customers.push({ id: nextId(db.customers), name, piva, address });
+      showToast('Cliente creato','success');
+    }
+    saveDB(); renderCustomersTable(); fillCommonSelects(); $('#customerModal').modal('hide');
+  });
+  $(document).on('click','.edit-customer', function(){
+    const id = $(this).data('id');
+    const c = db.customers.find(x => String(x.id)===String(id));
+    if (!c) return;
+    $('#customerModalTitle').text('Modifica Cliente');
+    $('#customer-id').val(c.id);
+    $('#customer-name').val(c.name);
+    $('#customer-piva').val(c.piva || '');
+    $('#customer-address').val(c.address || '');
+    $('#customerModal').modal('show');
+  });
+  $(document).on('click','.delete-customer', function(){
+    const id = $(this).data('id');
+    if (!confirm('Eliminare il cliente?')) return;
+    db.customers = db.customers.filter(x => String(x.id)!==String(id));
+    saveDB(); renderCustomersTable(); fillCommonSelects();
+  });
+
+  // Suppliers add/edit/delete
+  $('#saveSupplierBtn').on('click', function(){
+    const id = $('#supplier-id').val();
+    const name = $('#supplier-name').val().trim();
+    const piva = $('#supplier-piva').val().trim();
+    const address = $('#supplier-address').val().trim();
+    if (!name) { showToast('La ragione sociale è obbligatoria','warning'); return; }
+    if (id) {
+      const s = db.suppliers.find(x => String(x.id)===String(id));
+      if (s) { s.name=name; s.piva=piva; s.address=address; }
+      showToast('Fornitore aggiornato','success');
+    } else {
+      db.suppliers.push({ id: nextId(db.suppliers), name, piva, address });
+      showToast('Fornitore creato','success');
+    }
+    saveDB(); renderSuppliersTable(); fillCommonSelects(); $('#supplierModal').modal('hide');
+  });
+  $(document).on('click','.edit-supplier', function(){
+    const id = $(this).data('id');
+    const s = db.suppliers.find(x => String(x.id)===String(id));
+    if (!s) return;
+    $('#supplierModalTitle').text('Modifica Fornitore');
+    $('#supplier-id').val(s.id);
+    $('#supplier-name').val(s.name);
+    $('#supplier-piva').val(s.piva || '');
+    $('#supplier-address').val(s.address || '');
+    $('#supplierModal').modal('show');
+  });
+  $(document).on('click','.delete-supplier', function(){
+    const id = $(this).data('id');
+    if (!confirm('Eliminare il fornitore?')) return;
+    db.suppliers = db.suppliers.filter(x => String(x.id)!==String(id));
+    saveDB(); renderSuppliersTable(); fillCommonSelects();
+  });
+
+  // Products add/edit/delete
+  $('#saveProductBtn').on('click', function(){
+    const id = $('#product-id').val();
+    const description = $('#product-description').val().trim();
+    const code = $('#product-code').val().trim();
+    const purchasePrice = Number($('#product-purchase-price').val() || 0);
+    const salePrice = Number($('#product-sale-price').val() || 0);
+    const iva = Number($('#product-iva').val() || 22);
+    const corsia = $('#product-loc-corsia').val().trim();
+    const scaffale = $('#product-loc-scaffale').val().trim();
+    const piano = $('#product-loc-piano').val().trim();
+    if (!description || !code) { showToast('Descrizione e codice sono obbligatori','warning'); return; }
+    if (id) {
+      const p = db.products.find(x => String(x.id)===String(id));
+      if (p) {
+        Object.assign(p, { description, code, purchasePrice, salePrice, iva, corsia, scaffale, piano });
+      }
+      showToast('Prodotto aggiornato','success');
+    } else {
+      const newP = {
+        id: 'PRD'+Date.now(),
+        description, code, purchasePrice, salePrice, iva, corsia, scaffale, piano,
+        giacenza: 0
+      };
+      db.products.push(newP);
+      showToast('Prodotto creato','success');
+    }
+    saveDB(); renderProductsTable(); renderInventoryTable(); fillCommonSelects(); $('#productModal').modal('hide');
+  });
+  $(document).on('click','.edit-product', function(){
+    const id = $(this).data('id');
+    const p = db.products.find(x => String(x.id)===String(id));
+    if (!p) return;
+    $('#productModalTitle').text('Modifica Prodotto');
+    $('#product-id').val(p.id);
+    $('#product-description').val(p.description || '');
+    $('#product-code').val(p.code || '');
+    $('#product-purchase-price').val(p.purchasePrice || '');
+    $('#product-sale-price').val(p.salePrice || '');
+    $('#product-iva').val(p.iva || 22);
+    $('#product-loc-corsia').val(p.corsia || '');
+    $('#product-loc-scaffale').val(p.scaffale || '');
+    $('#product-loc-piano').val(p.piano || '');
+    $('#productModal').modal('show');
+  });
+  $(document).on('click','.delete-product', function(){
+    const id = $(this).data('id');
+    if (!confirm('Eliminare il prodotto?')) return;
+    db.products = db.products.filter(x => String(x.id)!==String(id));
+    saveDB(); renderProductsTable(); renderInventoryTable(); fillCommonSelects();
+  });
+  $('#newProductBtn').on('click', () => {
+    $('#productModalTitle').text('Nuovo Prodotto');
+    $('#productForm')[0].reset();
+    $('#product-id').val('');
+  });
+
+  // Movimenti manuali
+  $('#manual-load-form').on('submit', function(e){
+    e.preventDefault();
+    const pid = $('#load-product-select').val();
+    const qty = Number($('#load-product-qty').val());
+    if (!pid || qty<=0) { showToast('Seleziona prodotto e quantità valida','warning'); return; }
+    const p = findProduct(pid); if (!p) return;
+    p.giacenza = Number(p.giacenza || 0) + qty;
+    saveDB(); renderProductsTable(); renderInventoryTable(); fillCommonSelects();
+    showToast('Carico registrato','success');
+    this.reset();
+  });
+  $('#manual-unload-form').on('submit', function(e){
+    e.preventDefault();
+    const pid = $('#unload-product-select').val();
+    const qty = Number($('#unload-product-qty').val());
+    if (!pid || qty<=0) { showToast('Seleziona prodotto e quantità valida','warning'); return; }
+    const p = findProduct(pid); if (!p) return;
+    if (Number(p.giacenza||0) < qty) { showToast('Giacenza insufficiente','danger'); return; }
+    p.giacenza = Number(p.giacenza || 0) - qty;
+    saveDB(); renderProductsTable(); renderInventoryTable(); fillCommonSelects();
+    showToast('Scarico registrato','success');
+    this.reset();
+  });
+  $('#stock-query-product-select').on('change', function(){
+    const p = findProduct($(this).val());
+    if (!p) return;
+    $('#stock-query-product-name').text(`${p.code} – ${p.description}`);
+    $('#stock-query-qty').text(p.giacenza || 0);
+    $('#stock-query-location').text([p.corsia,p.scaffale,p.piano].filter(Boolean).join('-') || '—');
+    $('#stock-query-result').removeClass('d-none');
+  });
+
+  // Ordine Cliente
+  let tempCustOrderLines = [];
+  function resetCustomerOrderForm() {
+    tempCustOrderLines = [];
+    $('#order-lines-tbody').empty();
+    $('#order-total').text('€ 0.00');
+    $('#order-customer-number').val(nextSequential('ORD-C', db.customerOrders, 'number'));
+    $('#order-customer-date').val(todayStr());
+  }
+  $('#add-product-to-order-btn').on('click', function(){
+    const pid = $('#order-product-select').val();
+    const qty = Number($('#order-product-qty').val());
+    if (!pid || qty<=0) { showToast('Seleziona prodotto e quantità valida','warning'); return; }
+    const p = findProduct(pid); if (!p) return;
+    const price = Number($('#order-product-price').val() || p.salePrice || 0);
+    const line = { productId: p.id, productName: `${p.code} - ${p.description}`, qty, shippedQty: 0, price, subtotal: price*qty };
+    tempCustOrderLines.push(line);
+    renderTempLines('#order-lines-tbody', tempCustOrderLines);
+    updateTempTotal('#order-total', tempCustOrderLines);
+  });
+  function renderTempLines(tbodySelector, lines) {
+    const tbody = $(tbodySelector).empty();
+    lines.forEach((l,idx)=>{
+      const tr = $(`<tr>
+        <td>${l.productName}</td><td>${l.qty}</td><td>${fmtCurrency(l.price)}</td><td>${fmtCurrency(l.subtotal)}</td>
+        <td><button class="btn btn-sm btn-outline-danger remove-line" data-idx="${idx}"><i class="fas fa-times"></i></button></td>
+      </tr>`);
+      tbody.append(tr);
+    });
+  }
+  $(document).on('click','.remove-line', function(){
+    const idx = Number($(this).data('idx'));
+    tempCustOrderLines.splice(idx,1);
+    renderTempLines('#order-lines-tbody', tempCustOrderLines);
+    updateTempTotal('#order-total', tempCustOrderLines);
+  });
+  function updateTempTotal(selector, lines) {
+    const tot = lines.reduce((a,b)=>a+(b.subtotal||0),0);
+    $(selector).text(fmtCurrency(tot));
+  }
+  $('#new-customer-order-form').on('submit', function(e){
+    e.preventDefault();
+    const customerId = $('#order-customer-select').val();
+    if (!customerId) { showToast('Seleziona il cliente','warning'); return; }
+    if (tempCustOrderLines.length===0) { showToast('Aggiungi almeno una riga','warning'); return; }
+    const rec = {
+      id: nextId(db.customerOrders),
+      number: $('#order-customer-number').val(),
+      date: $('#order-customer-date').val() || todayStr(),
+      customerId: String(customerId),
+      lines: tempCustOrderLines.map(l=>({...l})),
+      status: 'In lavorazione',
+      total: tempCustOrderLines.reduce((a,b)=>a+(b.subtotal||0),0)
+    };
+    db.customerOrders.push(rec);
+    saveDB();
+    showToast('Ordine cliente salvato','success');
+    this.reset(); resetCustomerOrderForm(); renderCustomerOrdersList(); fillCommonSelects();
+  });
+
+  function renderCustomerOrdersList() {
+    const tbody = $('#customer-orders-table-body').empty();
+    db.customerOrders.forEach(o => {
+      const tr = $(`<tr>
+        <td>${o.number}</td><td>${o.date}</td><td>${findCustomerName(o.customerId)}</td><td>${fmtCurrency(o.total)}</td><td>${o.status}</td>
+        <td><button class="btn btn-sm btn-outline-primary view-cust-order" data-id="${o.id}"><i class="fas fa-eye"></i> Visualizza</button></td>
+      </tr>`);
+      tbody.append(tr);
+    });
+  }
+  $(document).on('click','.view-cust-order', function(){
+    const id = $(this).data('id');
+    const o = db.customerOrders.find(x=>String(x.id)===String(id));
+    if (!o) return;
+    const rows = o.lines.map(l=>`<tr><td>${l.productName}</td><td>${l.qty}</td><td>${l.shippedQty||0}</td><td>${fmtCurrency(l.price)}</td><td>${fmtCurrency(l.subtotal)}</td></tr>`).join('');
+    $('#customerOrderDetailModalBody').html(`
+      <div class="mb-2"><strong>Cliente:</strong> ${findCustomerName(o.customerId)}</div>
+      <div class="mb-2"><strong>Numero / Data:</strong> ${o.number} – ${o.date}</div>
+      <table class="table"><thead><tr><th>Prodotto</th><th>Qtà Ord.</th><th>Qtà Evasa</th><th>Prezzo</th><th>Subtotale</th></tr></thead><tbody>${rows}</tbody></table>
+      <div class="text-end"><strong>Totale Ordine: ${fmtCurrency(o.total)}</strong></div>
+    `);
+    $('#customerOrderDetailModal').modal('show');
+  });
+
+  // DDT Cliente (evasione)
+  $('#ddt-order-select').on('change', function(){
+    const id = $(this).val();
+    const o = db.customerOrders.find(x=>String(x.id)===String(id));
+    if (!o) return;
+    $('#ddt-details-section').removeClass('d-none');
+    $('#ddt-customer-name').val(findCustomerName(o.customerId));
+    $('#ddt-number').val(nextSequential('DDT', db.customerDdts, 'number'));
+    $('#ddt-date').val(todayStr());
+    const tbody = $('#ddt-products-tbody').empty();
+    o.lines.forEach((l, idx)=>{
+      const residuo = Number(l.qty) - Number(l.shippedQty||0);
+      const tr = $(`<tr>
+        <td>${l.productName}</td>
+        <td>${l.qty}</td>
+        <td>${residuo}</td>
+        <td><input type="number" class="form-control ship-qty" data-idx="${idx}" min="0" max="${residuo}" value="${residuo}"></td>
+      </tr>`);
+      tbody.append(tr);
+    });
+  });
+
+  $('#new-customer-ddt-form').on('submit', function(e){
+    e.preventDefault();
+    const id = $('#ddt-order-select').val();
+    const o = db.customerOrders.find(x=>String(x.id)===String(id));
+    if (!o) { showToast('Ordine non trovato', 'danger'); return; }
+    // calcola quantità da spedire
+    const qtys = [];
+    $('#ddt-products-tbody .ship-qty').each(function(){ qtys.push(Number($(this).val()||0)); });
+    if (qtys.every(q=>q<=0)) { showToast('Inserisci almeno una quantità da spedire','warning'); return; }
+    const number = $('#ddt-number').val();
+    const date = $('#ddt-date').val() || todayStr();
+
+    const lines = [];
+    o.lines.forEach((l, idx)=>{
+      const q = Math.min(qtys[idx], (Number(l.qty)-Number(l.shippedQty||0)));
+      if (q>0) {
+        lines.push({ productId: l.productId, productName: l.productName, qty: q, price: l.price, subtotal: q*l.price });
+        l.shippedQty = Number(l.shippedQty||0)+q;
+        // scalare giacenza
+        const p = findProduct(l.productId); if (p) p.giacenza = Number(p.giacenza||0) - q;
+      }
     });
 
-});
+    if (lines.length===0) { showToast('Nessuna riga valida','warning'); return; }
+    // crea DDT
+    db.customerDdts.push({
+      id: nextId(db.customerDdts),
+      number, date, customerId: String(o.customerId), orderNumber: o.number, lines, status: 'Da Fatturare'
+    });
+    // aggiorna stato ordine
+    const fully = o.lines.every(l => Number(l.shippedQty||0) >= Number(l.qty));
+    o.status = fully ? 'Evaso' : 'Parzialmente Evaso';
+    saveDB();
+    renderCustomerOrdersList();
+    renderCustomerDdtsList();
+    renderProductsTable();
+    renderInventoryTable();
+    showToast('DDT cliente generato','success');
+    this.reset();
+    $('#ddt-details-section').addClass('d-none');
+    fillCommonSelects();
+  });
+
+  function renderCustomerDdtsList() {
+    const tbody = $('#customer-ddts-table-body').empty();
+    db.customerDdts.forEach(d => {
+      const tr = $(`<tr>
+        <td>${d.number}</td><td>${d.date}</td><td>${findCustomerName(d.customerId)}</td><td>${d.orderNumber}</td><td>${d.status||'Da Fatturare'}</td>
+        <td><button class="btn btn-sm btn-outline-primary view-cddt" data-id="${d.id}"><i class="fas fa-eye"></i> Visualizza</button></td>
+      </tr>`);
+      tbody.append(tr);
+    });
+  }
+  $(document).on('click','.view-cddt', function(){
+    const id = $(this).data('id');
+    const d = db.customerDdts.find(x=>String(x.id)===String(id));
+    if (!d) return;
+    const rows = d.lines.map(l=>`<tr><td>${l.productName}</td><td>${l.qty}</td><td>${fmtCurrency(l.price)}</td><td>${fmtCurrency(l.subtotal)}</td></tr>`).join('');
+    $('#ddtDetailModalBody').html(`
+      <div class="mb-2"><strong>Cliente:</strong> ${findCustomerName(d.customerId)}</div>
+      <div class="mb-2"><strong>Numero / Data:</strong> ${d.number} – ${d.date}</div>
+      <div class="mb-2"><strong>Rif. Ordine:</strong> ${d.orderNumber}</div>
+      <table class="table"><thead><tr><th>Prodotto</th><th>Qtà</th><th>Prezzo</th><th>Subtotale</th></tr></thead><tbody>${rows}</tbody></table>
+    `);
+    $('#ddtDetailModal').modal('show');
+  });
+
+  // Fatturazione
+  $('#invoice-customer-select').on('change', function(){
+    const cid = $(this).val();
+    const open = db.customerDdts.filter(d => String(d.customerId)===String(cid) && d.status!=='Fatturato');
+    const list = open.map(d => `<div class="form-check">
+      <input class="form-check-input ddt-to-invoice" type="checkbox" value="${d.id}" id="ddtchk${d.id}">
+      <label class="form-check-label" for="ddtchk${d.id}">${d.number} (${d.date}) – ${d.orderNumber}</label>
+    </div>`).join('') || '<div class="text-muted">Nessun DDT da fatturare</div>';
+    $('#invoice-ddt-list').html(list);
+    $('#invoice-ddt-section').toggleClass('d-none', open.length===0 ? true : false);
+  });
+
+  $('#generate-invoice-preview-btn').on('click', function(){
+    const ids = [];
+    $('.ddt-to-invoice:checked').each(function(){ ids.push($(this).val()); });
+    if (ids.length===0) { showToast('Seleziona almeno un DDT','warning'); return; }
+    const ddts = db.customerDdts.filter(d => ids.includes(String(d.id)));
+    const cid = $('#invoice-customer-select').val();
+    $('#invoice-preview-customer').val(findCustomerName(cid));
+    $('#invoice-preview-number').val(nextSequential('FATT', db.invoices, 'number'));
+    $('#invoice-preview-date').val(todayStr());
+
+    // raggruppa linee
+    const lines = [];
+    ddts.forEach(d => d.lines.forEach(l => lines.push({ description: l.productName, qty: l.qty, price: l.price, iva: 22, imponibile: l.qty*l.price })));
+    const tbody = $('#invoice-preview-lines-tbody').empty();
+    lines.forEach(L => tbody.append(`<tr><td>${L.description}</td><td>${L.qty}</td><td>${fmtCurrency(L.price)}</td><td>${fmtCurrency(L.imponibile)}</td><td>${L.iva}%</td></tr>`));
+    const tot = lines.reduce((a,b)=>a+(b.imponibile||0),0);
+    $('#invoice-summary').html(`<div class="card card-body"><div class="d-flex justify-content-between"><div><strong>Imponibile (22%)</strong></div><div>${fmtCurrency(tot)}</div></div><div class="d-flex justify-content-between"><div><strong>IVA (22%)</strong></div><div>${fmtCurrency(tot*0.22)}</div></div><hr><div class="d-flex justify-content-between"><div><strong>TOTALE</strong></div><div>${fmtCurrency(tot*1.22)}</div></div></div>`);
+    $('#invoice-preview-section').removeClass('d-none');
+    // salva anteprima in memoria
+    $('#confirm-invoice-btn').data('ddt-ids', ids).data('lines', lines);
+  });
+
+  $('#confirm-invoice-btn').on('click', function(){
+    const ids = $(this).data('ddt-ids') || [];
+    const lines = $(this).data('lines') || [];
+    const cid = $('#invoice-customer-select').val();
+    const inv = {
+      id: nextId(db.invoices),
+      number: $('#invoice-preview-number').val(),
+      date: $('#invoice-preview-date').val() || todayStr(),
+      customerId: String(cid),
+      ddts: ids.map(String),
+      lines: lines.map(l=>({ description:l.description, qty:l.qty, price:l.price, iva:l.iva, imponibile:l.imponibile })),
+      summary: { '22': { imponibile: lines.reduce((a,b)=>a+(b.imponibile||0),0), imposta: lines.reduce((a,b)=>a+(b.imponibile||0),0)*0.22 } },
+      total: lines.reduce((a,b)=>a+(b.imponibile||0),0)*1.22
+    };
+    db.invoices.push(inv);
+    // marca DDT come fatturati
+    db.customerDdts.forEach(d => { if (ids.includes(String(d.id))) d.status='Fatturato'; });
+    saveDB();
+    renderInvoicesList();
+    renderCustomerDdtsList();
+    showToast('Fattura generata','success');
+    $('#invoice-preview-section').addClass('d-none');
+    $('#invoice-ddt-section').addClass('d-none');
+    $('#invoice-preview-lines-tbody').empty();
+  });
+
+  function renderInvoicesList() {
+    const tbody = $('#invoices-table-body').empty();
+    db.invoices.forEach(f => {
+      const tr = $(`<tr>
+        <td>${f.number}</td><td>${f.date}</td><td>${findCustomerName(f.customerId)}</td><td>${fmtCurrency(f.total)}</td>
+        <td><button class="btn btn-sm btn-outline-primary view-invoice" data-id="${f.id}"><i class="fas fa-eye"></i> Visualizza</button></td>
+      </tr>`);
+      tbody.append(tr);
+    });
+  }
+  $(document).on('click','.view-invoice', function(){
+    const id = $(this).data('id');
+    const f = db.invoices.find(x=>String(x.id)===String(id));
+    if (!f) return;
+    const rows = f.lines.map(l=>`<tr><td>${l.description}</td><td>${l.qty}</td><td>${fmtCurrency(l.price)}</td><td>${fmtCurrency(l.imponibile)}</td><td>${l.iva}%</td></tr>`).join('');
+    const sum = f.summary['22'];
+    $('#invoiceDetailModalBody').html(`
+      <div class="mb-2"><strong>Cliente:</strong> ${findCustomerName(f.customerId)}</div>
+      <div class="mb-2"><strong>Numero / Data:</strong> ${f.number} – ${f.date}</div>
+      <div class="mb-2"><strong>DDT inclusi:</strong> ${f.ddts.join(', ')}</div>
+      <table class="table"><thead><tr><th>Descrizione</th><th>Qtà</th><th>Prezzo</th><th>Imponibile</th><th>IVA</th></tr></thead><tbody>${rows}</tbody></table>
+      <div class="text-end"><strong>Imponibile:</strong> ${fmtCurrency(sum.imponibile)} • <strong>IVA:</strong> ${fmtCurrency(sum.imposta)} • <strong>Totale:</strong> ${fmtCurrency(f.total)}</div>
+    `);
+    $('#invoiceDetailModal').modal('show');
+  });
+
+  // Ordine Fornitore
+  let tempSuppOrderLines = [];
+  function resetSupplierOrderForm() {
+    tempSuppOrderLines = [];
+    $('#supplier-order-lines-tbody').empty();
+    $('#supplier-order-total').text('€ 0.00');
+    $('#order-supplier-number').val(nextSequential('ORD-F', db.supplierOrders, 'number'));
+    $('#order-supplier-date').val(todayStr());
+  }
+  $('#add-product-to-supplier-order-btn').on('click', function(){
+    const pid = $('#order-supplier-product-select').val();
+    const qty = Number($('#order-supplier-product-qty').val());
+    if (!pid || qty<=0) { showToast('Seleziona prodotto e quantità valida','warning'); return; }
+    const p = findProduct(pid); if (!p) return;
+    const price = Number($('#order-supplier-product-price').val() || p.purchasePrice || 0);
+    const line = { productId: p.id, productName: `${p.code} - ${p.description}`, qty, receivedQty: 0, price, subtotal: price*qty };
+    tempSuppOrderLines.push(line);
+    renderTempLines('#supplier-order-lines-tbody', tempSuppOrderLines);
+    updateTempTotal('#supplier-order-total', tempSuppOrderLines);
+  });
+  $('#new-supplier-order-form').on('submit', function(e){
+    e.preventDefault();
+    const supplierId = $('#order-supplier-select').val();
+    if (!supplierId) { showToast('Seleziona il fornitore','warning'); return; }
+    if (tempSuppOrderLines.length===0) { showToast('Aggiungi almeno una riga','warning'); return; }
+    const rec = {
+      id: nextId(db.supplierOrders),
+      number: $('#order-supplier-number').val(),
+      date: $('#order-supplier-date').val() || todayStr(),
+      supplierId: String(supplierId),
+      lines: tempSuppOrderLines.map(l=>({...l})),
+      status: 'Inviato',
+      total: tempSuppOrderLines.reduce((a,b)=>a+(b.subtotal||0),0)
+    };
+    db.supplierOrders.push(rec);
+    saveDB();
+    showToast('Ordine fornitore salvato','success');
+    this.reset(); resetSupplierOrderForm(); renderSupplierOrdersList(); fillCommonSelects();
+  });
+
+  function renderSupplierOrdersList() {
+    const tbody = $('#supplier-orders-table-body').empty();
+    db.supplierOrders.forEach(o => {
+      const tr = $(`<tr>
+        <td>${o.number}</td><td>${o.date}</td><td>${findSupplierName(o.supplierId)}</td><td>${fmtCurrency(o.total)}</td><td>${o.status}</td>
+        <td><button class="btn btn-sm btn-outline-primary view-supp-order" data-id="${o.id}"><i class="fas fa-eye"></i> Visualizza</button></td>
+      </tr>`);
+      tbody.append(tr);
+    });
+  }
+  $(document).on('click','.view-supp-order', function(){
+    const id = $(this).data('id');
+    const o = db.supplierOrders.find(x=>String(x.id)===String(id));
+    if (!o) return;
+    const rows = o.lines.map(l=>`<tr><td>${l.productName}</td><td>${l.qty}</td><td>${l.receivedQty||0}</td><td>${fmtCurrency(l.price)}</td><td>${fmtCurrency(l.subtotal)}</td></tr>`).join('');
+    $('#supplierOrderDetailModalBody').html(`
+      <div class="mb-2"><strong>Fornitore:</strong> ${findSupplierName(o.supplierId)}</div>
+      <div class="mb-2"><strong>Numero / Data:</strong> ${o.number} – ${o.date}</div>
+      <table class="table"><thead><tr><th>Prodotto</th><th>Qtà Ord.</th><th>Qtà Ricev.</th><th>Prezzo</th><th>Subtotale</th></tr></thead><tbody>${rows}</tbody></table>
+      <div class="text-end"><strong>Totale Ordine: ${fmtCurrency(o.total)}</strong></div>
+    `);
+    $('#supplierOrderDetailModal').modal('show');
+  });
+
+  // DDT Fornitore (MERCE IN ENTRATA) – FIX
+  $('#ddt-supplier-order-select').on('change', function(){
+    const id = $(this).val();
+    const o = db.supplierOrders.find(x=>String(x.id)===String(id));
+    if (!o) { $('#ddt-supplier-details-section').addClass('d-none'); return; }
+    $('#ddt-supplier-details-section').removeClass('d-none');
+    $('#ddt-supplier-name').val(findSupplierName(o.supplierId));
+    $('#ddt-supplier-date').val(todayStr());
+    // Popola righe
+    const tbody = $('#ddt-supplier-products-tbody').empty();
+    o.lines.forEach((l, idx)=>{
+      const residuo = Number(l.qty) - Number(l.receivedQty || 0);
+      const tr = $(`<tr>
+        <td>${l.productName}</td>
+        <td>${l.qty}</td>
+        <td>${residuo}</td>
+        <td><input type="number" class="form-control recv-qty" data-idx="${idx}" min="0" max="${residuo}" value="${residuo}"></td>
+      </tr>`);
+      tbody.append(tr);
+    });
+  });
+
+  $('#new-supplier-ddt-form').on('submit', function(e){
+    e.preventDefault();
+    const orderId = $('#ddt-supplier-order-select').val();
+    const o = db.supplierOrders.find(x=>String(x.id)===String(orderId));
+    if (!o) { showToast('Ordine non trovato', 'danger'); return; }
+    const supplierName = findSupplierName(o.supplierId);
+    const number = $('#ddt-supplier-number').val().trim();
+    const date = $('#ddt-supplier-date').val() || todayStr();
+    if (!number) { showToast('Inserisci il numero del DDT fornitore','warning'); return; }
+
+    const qtys = [];
+    $('#ddt-supplier-products-tbody .recv-qty').each(function(){ qtys.push(Number($(this).val()||0)); });
+    if (qtys.every(q=>q<=0)) { showToast('Inserisci almeno una quantità ricevuta','warning'); return; }
+
+    const lines = [];
+    o.lines.forEach((l, idx)=>{
+      const residuo = Number(l.qty) - Number(l.receivedQty || 0);
+      const q = Math.min(qtys[idx] || 0, residuo);
+      if (q>0) {
+        lines.push({ productId: l.productId, productName: l.productName, qty: q, price: l.price, subtotal: q*l.price });
+        // aggiorna ricevuto
+        l.receivedQty = Number(l.receivedQty || 0) + q;
+        // incrementa giacenza
+        const p = findProduct(l.productId); if (p) p.giacenza = Number(p.giacenza || 0) + q;
+      }
+    });
+
+    if (lines.length===0) { showToast('Nessuna riga valida','warning'); return; }
+
+    // crea DDT fornitore
+    db.supplierDdts.push({
+      id: nextId(db.supplierDdts),
+      number, date, supplierId: String(o.supplierId),
+      ourOrderNumber: o.number,
+      lines,
+      dest: db.companyInfo.name || 'Magazzino'
+    });
+
+    // aggiorna stato ordine
+    const fully = o.lines.every(l => Number(l.receivedQty||0) >= Number(l.qty));
+    o.status = fully ? 'Completato' : 'Parzialmente Ricevuto';
+
+    saveDB();
+    renderSupplierOrdersList();
+    renderSupplierDdtsList();
+    renderProductsTable();
+    renderInventoryTable();
+    showToast('Merce registrata in entrata','success');
+    this.reset();
+    $('#ddt-supplier-details-section').addClass('d-none');
+    fillCommonSelects();
+  });
+
+  function renderSupplierDdtsList() {
+    const tbody = $('#supplier-ddts-table-body').empty();
+    db.supplierDdts.forEach(d => {
+      const tr = $(`<tr>
+        <td>${d.number}</td><td>${d.date}</td><td>${findSupplierName(d.supplierId)}</td><td>${d.dest || (db.companyInfo.name||'Magazzino')}</td><td>${d.ourOrderNumber || ''}</td>
+        <td><button class="btn btn-sm btn-outline-primary view-sddt" data-id="${d.id}"><i class="fas fa-eye"></i> Visualizza</button></td>
+      </tr>`);
+      tbody.append(tr);
+    });
+  }
+  $(document).on('click','.view-sddt', function(){
+    const id = $(this).data('id');
+    const d = db.supplierDdts.find(x=>String(x.id)===String(id));
+    if (!d) return;
+    const rows = d.lines.map(l=>`<tr><td>${l.productName}</td><td>${l.qty}</td><td>${fmtCurrency(l.price)}</td><td>${fmtCurrency(l.subtotal)}</td></tr>`).join('');
+    $('#supplierDdtDetailModalBody').html(`
+      <div class="mb-2"><strong>Fornitore:</strong> ${findSupplierName(d.supplierId)}</div>
+      <div class="mb-2"><strong>Numero / Data:</strong> ${d.number} – ${d.date}</div>
+      <div class="mb-2"><strong>Rif. nostro ordine:</strong> ${d.ourOrderNumber || '—'}</div>
+      <table class="table"><thead><tr><th>Prodotto</th><th>Qtà</th><th>Prezzo</th><th>Subtotale</th></tr></thead><tbody>${rows}</tbody></table>
+    `);
+    $('#supplierDdtDetailModal').modal('show');
+  });
+
+  // Invoices already handled above
+
+  // Statistiche (semplici)
+  let chart1=null, chart2=null;
+  function renderCharts() {
+    if (chart1) { chart1.destroy(); chart1=null; }
+    if (chart2) { chart2.destroy(); chart2=null; }
+    if (currentUser.role === 'User') {
+      // Top 5 per giacenza
+      const sorted = [...db.products].sort((a,b)=>Number(b.giacenza||0)-Number(a.giacenza||0)).slice(0,5);
+      $('#chart1Title').text('Top 5 Prodotti per Giacenza');
+      chart1 = new Chart(document.getElementById('statChart1'), {
+        type: 'bar',
+        data: { labels: sorted.map(p=>p.code), datasets: [{ label: 'Giacenza', data: sorted.map(p=>p.giacenza||0) }] },
+        options: { responsive:true, plugins:{legend:{display:false}} }
+      });
+      // In esaurimento
+      const low = [...db.products].filter(p=>Number(p.giacenza||0)<=2).sort((a,b)=>a.giacenza-b.giacenza).slice(0,5);
+      $('#chart2Title').text('Top 5 Prodotti in Esaurimento');
+      chart2 = new Chart(document.getElementById('statChart2'), {
+        type: 'pie',
+        data: { labels: low.map(p=>p.code), datasets: [{ data: low.map(p=>p.giacenza||0) }] },
+        options: { responsive:true }
+      });
+    } else {
+      // Valore ordini per mese (clienti)
+      const byMonth = {};
+      db.customerOrders.forEach(o=>{
+        const m = (o.date||'').slice(0,7);
+        byMonth[m] = (byMonth[m]||0) + (o.total||0);
+      });
+      const months = Object.keys(byMonth).sort();
+      $('#chart1Title').text('Fatturato Ordini per Mese');
+      chart1 = new Chart(document.getElementById('statChart1'), {
+        type: 'line',
+        data: { labels: months, datasets: [{ label:'Valore ordini', data: months.map(m=>byMonth[m]) }] },
+        options: { responsive:true }
+      });
+      // Valore ordini per cliente
+      const byCust = {};
+      db.customerOrders.forEach(o=>{
+        const name = findCustomerName(o.customerId) || '—';
+        byCust[name] = (byCust[name]||0) + (o.total||0);
+      });
+      const custs = Object.keys(byCust).sort((a,b)=>byCust[b]-byCust[a]).slice(0,8);
+      $('#chart2Title').text('Valore Ordini per Cliente');
+      chart2 = new Chart(document.getElementById('statChart2'), {
+        type: 'doughnut',
+        data: { labels: custs, datasets: [{ data: custs.map(k=>byCust[k]) }] },
+        options: { responsive:true }
+      });
+    }
+  }
+
+  // Avanzate: Export/Import/Delete/Send
+  $('#export-data-btn').on('click', function(){
+    const surname = (currentUser && currentUser.surname) ? currentUser.surname : 'backup';
+    const blob = new Blob([JSON.stringify(db,null,2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${surname}_gestionale_OL_${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  });
+
+  $('#import-file-input').on('change', function(e){
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function() {
+      try {
+        const data = JSON.parse(reader.result);
+        db = data;
+        saveDB();
+        renderAll();
+        fillCommonSelects();
+        showToast('Dati importati correttamente','success');
+      } catch(err) {
+        console.error(err);
+        showToast('File non valido','danger');
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  $('#delete-all-data-btn').on('click', function(){
+    if (!confirm('Confermi la cancellazione di TUTTI i dati?')) return;
+    localStorage.removeItem(DB_KEY);
+    loadDB(); // ricrea struttura e admin/gestionale
+    setupLoginPrefillIfNeeded();
+    showToast('Dati cancellati. Esegui nuovamente l\'accesso.','warning');
+    logout();
+  });
+
+  $('#send-data-btn').on('click', async function(){
+    try {
+      const payload = {
+        subject: `Gestionale OL – invio dati da ${currentUser ? (currentUser.surname + ' ' + currentUser.name) : 'utente'}`,
+        timestamp: new Date().toISOString(),
+        user: currentUser ? { surname: currentUser.surname, name: currentUser.name, role: currentUser.role } : null,
+        db
+      };
+      const res = await fetch(FORMSPREE_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'Accept':'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) showToast('Dati inviati al docente','success');
+      else showToast('Invio fallito. Verifica la connessione.', 'danger');
+    } catch(err) {
+      console.error(err);
+      showToast('Errore durante l\'invio','danger');
+    }
+  });
+
+  // Help: nuova scheda
+  $('#help-btn').on('click', function(){
+    window.open('Manuale%20Utente.txt','_blank');
+  });
+  // F1 apre help
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'F1') { e.preventDefault(); window.open('Manuale%20Utente.txt','_blank'); }
+  });
+
+  // Sidebar navigation
+  $(document).on('click', '.sidebar .nav-link[data-target]', function(e){
+    e.preventDefault();
+    const id = $(this).data('target');
+    showSection(id);
+    // Reset form dinamici
+    if (id==='nuovo-ordine-cliente') resetCustomerOrderForm();
+    if (id==='nuovo-ordine-fornitore') resetSupplierOrderForm();
+  });
+
+  // Azioni extra
+  $('#logout-btn').on('click', function(e){ e.preventDefault(); logout(); });
+  $('#save-notes-btn').on('click', function(){ saveUserNotes(); });
+
+  // Login
+  $('#login-form').on('submit', handleLoginSubmit);
+
+  // Init
+  $(function(){
+    loadDB();
+    setupLoginPrefillIfNeeded();
+    $('#version-sidebar').text(VERSION);
+  });
+
+})();

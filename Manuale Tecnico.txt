@@ -1,0 +1,102 @@
+Manuale Tecnico – Gestionale Magazzino Didattico (patch badge + tooltip) – 2025-11-21
+
+Contenuto della patch
+---------------------
+La patch `script_badges_tooltips_patch.js` aggiunge:
+1) **Badge colorati** con **tooltip** esplicativi per gli "Stato" di:
+   - Elenco Ordini Cliente
+   - Elenco Ordini Fornitore
+   - Elenco DDT Cliente
+   - Elenco DDT Fornitore
+   - Elenco Fatture
+2) **Messaggio di benvenuto** in Home sincronizzato con il *Nome Cognome* visualizzato nella sidebar.
+
+Integrazione
+------------
+- Il file va incluso **dopo** il `script.js` principale. Questo repository lo fa automaticamente
+  inserendo la riga:
+
+  <script src="script_badges_tooltips_patch.js"></script>
+
+  immediatamente prima del tag `</body>` in `index.html`.
+
+Dipendenze
+----------
+- **Bootstrap 5 (bundle)** deve essere caricato perché la patch usa `bootstrap.Tooltip`.
+- Funziona sia con jQuery che senza, non modifica né rimuove funzioni esistenti.
+
+Mappatura degli stati → badge
+-----------------------------
+Gli stati vengono normalizzati (minuscole, abbreviazioni comuni) e resi con badge Bootstrap:
+
+• **ORDINI** (`entityType = "order"`)
+  - *In lavorazione* → `badge bg-secondary` – "Ordine registrato ma non ancora evaso"
+  - *Parzialmente evaso* (accetta anche "Parz...") → `badge bg-warning text-dark`
+  - *Evaso* (accetta anche "Evas...") → `badge bg-success`
+  - *Spedito* → `badge bg-info text-dark`
+  - *Annullato* → `badge bg-danger`
+
+• **DDT** (`entityType = "ddt"`)
+  - *Emesso* / *Ricevuto* → `badge bg-primary`
+  - *Parzialmente fatturato* → `badge bg-warning text-dark`
+  - *Fatturato* → `badge bg-success`
+  - *Annullato* → `badge bg-danger`
+
+• **FATTURE** (`entityType = "invoice"`)
+  - *Emessa* → `badge bg-primary`
+  - *Pagata* → `badge bg-success`
+  - *Parziale* → `badge bg-warning text-dark`
+  - *Stornata* → `badge bg-danger`
+
+Tecnica di aggancio non invasiva
+--------------------------------
+- La patch **non** richiede modifiche al rendering originale delle tabelle.
+- Per ogni sezione elencata, individua automaticamente l'indice della colonna **"Stato"**
+  (match testuale sull'intestazione) e sostituisce il testo della cella con un `<span class="badge ...">`.
+- Un `MutationObserver` rielabora la tabella ogni volta che le righe vengono rigenerate
+  (es. filtri, paginazioni, salvataggi).
+
+Tooltips
+--------
+- I badge contengono `data-bs-toggle="tooltip"` e `data-bs-title="..."`.
+- Vengono inizializzati con `new bootstrap.Tooltip(...)` in `initTooltips()` e ri‑inizializzati
+  a ogni aggiornamento delle tabelle.
+
+Messaggio di benvenuto
+----------------------
+- La patch sincronizza il testo di `#welcome-message` con il contenuto di `#user-name-sidebar`.
+- In assenza del nome, il testo resta "Benvenuto".
+- La sincronizzazione è immediata e anche successiva (osserva cambiamenti nella sidebar).
+
+Sicurezza della patch
+---------------------
+- Nessuna modifica distruttiva al DOM esterno alla colonna "Stato".
+- Se la cella è già stata trasformata, viene saltata (flag `data-enhanced="1"`).
+- Se uno stato non è riconosciuto, viene usato un badge `bg-secondary` con tooltip generico.
+
+Rollback
+--------
+- Per rimuovere la funzionalità, eliminare il tag `<script src="script_badges_tooltips_patch.js"></script>` da `index.html`
+  e cancellare il file `script_badges_tooltips_patch.js`.
+
+Manuale Tecnico – Aggiornamento badge con tooltip e benvenuto
+=============================================================
+• File aggiunto: script_badges_tooltips_patch.js
+  - Aggiunge tooltip ai badge di stato (Ordini, DDT, Fatture) nelle liste.
+  - Uniforma le classi Bootstrap dei badge (text-bg-* + pill).
+  - Mantiene compatibilità con patch precedenti che colorano già gli stati.
+  - Reimposta il messaggio di benvenuto in Home a: “Benvenuto <Nome Cognome>”.
+
+Integrazione
+------------
+• Assicurarsi che in fondo al file index.html (dopo script.js) sia presente:
+    <script src="script_badges_tooltips_patch.js"></script>
+
+Note tecniche
+-------------
+• Inizializza automaticamente i Bootstrap Tooltip su tutti gli elementi con
+  data-bs-toggle="tooltip".
+• Individua la colonna “Stato” dal thead e sostituisce il testo con un badge
+  dotato di tooltip informativo.
+• L’aggiornamento è automatico a ogni rigenerazione delle tabelle grazie
+  a MutationObserver.
