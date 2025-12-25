@@ -1,375 +1,1203 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestionale Cloud - Professionisti</title>
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome CSS -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <!-- Stile personalizzato -->
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestionale Magazzino Didattico – OL</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Font Awesome CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <!-- Stile personalizzato -->
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <!-- Schermata di Login -->
-    <div id="login-container" class="container">
-        <div class="row justify-content-center align-items-center vh-100">
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-body">
-                        <h3 class="card-title text-center mb-4">Accesso Cloud</h3>
-                        <form id="login-form">
-                            <div class="mb-3">
-                                <label for="email" class="form-label">Email</label>
-                                <input type="email" class="form-control" id="email" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="password" class="form-label">Password</label>
-                                <input type="password" class="form-control" id="password" required>
-                            </div>
-                            <div id="login-error" class="text-danger mb-3 d-none">Credenziali errate.</div>
-                            <button type="submit" class="btn btn-primary w-100" id="btn-login-submit">
-                                <span id="login-spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                                Accedi
-                            </button>
-                        </form>
-                    </div>
-                </div>
+  <!-- Schermata di Login -->
+  <div id="login-container" class="container">
+    <div class="row justify-content-center align-items-center vh-100">
+      <div class="col-md-5 col-lg-4">
+        <div class="card">
+          <div class="card-body">
+            <h3 class="card-title text-center mb-4">Accesso Gestionale</h3>
+            <form id="login-form" autocomplete="on">
+              <div class="mb-3">
+                <label for="username" class="form-label">Username (Cognome)</label>
+                <input type="text" class="form-control" id="username" placeholder="Inserisci il tuo Cognome" required autofocus>
+              </div>
+              <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                <input type="password" class="form-control" id="password" required>
+              </div>
+              <div id="error-message" class="text-danger mb-3 d-none">Cognome o password non corretti.</div>
+              <button type="submit" class="btn btn-primary w-100">Accedi</button>
+            </form>
+            <div class="small text-muted mt-3">
+              Primo accesso? Il sistema propone <code>admin</code> / <code>gestionale</code> se non sono presenti utenti.
             </div>
+          </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Schermata Principale -->
+  <div id="main-app" class="d-none">
+    <div class="sidebar">
+      <h4 class="text-center my-3" id="company-name-sidebar">Gestionale OL</h4>
+      <p class="text-center text-white-50 small" id="user-name-sidebar"></p>
+      <p class="text-center text-white-50" style="font-size: 0.7rem;" id="version-sidebar"></p>
+
+      <ul class="nav flex-column">
+        <li class="nav-item"><a class="nav-link active" href="#" data-target="home"><i class="fas fa-home"></i> Home</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" data-target="statistiche"><i class="fas fa-chart-line"></i> Statistiche</a></li>
+
+        <li class="nav-item"><h6 class="nav-section-title">Anagrafiche</h6></li>
+        <li class="nav-item menu-item" id="menu-anagrafica-clienti"><a class="nav-link" href="#" data-target="anagrafica-clienti"><i class="fas fa-users"></i> Anagrafica Clienti</a></li>
+        <li class="nav-item menu-item" id="menu-anagrafica-fornitori"><a class="nav-link" href="#" data-target="anagrafica-fornitori"><i class="fas fa-truck"></i> Anagrafica Fornitori</a></li>
+        <li class="nav-item menu-item" id="menu-anagrafica-prodotti"><a class="nav-link" href="#" data-target="anagrafica-prodotti"><i class="fas fa-box"></i> Anagrafica Prodotti</a></li>
+
+        <li class="nav-item"><h6 class="nav-section-title">Magazzino</h6></li>
+        <li class="nav-item menu-item" id="menu-carico-manuale"><a class="nav-link" href="#" data-target="carico-manuale"><i class="fas fa-plus-circle"></i> Carico Manuale</a></li>
+        <li class="nav-item menu-item" id="menu-scarico-manuale"><a class="nav-link" href="#" data-target="scarico-manuale"><i class="fas fa-minus-circle"></i> Scarico Manuale</a></li>
+        <li class="nav-item menu-item" id="menu-giacenze"><a class="nav-link" href="#" data-target="consultazione-giacenze"><i class="fas fa-search"></i> Giacenze</a></li>
+        <li class="nav-item menu-item" id="menu-inventario"><a class="nav-link" href="#" data-target="inventario"><i class="fas fa-clipboard-list"></i> Inventario</a></li>
+
+        <li class="nav-item"><h6 class="nav-section-title">Clienti</h6></li>
+        <li class="nav-item menu-item" id="menu-nuovo-ordine-cliente"><a class="nav-link" href="#" data-target="nuovo-ordine-cliente"><i class="fas fa-plus"></i> Nuovo Ordine Cliente</a></li>
+        <li class="nav-item menu-item" id="menu-elenco-ordini-cliente"><a class="nav-link" href="#" data-target="elenco-ordini-cliente"><i class="fas fa-list"></i> Elenco Ordini Cliente</a></li>
+        <li class="nav-item menu-item" id="menu-nuovo-ddt-cliente"><a class="nav-link" href="#" data-target="nuovo-ddt-cliente"><i class="fas fa-file-alt"></i> Nuovo DDT Cliente</a></li>
+        <li class="nav-item menu-item" id="menu-elenco-ddt-cliente"><a class="nav-link" href="#" data-target="elenco-ddt-cliente"><i class="fas fa-list-alt"></i> Elenco DDT Cliente</a></li>
+        <li class="nav-item menu-item" id="menu-fatturazione"><a class="nav-link" href="#" data-target="fatturazione"><i class="fas fa-file-invoice-dollar"></i> Fatturazione</a></li>
+        <li class="nav-item menu-item" id="menu-elenco-fatture"><a class="nav-link" href="#" data-target="elenco-fatture"><i class="fas fa-list-ol"></i> Elenco Fatture</a></li>
+
+        <li class="nav-item"><h6 class="nav-section-title">Fornitori</h6></li>
+        <li class="nav-item menu-item" id="menu-nuovo-ordine-fornitore"><a class="nav-link" href="#" data-target="nuovo-ordine-fornitore"><i class="fas fa-plus-square"></i> Nuovo Ordine Fornitore</a></li>
+        <li class="nav-item menu-item" id="menu-elenco-ordini-fornitore"><a class="nav-link" href="#" data-target="elenco-ordini-fornitore"><i class="fas fa-list-ul"></i> Elenco Ordini Fornitore</a></li>
+        <li class="nav-item menu-item" id="menu-nuovo-ddt-fornitore"><a class="nav-link" href="#" data-target="nuovo-ddt-fornitore"><i class="fas fa-file-invoice"></i> Nuovo DDT Fornitore</a></li>
+        <li class="nav-item menu-item" id="menu-elenco-ddt-fornitore"><a class="nav-link" href="#" data-target="elenco-ddt-fornitore"><i class="fas fa-clipboard-list"></i> Elenco DDT Fornitore</a></li>
+
+        <li class="nav-item"><h6 class="nav-section-title">Impostazioni</h6></li>
+        <li class="nav-item menu-item" id="menu-anagrafica-azienda"><a class="nav-link" href="#" data-target="anagrafica-azienda"><i class="fas fa-building"></i> Anagrafica Azienda</a></li>
+        <li class="nav-item menu-item" id="menu-anagrafica-utenti"><a class="nav-link" href="#" data-target="anagrafica-utenti"><i class="fas fa-user-shield"></i> Anagrafica Utenti</a></li>
+        <li class="nav-item menu-item" id="menu-avanzate"><a class="nav-link" href="#" data-target="avanzate"><i class="fas fa-cogs"></i> Avanzate</a></li>
+
+        <li class="nav-item mt-auto"><a class="nav-link" href="#" id="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+      </ul>
     </div>
 
-    <!-- Schermata Caricamento -->
-    <div id="loading-screen" class="d-flex justify-content-center align-items-center vh-100 d-none bg-white" style="position:fixed; top:0; left:0; width:100%; z-index:2000;">
-        <div class="text-center">
-            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
-            <p class="mt-3 lead">Sincronizzazione Cloud...</p>
+    <div class="main-content">
+
+      <!-- Pagina Home -->
+      <div id="home" class="content-section">
+        <h2 id="welcome-message">Benvenuto</h2>
+        <p id="current-datetime" class="lead"></p>
+        <hr>
+        <div class="row mt-4">
+          <div class="col-md-6 col-lg-5 mb-4">
+            <div id="calendar-widget"></div>
+          </div>
+          <div class="col-md-6 col-lg-5 mb-4">
+            <div id="notes-widget" class="card">
+              <div class="card-body">
+                <h5><i class="fas fa-clipboard"></i> Block-notes personale</h5>
+                <textarea id="notes-textarea" class="form-control" rows="8" placeholder="Scrivi qui i tuoi appunti..."></textarea>
+                <button class="btn btn-primary btn-sm mt-2" id="save-notes-btn">Salva note</button>
+              </div>
+            </div>
+          </div>
         </div>
-    </div>
+      </div>
 
-    <!-- Applicazione Principale -->
-    <div id="main-app" class="d-none">
-        <div class="sidebar">
-            <h4 class="text-center my-3" id="company-name-sidebar">MIO STUDIO</h4>
-            <p class="text-center text-white-50 small" id="user-name-sidebar"></p>
-            <p class="text-center text-white-50" style="font-size: 0.7rem;" id="version-sidebar">v9.7 (Stable Cloud)</p>
-            <ul class="nav flex-column">
-                <li class="nav-item"><a class="nav-link active" href="#" data-target="home"><i class="fas fa-home"></i> Home</a></li>
-                <li class="nav-item"><a class="nav-link" href="#" data-target="statistiche"><i class="fas fa-chart-line"></i> Statistiche</a></li>
+      <!-- Pagina Statistiche -->
+      <div id="statistiche" class="content-section d-none">
+        <h2>Statistiche Principali</h2>
+        <div class="row">
+          <div class="col-lg-8">
+            <div class="card">
+              <div class="card-header" id="chart1Title"></div>
+              <div class="card-body"><canvas id="statChart1"></canvas></div>
+            </div>
+          </div>
+          <div class="col-lg-4">
+            <div class="card">
+              <div class="card-header" id="chart2Title"></div>
+              <div class="card-body"><canvas id="statChart2"></canvas></div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-                <li class="nav-item"><h6 class="nav-section-title">Anagrafiche</h6></li>
-                <li class="nav-item menu-item"><a class="nav-link" href="#" data-target="anagrafica-clienti"><i class="fas fa-users"></i> Clienti</a></li>
-                <li class="nav-item"><a class="nav-link" href="#" data-target="anagrafica-prodotti"><i class="fas fa-box"></i> Servizi</a></li>
-                
-                <li class="nav-item"><h6 class="nav-section-title">Documenti</h6></li>
-                <li class="nav-item menu-item"><a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#newInvoiceChoiceModal" id="menu-nuova-fattura"><i class="fas fa-file-invoice-dollar"></i> Nuova Fattura</a></li>
-                <li class="nav-item menu-item"><a class="nav-link" href="#" data-target="nuova-fattura-accompagnatoria" id="menu-nuova-nota-credito"><i class="fas fa-file-download"></i> Nuova Nota Credito</a></li>
-                <li class="nav-item menu-item"><a class="nav-link" href="#" data-target="elenco-fatture"><i class="fas fa-list-ol"></i> Elenco Documenti</a></li>
-                
-                <li class="nav-item"><h6 class="nav-section-title">Impostazioni</h6></li>
-                <li class="nav-item menu-item"><a class="nav-link" href="#" data-target="anagrafica-azienda"><i class="fas fa-building"></i> Azienda</a></li>
-                <li class="nav-item"><a class="nav-link" href="#" data-target="avanzate"><i class="fas fa-cloud-upload-alt"></i> Migrazione</a></li>
+      <!-- ANAGRAFICHE -->
+      <div id="anagrafica-clienti" class="content-section d-none">
+        <h2>
+          Anagrafica Clienti
+          <button class="btn btn-success float-end" data-bs-toggle="modal" data-bs-target="#customerModal" id="newCustomerBtn"><i class="fas fa-plus"></i> Nuovo Cliente</button>
+        </h2>
+        <input type="text" id="customer-search-input" class="form-control mb-3" placeholder="Cerca per nome, P.IVA o indirizzo...">
+        <table class="table table-hover">
+          <thead><tr><th>ID</th><th>Ragione Sociale</th><th>P.IVA</th><th>Indirizzo</th><th>Azioni</th></tr></thead>
+          <tbody id="customers-table-body"></tbody>
+        </table>
+      </div>
 
-                <li class="nav-item mt-auto"><a class="nav-link" href="#" id="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
-            </ul>
+      <div id="anagrafica-fornitori" class="content-section d-none">
+        <h2>
+          Anagrafica Fornitori
+          <button class="btn btn-success float-end" data-bs-toggle="modal" data-bs-target="#supplierModal" id="newSupplierBtn"><i class="fas fa-plus"></i> Nuovo Fornitore</button>
+        </h2>
+        <input type="text" id="supplier-search-input" class="form-control mb-3" placeholder="Cerca per nome, P.IVA o indirizzo...">
+        <table class="table table-hover">
+          <thead><tr><th>ID</th><th>Ragione Sociale</th><th>P.IVA</th><th>Indirizzo</th><th>Azioni</th></tr></thead>
+        <tbody id="suppliers-table-body"></tbody>
+        </table>
+      </div>
+
+      <div id="anagrafica-prodotti" class="content-section d-none">
+        <h2>
+          Anagrafica Prodotti
+          <button class="btn btn-success float-end" data-bs-toggle="modal" data-bs-target="#productModal" id="newProductBtn"><i class="fas fa-plus"></i> Nuovo Prodotto</button>
+        </h2>
+        <input type="text" id="product-search-input" class="form-control mb-3" placeholder="Cerca per codice o descrizione...">
+        <table class="table table-hover">
+          <thead><tr><th>Codice</th><th>Descrizione</th><th>Prezzo Acq.</th><th>Prezzo Ven.</th><th>Collocazione</th><th>Giacenza</th><th>Azioni</th></tr></thead>
+          <tbody id="products-table-body"></tbody>
+        </table>
+      </div>
+
+      <!-- MAGAZZINO -->
+      <div id="carico-manuale" class="content-section d-none">
+        <h2>Carico Manuale a Magazzino</h2>
+        <form id="manual-load-form" class="mt-4 col-md-8 col-lg-6">
+          <div class="mb-3"><label class="form-label">Seleziona Prodotto</label><select class="form-select" id="load-product-select" required></select></div>
+          <div class="mb-3"><label class="form-label">Quantità da Caricare</label><input type="number" class="form-control" id="load-product-qty" min="1" required></div>
+          <div class="mb-3"><label class="form-label">Causale/Note</label><textarea class="form-control" id="load-product-reason" rows="2" placeholder="Es. Rettifica inventariale, reso da cliente..."></textarea></div>
+          <button type="submit" class="btn btn-primary">Esegui Carico</button>
+        </form>
+      </div>
+
+      <div id="scarico-manuale" class="content-section d-none">
+        <h2>Scarico Manuale da Magazzino</h2>
+        <form id="manual-unload-form" class="mt-4 col-md-8 col-lg-6">
+          <div class="mb-3"><label class="form-label">Seleziona Prodotto</label><select class="form-select" id="unload-product-select" required></select></div>
+          <div class="mb-3"><label class="form-label">Quantità da Scaricare</label><input type="number" class="form-control" id="unload-product-qty" min="1" required></div>
+          <div class="mb-3"><label class="form-label">Causale/Note</label><textarea class="form-control" id="unload-product-reason" rows="2" placeholder="Es. Rottura, uso interno, campione..."></textarea></div>
+          <button type="submit" class="btn btn-danger">Esegui Scarico</button>
+        </form>
+      </div>
+
+      <div id="consultazione-giacenze" class="content-section d-none">
+        <h2>Giacenze</h2>
+        <div class="mt-4 col-md-8 col-lg-6">
+          <div class="mb-3">
+            <label class="form-label">Seleziona Prodotto</label>
+            <select class="form-select" id="stock-query-product-select">
+              <option selected disabled>Seleziona un prodotto...</option>
+            </select>
+          </div>
+          <div id="stock-query-result" class="card d-none">
+            <div class="card-body">
+              <h5 class="card-title" id="stock-query-product-name"></h5>
+              <p class="card-text mb-1"><strong>Giacenza Attuale:</strong> <span class="fs-4" id="stock-query-qty"></span></p>
+              <p class="card-text"><strong>Collocazione:</strong> <span id="stock-query-location"></span></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="inventario" class="content-section d-none">
+        <h2>Inventario Magazzino</h2>
+        <table class="table table-hover mt-4">
+          <thead><tr><th>Codice</th><th>Descrizione</th><th>Collocazione (Corsia-Scaffale-Piano)</th><th>Giacenza</th></tr></thead>
+          <tbody id="inventory-table-body"></tbody>
+        </table>
+      </div>
+
+      <!-- CLIENTI -->
+      <div id="nuovo-ordine-cliente" class="content-section d-none">
+        <h2>Nuovo Ordine Cliente</h2>
+        <form id="new-customer-order-form">
+          <div class="row">
+            <div class="col-md-6 mb-3"><label class="form-label">Cliente</label><select class="form-select" id="order-customer-select" required></select></div>
+            <div class="col-md-3 mb-3"><label class="form-label">Data Ordine</label><input type="date" class="form-control" id="order-customer-date" required></div>
+            <div class="col-md-3 mb-3"><label class="form-label">Numero Ordine</label><input type="text" class="form-control" id="order-customer-number" readonly></div>
+          </div>
+          <hr>
+          <h5>Aggiungi Prodotti</h5>
+          <div class="row align-items-end g-3">
+            <div class="col-md-5"><label class="form-label">Prodotto</label><select class="form-select" id="order-product-select"></select></div>
+            <div class="col-md-2"><label class="form-label">Quantità</label><input type="number" class="form-control" id="order-product-qty" value="1" min="1"></div>
+            <div class="col-md-2"><label class="form-label">Prezzo</label><input type="number" step="0.01" class="form-control" id="order-product-price"></div>
+            <div class="col-md-3"><button type="button" class="btn btn-secondary" id="add-product-to-order-btn">Aggiungi Riga</button></div>
+          </div>
+          <table class="table mt-4">
+            <thead><tr><th>Prodotto</th><th>Qtà</th><th>Prezzo</th><th>Subtotale</th><th></th></tr></thead>
+            <tbody id="order-lines-tbody"></tbody>
+          </table>
+          <div class="text-end"><h3>Totale: <span id="order-total">€ 0.00</span></h3></div>
+          <button type="submit" class="btn btn-primary mt-3">Salva Ordine</button>
+        </form>
+      </div>
+
+      <div id="elenco-ordini-cliente" class="content-section d-none">
+        <h2>Elenco Ordini Clienti</h2>
+        <table class="table table-hover">
+          <thead><tr><th>Numero</th><th>Data</th><th>Cliente</th><th>Importo</th><th>Stato</th><th>Azioni</th></tr></thead>
+          <tbody id="customer-orders-table-body"></tbody>
+        </table>
+      </div>
+
+      <div id="nuovo-ddt-cliente" class="content-section d-none">
+        <h2>Nuovo DDT Cliente</h2>
+        <form id="new-customer-ddt-form">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label"><strong>Seleziona Ordine da Evadere</strong></label>
+              <select class="form-select" id="ddt-order-select" required>
+                <option selected disabled value="">Seleziona un ordine...</option>
+              </select>
+            </div>
+          </div>
+          <div id="ddt-details-section" class="d-none">
+            <hr>
+            <div class="row">
+              <div class="col-md-6 mb-3"><label>Cliente</label><input type="text" id="ddt-customer-name" class="form-control" readonly></div>
+              <div class="col-md-3 mb-3"><label>Numero DDT</label><input type="text" id="ddt-number" class="form-control" readonly></div>
+              <div class="col-md-3 mb-3"><label>Data DDT</label><input type="date" class="form-control" id="ddt-date" required></div>
+            </div>
+            <h5 class="mt-4">Prodotti da Spedire</h5>
+            <table class="table">
+              <thead><tr><th>Prodotto</th><th>Qtà Ordinata</th><th>Qtà Residua</th><th><strong>Qtà da Spedire</strong></th></tr></thead>
+              <tbody id="ddt-products-tbody"></tbody>
+            </table>
+            <button type="submit" class="btn btn-primary">Genera DDT</button>
+          </div>
+        </form>
+      </div>
+
+      <div id="elenco-ddt-cliente" class="content-section d-none">
+        <h2>Elenco DDT Clienti</h2>
+        <table class="table table-hover">
+          <thead><tr><th>Numero</th><th>Data</th><th>Cliente</th><th>Rif. Ordine</th><th>Stato</th><th>Azioni</th></tr></thead>
+          <tbody id="customer-ddts-table-body"></tbody>
+        </table>
+      </div>
+
+      <div id="fatturazione" class="content-section d-none">
+        <h2>Fatturazione da DDT</h2>
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label"><strong>Seleziona Cliente</strong></label>
+            <select class="form-select" id="invoice-customer-select" required>
+              <option selected disabled value="">Seleziona un cliente...</option>
+            </select>
+          </div>
+        </div>
+        <div id="invoice-ddt-section" class="d-none mt-3">
+          <hr>
+          <h5>Seleziona DDT da Fatturare</h5>
+          <div id="invoice-ddt-list"></div>
+          <button class="btn btn-primary mt-3" id="generate-invoice-preview-btn">Crea Anteprima Fattura</button>
+        </div>
+        <div id="invoice-preview-section" class="d-none mt-4">
+          <hr>
+          <h3>Anteprima Fattura</h3>
+          <div class="row">
+            <div class="col-md-6 mb-3"><label>Cliente</label><input type="text" id="invoice-preview-customer" class="form-control" readonly></div>
+            <div class="col-md-3 mb-3"><label>Numero Fattura</label><input type="text" id="invoice-preview-number" class="form-control" readonly></div>
+            <div class="col-md-3 mb-3"><label>Data Fattura</label><input type="date" id="invoice-preview-date" class="form-control"></div>
+          </div>
+          <table class="table">
+            <thead><tr><th>Descrizione</th><th>Quantità</th><th>Prezzo Unitario</th><th>Imponibile</th><th>IVA</th></tr></thead>
+            <tbody id="invoice-preview-lines-tbody"></tbody>
+          </table>
+          <div class="row justify-content-end">
+            <div class="col-md-5">
+              <div id="invoice-summary"></div>
+              <button class="btn btn-success w-100 mt-3" id="confirm-invoice-btn">Genera Fattura Definitiva</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="elenco-fatture" class="content-section d-none">
+        <h2>Elenco Fatture Clienti</h2>
+        <table class="table table-hover">
+          <thead><tr><th>Numero</th><th>Data</th><th>Cliente</th><th>Totale Fattura</th><th>Azioni</th></tr></thead>
+          <tbody id="invoices-table-body"></tbody>
+        </table>
+      </div>
+
+      <!-- FORNITORI -->
+      <div id="nuovo-ordine-fornitore" class="content-section d-none">
+        <h2>Nuovo Ordine Fornitore</h2>
+        <form id="new-supplier-order-form">
+          <div class="row">
+            <div class="col-md-6 mb-3"><label class="form-label">Fornitore</label><select class="form-select" id="order-supplier-select" required></select></div>
+            <div class="col-md-3 mb-3"><label class="form-label">Data Ordine</label><input type="date" class="form-control" id="order-supplier-date" required></div>
+            <div class="col-md-3 mb-3"><label class="form-label">Numero Ordine</label><input type="text" class="form-control" id="order-supplier-number" readonly></div>
+          </div>
+          <hr>
+          <h5>Aggiungi Prodotti</h5>
+          <div class="row align-items-end g-3">
+            <div class="col-md-5"><label class="form-label">Prodotto</label><select class="form-select" id="order-supplier-product-select"></select></div>
+            <div class="col-md-2"><label class="form-label">Quantità</label><input type="number" class="form-control" id="order-supplier-product-qty" value="1" min="1"></div>
+            <div class="col-md-2"><label class="form-label">Prezzo Acq.</label><input type="number" step="0.01" class="form-control" id="order-supplier-product-price"></div>
+            <div class="col-md-3"><button type="button" class="btn btn-secondary" id="add-product-to-supplier-order-btn">Aggiungi Riga</button></div>
+          </div>
+          <table class="table mt-4">
+            <thead><tr><th>Prodotto</th><th>Qtà</th><th>Prezzo</th><th>Subtotale</th><th></th></tr></thead>
+            <tbody id="supplier-order-lines-tbody"></tbody>
+          </table>
+          <div class="text-end"><h3>Totale: <span id="supplier-order-total">€ 0.00</span></h3></div>
+          <button type="submit" class="btn btn-primary mt-3">Salva Ordine Fornitore</button>
+        </form>
+      </div>
+
+      <div id="elenco-ordini-fornitore" class="content-section d-none">
+        <h2>Elenco Ordini Fornitori</h2>
+        <table class="table table-hover">
+          <thead><tr><th>Numero</th><th>Data</th><th>Fornitore</th><th>Importo</th><th>Stato</th><th>Azioni</th></tr></thead>
+          <tbody id="supplier-orders-table-body"></tbody>
+        </table>
+      </div>
+
+      <div id="nuovo-ddt-fornitore" class="content-section d-none">
+        <h2>Nuovo DDT Fornitore (Merce in Entrata)</h2>
+        <form id="new-supplier-ddt-form">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label"><strong>Seleziona Ordine Fornitore da Ricevere</strong></label>
+              <select class="form-select" id="ddt-supplier-order-select" required>
+                <option selected disabled value="">Seleziona un ordine...</option>
+              </select>
+            </div>
+          </div>
+          <div id="ddt-supplier-details-section" class="d-none">
+            <hr>
+            <div class="row">
+              <div class="col-md-6 mb-3"><label>Fornitore</label><input type="text" id="ddt-supplier-name" class="form-control" readonly></div>
+              <div class="col-md-3 mb-3"><label>Numero DDT Fornitore</label><input type="text" id="ddt-supplier-number" class="form-control" placeholder="Numero del documento" required></div>
+              <div class="col-md-3 mb-3"><label>Data DDT Fornitore</label><input type="date" class="form-control" id="ddt-supplier-date" required></div>
+            </div>
+            <h5>Prodotti da Ricevere</h5>
+            <table class="table">
+              <thead><tr><th>Prodotto</th><th>Qtà Ordinata</th><th>Qtà Residua</th><th><strong>Qtà Ricevuta</strong></th></tr></thead>
+              <tbody id="ddt-supplier-products-tbody"></tbody>
+            </table>
+            <button type="submit" class="btn btn-primary">Registra Merce in Entrata</button>
+          </div>
+        </form>
+      </div>
+
+      <div id="elenco-ddt-fornitore" class="content-section d-none">
+        <h2>Elenco DDT Fornitori Ricevuti</h2>
+        <table class="table table-hover">
+          <thead><tr><th>Numero DDT</th><th>Data DDT</th><th>Fornitore</th><th>Destinatario</th><th>Rif. Nostro Ordine</th><th>Azioni</th></tr></thead>
+          <tbody id="supplier-ddts-table-body"></tbody>
+        </table>
+      </div>
+
+      <!-- Impostazioni -->
+      <div id="anagrafica-azienda" class="content-section d-none">
+        <h2>Anagrafica Azienda</h2>
+        <p>Questi dati verranno usati nell'intestazione dei documenti e in altre parti del gestionale.</p>
+        <form id="company-info-form" class="mt-4">
+          <div class="row">
+            <div class="col-md-6 mb-3"><label for="company-name" class="form-label">Ragione Sociale</label><input type="text" class="form-control" id="company-name" required></div>
+            <div class="col-md-6 mb-3"><label for="company-address" class="form-label">Indirizzo (Via e numero)</label><input type="text" class="form-control" id="company-address"></div>
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3"><label for="company-city" class="form-label">Città</label><input type="text" class="form-control" id="company-city"></div>
+            <div class="col-md-3 mb-3"><label for="company-zip" class="form-label">CAP</label><input type="text" class="form-control" id="company-zip"></div>
+            <div class="col-md-3 mb-3"><label for="company-province" class="form-label">Provincia (es. TO)</label><input type="text" class="form-control" id="company-province"></div>
+          </div>
+          <button type="submit" class="btn btn-primary mt-3"><i class="fas fa-save"></i> Salva Dati Azienda</button>
+        </form>
+      </div>
+
+      <div id="anagrafica-utenti" class="content-section d-none">
+        <h2>
+          Anagrafica Utenti
+          <button class="btn btn-success float-end" data-bs-toggle="modal" data-bs-target="#userModal" id="newUserBtn"><i class="fas fa-plus"></i> Nuovo Utente</button>
+        </h2>
+        <p>Il <strong>Cognome</strong> e la <strong>Password</strong> sono usati per il Login.</p>
+        <table class="table table-hover">
+          <thead><tr><th>ID</th><th>Cognome (Login)</th><th>Nome</th><th>Ruolo</th><th>Azioni</th></tr></thead>
+          <tbody id="users-table-body"></tbody>
+        </table>
+      </div>
+
+      <div id="avanzate" class="content-section d-none">
+        <h2>Operazioni Avanzate</h2>
+
+        <div class="card mt-4">
+          <div class="card-body">
+            <h5 class="card-title">Invia Dati per Revisione</h5>
+            <p class="card-text">Invia una copia di tutti i dati del gestionale al docente per la revisione.</p>
+            <button class="btn btn-success" id="send-data-btn"><i class="fas fa-paper-plane"></i> Invia Dati</button>
+          </div>
         </div>
 
-        <div class="main-content">
-            
-            <!-- HOME -->
-            <div id="home" class="content-section">
-                <h2 id="welcome-message">Benvenuto</h2>
-                <p id="current-datetime" class="lead"></p>
-                <hr>
-                <div class="row mt-4">
-                    <div class="col-md-6 col-lg-5 mb-4"><div id="calendar-widget"></div></div>
-                    <div class="col-md-6 col-lg-5 mb-4">
-                        <div id="notes-widget" class="card">
-                            <div class="card-body">
-                                <h5><i class="fas fa-clipboard"></i> Block-notes Cloud</h5>
-                                <textarea id="notes-textarea" class="form-control" rows="8" placeholder="Scrivi qui i tuoi appunti..."></textarea>
-                                <button class="btn btn-primary btn-sm mt-2" id="save-notes-btn">Salva note</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- STATISTICHE -->
-            <div id="statistiche" class="content-section d-none">
-                <h2>Riepilogo Fatturato</h2>
-                <div class="d-flex align-items-center gap-2 mb-3">
-                    <label for="stats-year-filter" class="form-label mb-0">Anno</label>
-                    <select id="stats-year-filter" class="form-select form-select-sm" style="max-width:160px">
-                        <option value="all">Tutti</option>
-                    </select>
-                </div>
-
-                <div id="stats-table-container"></div>
-                <hr class="my-4">
-                <h2>Simulazione Fiscale</h2>
-                <div id="tax-simulation-container"></div>
-            </div>
-
-            <!-- CLIENTI -->
-            <div id="anagrafica-clienti" class="content-section d-none">
-                <h2>Anagrafica Clienti <button class="btn btn-success float-end" id="newCustomerBtn"><i class="fas fa-plus"></i> Nuovo Cliente</button></h2>
-                <table class="table table-hover"><thead><tr><th>Ragione Sociale</th><th>P.IVA / C.F.</th><th>S.d.I.</th><th>Indirizzo</th><th class="text-end">Azioni</th></tr></thead><tbody id="customers-table-body"></tbody></table>
-            </div>
-
-            <!-- SERVIZI -->
-            <div id="anagrafica-prodotti" class="content-section d-none">
-                <h2>Anagrafica Servizi <button class="btn btn-success float-end" id="newProductBtn"><i class="fas fa-plus"></i> Nuovo Servizio</button></h2>
-                <table class="table table-hover"><thead><tr><th>Codice</th><th class="col-description">Descrizione</th><th class="text-end-numbers col-price pe-5">Prezzo</th><th class="text-end-numbers">IVA</th><th class="text-end col-actions">Azioni</th></tr></thead><tbody id="products-table-body"></tbody></table>
-            </div>
-
-            <!-- ELENCO FATTURE -->
-            <div id="elenco-fatture" class="content-section d-none">
-                <h2>Documenti Emessi</h2>
-                
-<div class="mb-3 d-flex align-items-center gap-2">
-    <label for="invoice-year-filter" class="form-label mb-0 me-2">Anno:</label>
-    <select id="invoice-year-filter" class="form-select form-select-sm" style="width:auto; max-width:150px;">
-        <option value="all">Tutti</option>
-    </select>
-</div>
-                <table class="table table-hover"><thead><tr><th>Tipo</th><th>Numero</th><th>Data</th><th>Cliente</th><th class="text-end-numbers">Totale</th><th class="text-end-numbers">Scadenza</th><th>Stato</th><th class="text-end col-actions">Azioni</th></tr></thead><tbody id="invoices-table-body"></tbody></table>
-            </div>
-            
-            <!-- NUOVA FATTURA / NOTA CREDITO -->
-            <div id="nuova-fattura-accompagnatoria" class="content-section d-none">
-                <h2 id="document-title">Nuovo Documento</h2>
-                <form id="new-invoice-form">
-                    <!-- ID SISTEMA VISIBILE -->
-                    <div class="mb-3 p-2 bg-light border rounded">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <label class="small text-muted fw-bold">ID Interno (Sistema)</label>
-                                <input type="text" class="form-control-plaintext fw-bold" id="invoice-id" readonly placeholder="Nuovo Documento">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="small text-muted fw-bold">Tipo Documento</label>
-                                <input type="text" class="form-control-plaintext" id="document-type" readonly value="Fattura">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="credit-note-fields" class="row d-none bg-warning-subtle p-3 rounded mb-3 border border-warning">
-                        <div class="col-md-6 mb-3"><label class="form-label">Fattura da Rettificare</label><input type="text" class="form-control" id="linked-invoice" placeholder="Es. FATT-2025-01"></div>
-                        <div class="col-md-6 mb-3"><label class="form-label">Causale</label><input type="text" class="form-control" id="reason"></div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3"><label class="form-label">Cliente</label><select class="form-select" id="invoice-customer-select" required></select></div>
-                        <div class="col-md-3 mb-3"><label class="form-label">Data Documento</label><input type="date" class="form-control" id="invoice-date" required></div>
-                        <div class="col-md-3 mb-3"><label class="form-label">Numero Documento</label><input type="text" class="form-control" id="invoice-number"></div>
-                    </div>
-                    <hr>
-                    
-                    <!-- Riga inserimento prodotti -->
-                    <h5>Righe Documento</h5>
-                    <div class="row align-items-end g-2 bg-light p-2 rounded">
-                        <div class="col-lg-3"><label class="form-label small">Seleziona Servizio</label><select class="form-select form-select-sm" id="invoice-product-select"></select></div>
-                        <div class="col-lg-3"><label class="form-label small">Descrizione</label><input type="text" class="form-control form-select-sm" id="invoice-product-description" readonly></div>
-                        <div class="col-lg-1"><label class="form-label small">Qtà</label><input type="number" class="form-control form-select-sm" id="invoice-product-qty" value="1"></div>
-                        <div class="col-lg-2"><label class="form-label small">Prezzo</label><input type="number" class="form-control form-select-sm" id="invoice-product-price"></div>
-                        <div class="col-lg-1"><label class="form-label small">IVA</label><select class="form-select form-select-sm" id="invoice-product-iva" disabled><option value="0">0%</option><option value="22">22%</option></select></div>
-                        <div class="col-lg-1 d-none" id="invoice-esenzione-iva-container"><label class="form-label small">Esenzione</label><select class="form-select form-select-sm" id="invoice-product-esenzioneIva" disabled><option value="N2.1">N2.1</option><option value="N2.2">N2.2</option><option value="N4">N4</option></select></div>
-                        <div class="col-lg-1"><button type="button" class="btn btn-success w-100 btn-sm" id="add-product-to-invoice-btn"><i class="fas fa-plus"></i></button></div>
-                    </div>
-
-                    <table class="table mt-3 table-bordered table-sm">
-                        <thead class="table-light"><tr><th>Descrizione</th><th class="text-end">Qtà</th><th class="text-end">Prezzo</th><th class="text-end">Totale</th><th class="text-center" style="width: 50px;">Del</th></tr></thead>
-                        <tbody id="invoice-lines-tbody"></tbody>
-                    </table>
-
-                    <div class="row mt-4">
-                        <div class="col-md-6 mb-3"><label class="form-label">Condizioni Pagamento</label><input type="text" class="form-control" id="invoice-condizioniPagamento"></div>
-                        <div class="col-md-6 mb-3"><label class="form-label">Modalità Pagamento</label><input type="text" class="form-control" id="invoice-modalitaPagamento"></div>
-                    </div>
-                    <div class="row align-items-end">
-                        <div class="col-md-3 mb-3"><label class="form-label">Data Riferimento</label><input type="date" class="form-control" id="invoice-dataRiferimento"></div>
-                        <div class="col-md-2 mb-3"><label class="form-label">Giorni Scadenza</label><input type="number" class="form-control" id="invoice-giorniTermini"></div>
-                        <div class="col-md-3 mb-3"><label class="form-label">Data Scadenza</label><input type="date" class="form-control" id="invoice-dataScadenza"></div>
-                    </div>
-
-                    <div class="text-end mt-3 p-3 bg-light border rounded">
-                        <h4 class="mb-0">Totale Documento: <span id="invoice-total" class="text-primary">€ 0.00</span></h4>
-                        <small class="text-muted" id="invoice-tax-details">(Imponibile: € 0.00)</small>
-                    </div>
-                    <button type="submit" class="btn btn-primary mt-3 btn-lg w-100"><i class="fas fa-save"></i> Salva Documento</button>
-                </form>
-            </div>
-
-            <!-- AZIENDA -->
-            <div id="anagrafica-azienda" class="content-section d-none">
-                <h2>Dati Azienda</h2>
-                <form id="company-info-form">
-                    <div class="row">
-                        <div class="col-md-6 mb-3"><label class="form-label">Ragione Sociale</label><input type="text" class="form-control" id="company-name"></div>
-                        <div class="col-md-3 mb-3"><label class="form-label">Cognome</label><input type="text" class="form-control" id="company-cognome"></div>
-                        <div class="col-md-3 mb-3"><label class="form-label">Nome</label><input type="text" class="form-control" id="company-nome"></div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-8 mb-3"><label class="form-label">Indirizzo</label><input type="text" class="form-control" id="company-address"></div>
-                        <div class="col-md-4 mb-3"><label class="form-label">Civico</label><input type="text" class="form-control" id="company-numeroCivico"></div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-4 mb-3"><label class="form-label">Città</label><input type="text" class="form-control" id="company-city"></div>
-                        <div class="col-md-2 mb-3"><label class="form-label">CAP</label><input type="text" class="form-control" id="company-zip"></div>
-                        <div class="col-md-2 mb-3"><label class="form-label">Prov</label><input type="text" class="form-control" id="company-province"></div>
-                        <div class="col-md-4 mb-3"><label class="form-label">Nazione</label><input type="text" class="form-control" id="company-nazione" value="Italia"></div>
-                    </div>
-                    <hr>
-                    <div class="row">
-                        <div class="col-md-3 mb-3"><label class="form-label">P.IVA</label><input type="text" class="form-control" id="company-piva"></div>
-                        <div class="col-md-3 mb-3"><label class="form-label">C.F.</label><input type="text" class="form-control" id="company-codiceFiscale"></div>
-                        <div class="col-md-3 mb-3"><label class="form-label">Regime</label><input type="text" class="form-control" id="company-regimeFiscale" value="Forfettario"></div>
-                        <div class="col-md-3 mb-3"><label class="form-label">Cod. Regime</label><input type="text" class="form-control" id="company-codiceRegimeFiscale" value="RF19"></div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-3 mb-3"><label class="form-label">Coeff. Redditività %</label><input type="number" class="form-control" id="company-coefficienteRedditivita"></div>
-                        <div class="col-md-3 mb-3"><label class="form-label">Imposta Sostitutiva %</label><input type="number" class="form-control" id="company-aliquotaSostitutiva"></div>
-                        <div class="col-md-3 mb-3"><label class="form-label">INPS %</label><input type="number" class="form-control" id="company-aliquotaContributi"></div>
-                        <div class="col-md-3 mb-3"><label class="form-label">Rivalsa INPS %</label><input type="number" class="form-control" id="company-aliquotaInps"></div>
-                    </div>
-                    
-<div class="row">
-    <div class="col-md-6 mb-3">
-        <label class="form-label">PEC (opzionale)</label>
-        <input type="email" class="form-control" id="company-pec" placeholder="nomeazienda@pec.it">
-    </div>
-</div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3"><label class="form-label">Contributi Versati (€)</label><input type="number" class="form-control" id="company-contributiVersati"></div>
-                    </div>
-                    <hr>
-                    <div class="row">
-                        <div class="col-md-6 mb-3"><label class="form-label">Banca</label><input type="text" class="form-control" id="company-banca"></div>
-                        <div class="col-md-6 mb-3"><label class="form-label">IBAN</label><input type="text" class="form-control" id="company-iban"></div>
-                    </div>
-                    <button type="submit" class="btn btn-primary mt-3"><i class="fas fa-save"></i> Salva Dati Azienda</button>
-                </form>
-            </div>
-
-            <!-- MIGRAZIONE -->
-            <div id="avanzate" class="content-section d-none">
-                <h2>Migrazione Dati</h2>
-                <div class="card mt-4">
-                    <div class="card-body">
-                        <h5 class="card-title">Importa Backup Vecchio</h5>
-                        <p class="card-text">Carica qui il file <code>.json</code> della vecchia versione per inviare i dati al Cloud.</p>
-                        <label for="import-file-input" class="btn btn-warning"><i class="fas fa-cloud-upload-alt"></i> Carica Backup JSON</label>
-                        <input type="file" id="import-file-input" class="d-none" accept=".json">
-                    
-<hr class="my-4">
-<h5 class="card-title mt-3">Backup dal Cloud (utente corrente)</h5>
-<p class="card-text">
-    Scarica un file <code>.json</code> con i dati attuali salvati nel Cloud
-    (azienda, clienti, servizi, documenti e note) per l'utente connesso.
-</p>
-<button type="button" class="btn btn-success" id="export-cloud-json-btn">
-    <i class="fas fa-cloud-download-alt"></i> Scarica Backup JSON
-</button>
-                    </div>
-                </div>
-            </div>
-
+        <div class="card mt-4">
+          <div class="card-body">
+            <h5 class="card-title">Esporta Dati</h5>
+            <p class="card-text">Salva tutti i dati attuali in un file <code>.json</code> sul tuo computer.</p>
+            <button class="btn btn-info" id="export-data-btn"><i class="fas fa-download"></i> Esporta Dati</button>
+          </div>
         </div>
-    </div>
 
-    <!-- MODALE SCELTA FATTURA -->
-    <div class="modal fade" id="newInvoiceChoiceModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Crea Nuova Fattura</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><button class="btn btn-primary w-100 mb-3" id="btn-create-new-blank-invoice">Crea Nuova Vuota</button><hr><div class="input-group"><select class="form-select" id="copy-from-invoice-select"><option selected>Copia da esistente...</option></select><button class="btn btn-secondary" id="btn-copy-from-invoice">Copia</button></div></div></div></div></div>
-
-    <!-- MODALE CLIENTE (FIXED ID VISIBLE) -->
-    <div class="modal fade" id="customerModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header"><h5 class="modal-title" id="customerModalTitle">Cliente</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
-                <div class="modal-body">
-                    <form id="customerForm">
-                        <div class="mb-3 p-2 bg-light border rounded">
-                            <label class="small text-muted fw-bold">ID Scheda (Sistema)</label>
-                            <input type="text" class="form-control-plaintext fw-bold" id="customer-id" readonly placeholder="Nuovo (Generato al salvataggio)">
-                        </div>
-                        <div class="mb-3"><label class="form-label">Ragione Sociale</label><input type="text" class="form-control" id="customer-name" required></div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3"><label class="form-label">P.IVA</label><input type="text" class="form-control" id="customer-piva"></div>
-                            <div class="col-md-6 mb-3"><label class="form-label">Codice Fiscale</label><input type="text" class="form-control" id="customer-codiceFiscale"></div>
-                        </div>
-                        <div class="mb-3"><label class="form-label">Codice S.d.I.</label><input type="text" class="form-control" id="customer-sdi"></div>
-                        
-<div class="mb-3">
-    <label class="form-label">PEC (opzionale)</label>
-    <input type="email" class="form-control" id="customer-pec" placeholder="cliente@pec.it">
-</div>
-                        
-                        <div class="mb-3"><label class="form-label">Indirizzo</label><input type="text" class="form-control" id="customer-address"></div>
-                        <div class="row">
-                            <div class="col-md-5 mb-3"><label class="form-label">Città</label><input type="text" class="form-control" id="customer-comune"></div>
-                            <div class="col-md-2 mb-3"><label class="form-label">Prov</label><input type="text" class="form-control" id="customer-provincia"></div>
-                            <div class="col-md-2 mb-3"><label class="form-label">CAP</label><input type="text" class="form-control" id="customer-cap"></div>
-                            <div class="col-md-3 mb-3"><label class="form-label">Nazione</label><input type="text" class="form-control" id="customer-nazione" value="Italia"></div>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="customer-rivalsaInps">
-                            <label class="form-check-label">Applica Rivalsa INPS</label>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                    <button type="button" class="btn btn-primary" id="saveCustomerBtn">Salva Cliente</button>
-                </div>
-            </div>
+        <div class="card mt-4">
+          <div class="card-body">
+            <h5 class="card-title">Importa Dati</h5>
+            <p class="card-text">Carica un file <code>.json</code> di backup. <strong>Attenzione:</strong> sovrascriverà tutti i dati attuali.</p>
+            <label for="import-file-input" class="btn btn-warning"><i class="fas fa-upload"></i> Seleziona File per l'Importazione</label>
+            <input type="file" id="import-file-input" class="d-none" accept=".json">
+          </div>
         </div>
-    </div>
 
-    <!-- MODALE PRODOTTO (FIXED ID VISIBLE) -->
-    <div class="modal fade" id="productModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header"><h5 class="modal-title" id="productModalTitle">Servizio / Prodotto</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
-                <div class="modal-body">
-                    <form id="productForm">
-                        <div class="mb-3 p-2 bg-light border rounded">
-                            <label class="small text-muted fw-bold">ID Scheda (Sistema)</label>
-                            <input type="text" class="form-control-plaintext fw-bold" id="product-id" readonly placeholder="Nuovo (Generato al salvataggio)">
-                        </div>
-                        <div class="row">
-                            <div class="col-md-8 mb-3"><label class="form-label">Descrizione</label><input type="text" class="form-control" id="product-description" required></div>
-                            <div class="col-md-4 mb-3"><label class="form-label">Codice</label><input type="text" class="form-control" id="product-code"></div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-4 mb-3"><label class="form-label">Prezzo Vendita</label><input type="number" class="form-control" id="product-salePrice" step="0.01"></div>
-                            <div class="col-md-4 mb-3"><label class="form-label">Aliquota IVA</label><select class="form-select" id="product-iva"><option value="0">0%</option><option value="4">4%</option><option value="5">5%</option><option value="10">10%</option><option value="22">22%</option></select></div>
-                            <div class="col-md-4 mb-3 d-none" id="esenzione-iva-container"><label class="form-label">Esenzione</label><select class="form-select" id="product-esenzioneIva"><option value="N2.1">N2.1</option><option value="N2.2">N2.2</option><option value="N4">N4</option></select></div>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                    <button type="button" class="btn btn-primary" id="saveProductBtn">Salva Servizio</button>
-                </div>
-            </div>
+        <div class="card mt-4 bg-light border-danger">
+          <div class="card-body">
+            <h5 class="card-title text-danger">Zona Pericolosa</h5>
+            <p class="card-text">Questa operazione cancellerà permanentemente tutti i dati del gestionale dal tuo browser.</p>
+            <button class="btn btn-danger" id="delete-all-data-btn"><i class="fas fa-trash-alt"></i> Cancella Tutti i Dati</button>
+          </div>
         </div>
+      </div>
+
     </div>
+  </div>
 
-    <!-- MODALE DETTAGLIO FATTURA -->
-    <div class="modal fade" id="invoiceDetailModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header no-print"><h5 class="modal-title" id="invoiceDetailModalTitle">Dettaglio Fattura</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body" id="invoiceDetailModalBody"></div><div class="modal-footer no-print"><button type="button" class="btn btn-info me-auto" id="export-xml-btn"><i class="fas fa-file-code"></i> XML</button><button type="button" class="btn btn-primary" id="print-invoice-btn"><i class="fas fa-print"></i> Stampa</button><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button></div></div></div></div>
+  <!-- MODAL UTENTE -->
+  <div class="modal fade" id="userModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title" id="userModalTitle">Nuovo Utente</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+          <form id="userForm" class="needs-validation" novalidate>
+            <input type="hidden" id="user-id">
+            <div class="mb-3">
+              <label class="form-label">Cognome (Login)</label>
+              <input type="text" class="form-control" id="user-surname" required>
+              <div class="invalid-feedback">Il cognome è obbligatorio.</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Nome</label>
+              <input type="text" class="form-control" id="user-name" required>
+              <div class="invalid-feedback">Il nome è obbligatorio.</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Password</label>
+              <div class="input-group has-validation">
+                <input type="password" class="form-control" id="user-password" required>
+                <button class="btn btn-outline-secondary" type="button" id="togglePassword"><i class="fas fa-eye"></i></button>
+                <div class="invalid-feedback">La password è obbligatoria.</div>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Ruolo</label>
+              <select class="form-select" id="user-role">
+                <option value="User">User</option>
+                <option value="Supervisor">Supervisor</option>
+                <option value="Admin">Admin</option>
+              </select>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button><button type="button" class="btn btn-primary" id="saveUserBtn">Salva Utente</button></div>
+      </div>
+    </div>
+  </div>
 
-    <!-- SCRIPTS -->
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <!-- MODAL CLIENTE -->
+  <div class="modal fade" id="customerModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title" id="customerModalTitle">Nuovo Cliente</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+          <form id="customerForm" class="needs-validation" novalidate>
+            <input type="hidden" id="customer-id">
+            <div class="mb-3"><label class="form-label">Ragione Sociale</label><input type="text" class="form-control" id="customer-name" required><div class="invalid-feedback">La ragione sociale è obbligatoria.</div></div>
+            <div class="mb-3"><label class="form-label">Partita IVA</label><input type="text" class="form-control" id="customer-piva"></div>
+            <div class="mb-3"><label class="form-label">Indirizzo</label><input type="text" class="form-control" id="customer-address"></div>
+          </form>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button><button type="button" class="btn btn-primary" id="saveCustomerBtn">Salva Cliente</button></div>
+      </div>
+    </div>
+  </div>
 
-    <!-- App Script Unico -->
-    <script src="script.js"></script>
+  <!-- MODAL FORNITORE -->
+  <div class="modal fade" id="supplierModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title" id="supplierModalTitle">Nuovo Fornitore</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+          <form id="supplierForm" class="needs-validation" novalidate>
+            <input type="hidden" id="supplier-id">
+            <div class="mb-3"><label class="form-label">Ragione Sociale</label><input type="text" class="form-control" id="supplier-name" required><div class="invalid-feedback">La ragione sociale è obbligatoria.</div></div>
+            <div class="mb-3"><label class="form-label">Partita IVA</label><input type="text" class="form-control" id="supplier-piva"></div>
+            <div class="mb-3"><label class="form-label">Indirizzo</label><input type="text" class="form-control" id="supplier-address"></div>
+          </form>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button><button type="button" class="btn btn-primary" id="saveSupplierBtn">Salva Fornitore</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL PRODOTTO -->
+  <div class="modal fade" id="productModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title" id="productModalTitle">Nuovo Prodotto</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+          <form id="productForm" class="needs-validation" novalidate>
+            <input type="hidden" id="product-id">
+            <div class="row">
+              <div class="col-md-8 mb-3"><label class="form-label">Descrizione</label><input type="text" class="form-control" id="product-description" required><div class="invalid-feedback">La descrizione è obbligatoria.</div></div>
+              <div class="col-md-4 mb-3"><label class="form-label">Codice</label><input type="text" class="form-control" id="product-code" required><div class="invalid-feedback">Il codice è obbligatorio.</div></div>
+            </div>
+            <div class="row">
+              <div class="col-md-4 mb-3"><label class="form-label">Prezzo Acquisto</label><input type="number" step="0.01" class="form-control" id="product-purchase-price"></div>
+              <div class="col-md-4 mb-3"><label class="form-label">Prezzo Vendita</label><input type="number" step="0.01" class="form-control" id="product-sale-price"></div>
+              <div class="col-md-4 mb-3"><label class="form-label">Aliquota I.V.A.</label>
+                <select class="form-select" id="product-iva">
+                  <option value="22">22%</option>
+                  <option value="10">10%</option>
+                  <option value="5">5%</option>
+                  <option value="4">4%</option>
+                </select>
+              </div>
+            </div>
+            <hr>
+            <h6 class="mb-3">Collocazione a Magazzino</h6>
+            <div class="row">
+              <div class="col-md-4 mb-3"><label class="form-label">Corsia</label><input type="text" class="form-control" id="product-loc-corsia"></div>
+              <div class="col-md-4 mb-3"><label class="form-label">Scaffale</label><input type="text" class="form-control" id="product-loc-scaffale"></div>
+              <div class="col-md-4 mb-3"><label class="form-label">Piano</label><input type="text" class="form-control" id="product-loc-piano"></div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button><button type="button" class="btn btn-primary" id="saveProductBtn">Salva Prodotto</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DETTAGLIO DDT CLIENTE -->
+  <div class="modal fade" id="ddtDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header no-print"><h5 class="modal-title" id="ddtDetailModalTitle">Dettaglio DDT Cliente</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body" id="ddtDetailModalBody"></div>
+        <div class="modal-footer no-print">
+          <button type="button" class="btn btn-primary" id="print-ddt-btn"><i class="fas fa-file-pdf"></i> Genera PDF</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DETTAGLIO DDT FORNITORE -->
+  <div class="modal fade" id="supplierDdtDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title" id="supplierDdtDetailModalTitle">Dettaglio DDT Fornitore</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body" id="supplierDdtDetailModalBody"></div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DETTAGLIO ORDINE CLIENTE -->
+  <div class="modal fade" id="customerOrderDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title" id="customerOrderDetailModalTitle">Dettaglio Ordine Cliente</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body" id="customerOrderDetailModalBody"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-danger me-auto" id="delete-customer-order-btn">Elimina Ordine</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DETTAGLIO ORDINE FORNITORE -->
+  <div class="modal fade" id="supplierOrderDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title" id="supplierOrderDetailModalTitle">Dettaglio Ordine Fornitore</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body" id="supplierOrderDetailModalBody"></div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DETTAGLIO FATTURA -->
+  <div class="modal fade" id="invoiceDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header no-print"><h5 class="modal-title" id="invoiceDetailModalTitle">Dettaglio Fattura</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body" id="invoiceDetailModalBody"></div>
+        <div class="modal-footer no-print">
+          <button type="button" class="btn btn-primary" id="print-invoice-btn"><i class="fas fa-file-pdf"></i> Genera PDF</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100"></div>
+
+  <!-- HELP BUTTON (nuova scheda) -->
+  <button id="help-btn" class="btn btn-info rounded-pill shadow-sm">
+    <i class="fas fa-question me-1"></i> Help (F1)
+  </button>
+
+  <!-- LIBRERIE -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- jsPDF per PDF (clienti) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf-autotable.min.js"></script>
+
+  <script src="script.js"></script>
+    <script src="script_ol_patch.js"></script>
+<!-- Toast container (Bootstrap 5) -->
+    <div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080;"></div>
+<script>
+// === Overlay patch: Supervisor delete on Supplier Orders + Edit Orders (customer & supplier) ===
+// Runs after the core app (script.js) to extend capabilities without breaking existing logic.
+
+(function() {
+  // Safe helpers --------------------------------------------------------------
+  function ensureToast() {
+    if (typeof window.showToast === 'function') return;
+    window.showToast = function(message, type) {
+      // type: 'success' | 'danger' | 'warning' | 'info'
+      var container = document.getElementById('toast-container');
+      if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.className = 'toast-container position-fixed top-0 end-0 p-3';
+        container.style.zIndex = 1080;
+        document.body.appendChild(container);
+      }
+      var toastEl = document.createElement('div');
+      toastEl.className = 'toast align-items-center text-bg-' + (type || 'info') + ' border-0';
+      toastEl.setAttribute('role', 'alert');
+      toastEl.setAttribute('aria-live', 'assertive');
+      toastEl.setAttribute('aria-atomic', 'true');
+      toastEl.innerHTML = '<div class="d-flex"><div class="toast-body">' + message +
+                          '</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button></div>';
+      container.appendChild(toastEl);
+      try {
+        var toast = new bootstrap.Toast(toastEl, { delay: 2500 });
+        toast.show();
+        toastEl.addEventListener('hidden.bs.toast', function() { toastEl.remove(); });
+      } catch (e) {
+        console.log('[Toast]', message);
+      }
+    };
+  }
+
+  function detectDbKey() {
+    // Try common keys first
+    var candidates = ['gestionaleDB', 'magazzinoDB', 'warehouseDB', 'db', 'appDB'];
+    for (var i=0;i<candidates.length;i++) {
+      var k = candidates[i];
+      try {
+        var v = localStorage.getItem(k);
+        if (!v) continue;
+        var o = JSON.parse(v);
+        if (o && o.customerOrders && o.supplierOrders) return k;
+      } catch(e){}
+    }
+    // Fallback: scan all keys
+    for (var j=0;j<localStorage.length;j++){
+      var key = localStorage.key(j);
+      try {
+        var o = JSON.parse(localStorage.getItem(key));
+        if (o && o.customerOrders && o.supplierOrders) return key;
+      } catch(e){}
+    }
+    return null;
+  }
+  var DB_KEY = detectDbKey();
+
+  function getDB() {
+    if (!DB_KEY) return null;
+    try { return JSON.parse(localStorage.getItem(DB_KEY)); } catch(e){ return null; }
+  }
+  function saveDB(db) {
+    if (!DB_KEY) return;
+    localStorage.setItem(DB_KEY, JSON.stringify(db));
+  }
+  function getRoleFromSidebar() {
+    var el = document.getElementById('user-name-sidebar');
+    if (!el) return null;
+    var t = (el.textContent || '').toLowerCase();
+    if (t.includes('admin')) return 'Admin';
+    if (t.includes('supervisor')) return 'Supervisor';
+    if (t.includes('user')) return 'User';
+    return null;
+  }
+
+  function formatCurrency(n) {
+    var v = (typeof n === 'number') ? n : parseFloat(n||0);
+    if (isNaN(v)) v = 0;
+    return '€ ' + v.toFixed(2).replace('.', ',');
+  }
+
+  // Enhance tables ------------------------------------------------------------
+  function enhanceSupplierOrdersTable() {
+    var role = getRoleFromSidebar();
+    var tbody = document.getElementById('supplier-orders-table-body');
+    if (!tbody) return;
+    var db = getDB();
+    if (!db || !db.supplierOrders) return;
+
+    Array.from(tbody.querySelectorAll('tr')).forEach(function(tr){
+      var tds = tr.querySelectorAll('td');
+      if (!tds || !tds.length) return;
+      var number = (tds[0].textContent || '').trim(); // first col: order number
+      var order = db.supplierOrders.find(function(o){ return (o.number||'').trim() === number; });
+      var actionsTd = tds[tds.length-1];
+      if (!actionsTd) return;
+
+      // Add Edit button if not present
+      if (!actionsTd.querySelector('.btn-edit-supplier-order')) {
+        var btnEdit = document.createElement('button');
+        btnEdit.className = 'btn btn-warning btn-sm me-1 btn-edit-supplier-order';
+        btnEdit.textContent = 'Modifica';
+        btnEdit.dataset.orderNumber = number;
+        actionsTd.appendChild(btnEdit);
+      }
+      // Add Delete button if role is Admin or Supervisor and not already present
+      var canDelete = (role === 'Admin' || role === 'Supervisor');
+      if (canDelete && !actionsTd.querySelector('.btn-delete-supplier-order')) {
+        var btnDel = document.createElement('button');
+        btnDel.className = 'btn btn-danger btn-sm btn-delete-supplier-order';
+        btnDel.innerHTML = '<i class="fas fa-trash-alt"></i>';
+        btnDel.title = 'Elimina Ordine';
+        btnDel.dataset.orderNumber = number;
+        actionsTd.appendChild(btnDel);
+      }
+    });
+  }
+
+  function enhanceCustomerOrdersTable() {
+    var tbody = document.getElementById('customer-orders-table-body');
+    if (!tbody) return;
+    var db = getDB();
+    if (!db || !db.customerOrders) return;
+
+    Array.from(tbody.querySelectorAll('tr')).forEach(function(tr){
+      var tds = tr.querySelectorAll('td');
+      if (!tds || !tds.length) return;
+      var number = (tds[0].textContent || '').trim();
+      var actionsTd = tds[tds.length-1];
+      if (!actionsTd) return;
+
+      if (!actionsTd.querySelector('.btn-edit-customer-order')) {
+        var btnEdit = document.createElement('button');
+        btnEdit.className = 'btn btn-warning btn-sm me-1 btn-edit-customer-order';
+        btnEdit.textContent = 'Modifica';
+        btnEdit.dataset.orderNumber = number;
+        actionsTd.appendChild(btnEdit);
+      }
+    });
+  }
+
+  // Mutation observers to run enhancements whenever core app re-renders tables
+  var supplierObserver, customerObserver;
+  function installObservers() {
+    var supTbody = document.getElementById('supplier-orders-table-body');
+    var cusTbody = document.getElementById('customer-orders-table-body');
+    if (supTbody && !supplierObserver) {
+      supplierObserver = new MutationObserver(enhanceSupplierOrdersTable);
+      supplierObserver.observe(supTbody, { childList: true, subtree: true });
+      enhanceSupplierOrdersTable();
+    }
+    if (cusTbody && !customerObserver) {
+      customerObserver = new MutationObserver(enhanceCustomerOrdersTable);
+      customerObserver.observe(cusTbody, { childList: true, subtree: true });
+      enhanceCustomerOrdersTable();
+    }
+  }
+
+  // Build edit UIs ------------------------------------------------------------
+  function buildOrderEditHtml(order, type, db) {
+    // type: 'supplier' | 'customer'
+    var products = db.products || [];
+    function productName(pId) {
+      var p = products.find(function(x){ return x.id === pId; });
+      if (!p) return '';
+      return (p.code||'') + ' - ' + (p.description||'');
+    }
+    var canChangeLine = function(line){
+      var locked = (type === 'supplier') ? (line.receivedQty && line.receivedQty > 0) : (line.shippedQty && line.shippedQty > 0);
+      return !locked;
+    };
+    var html = '';
+    html += '<div class="mb-2"><strong>Numero ordine:</strong> ' + (order.number||'') + ' &nbsp; <strong>Data:</strong> ' + (order.date||'') + '</div>';
+    html += '<div class="table-responsive"><table class="table table-sm align-middle">';
+    html += '<thead><tr><th>Prodotto</th><th class="text-end">Qtà</th><th class="text-end">Vincolo</th><th class="text-end">Prezzo</th><th class="text-end">Subtotale</th><th></th></tr></thead><tbody>';
+    order.lines.forEach(function(line, idx){
+      var lockedQty = (type === 'supplier') ? (line.receivedQty||0) : (line.shippedQty||0);
+      var locked = lockedQty > 0;
+      var pname = line.productName || productName(line.productId);
+      var price = (line.price!=null)? line.price : 0;
+      html += '<tr data-line-index="'+idx+'">';
+      html += '<td>'+ pname +'</td>';
+      html += '<td class="text-end"><input type="number" min="'+lockedQty+'" class="form-control form-control-sm text-end edit-line-qty" '+(locked?'disabled':'')+' value="'+ (line.qty||0) +'"></td>';
+      html += '<td class="text-end"><small class="text-muted">'+(locked ? (type==='supplier'?'Ricevuti: ':'Spediti: ') + lockedQty : '-')+'</small></td>';
+      html += '<td class="text-end"><input type="number" step="0.01" class="form-control form-control-sm text-end edit-line-price" value="'+price+'"></td>';
+      var subtotal = (price * (line.qty||0)) || 0;
+      html += '<td class="text-end"><span class="edit-line-subtotal">'+ formatCurrency(subtotal) +'</span></td>';
+      html += '<td class="text-end">';
+      if (!locked) {
+        html += '<button type="button" class="btn btn-outline-danger btn-sm edit-line-delete"><i class="fas fa-trash"></i></button>';
+      } else {
+        html += '<span class="text-muted small">bloccata</span>';
+      }
+      html += '</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+
+    // Add new line
+    html += '<div class="border rounded p-2 mb-2">';
+    html += '<div class="row g-2 align-items-end">';
+    html += '<div class="col-md-6"><label class="form-label">Nuovo prodotto</label><select class="form-select form-select-sm" id="edit-add-product">';
+    products.forEach(function(p){
+      var label = (p.code||'') + ' - ' + (p.description||'');
+      html += '<option value="'+p.id+'" data-sale="'+(p.salePrice||0)+'" data-purchase="'+(p.purchasePrice||0)+'">'+ label +'</option>';
+    });
+    html += '</select></div>';
+    html += '<div class="col-md-2"><label class="form-label">Qtà</label><input type="number" min="1" value="1" class="form-control form-control-sm" id="edit-add-qty"></div>';
+    html += '<div class="col-md-2"><label class="form-label">Prezzo</label><input type="number" step="0.01" class="form-control form-control-sm" id="edit-add-price"></div>';
+    html += '<div class="col-md-2"><button type="button" class="btn btn-secondary btn-sm w-100" id="edit-add-line-btn">Aggiungi riga</button></div>';
+    html += '</div></div>';
+
+    // Order total
+    html += '<div class="text-end"><strong>Totale ordine: <span id="edit-order-total"></span></strong></div>';
+    return html;
+  }
+
+  function recalcEditModalTotals(modalBody) {
+    var total = 0;
+    modalBody.querySelectorAll('tbody tr').forEach(function(tr){
+      var qty = parseFloat(tr.querySelector('.edit-line-qty')?.value || '0');
+      var price = parseFloat(tr.querySelector('.edit-line-price')?.value || '0');
+      if (isNaN(qty)) qty = 0;
+      if (isNaN(price)) price = 0;
+      var subtotal = qty * price;
+      tr.querySelector('.edit-line-subtotal').textContent = formatCurrency(subtotal);
+      total += subtotal;
+    });
+    var totEl = modalBody.querySelector('#edit-order-total');
+    if (totEl) totEl.textContent = formatCurrency(total);
+    return total;
+  }
+
+  function openEditModal(type, orderNumber) {
+    ensureToast();
+    var db = getDB();
+    if (!db) { showToast('Database non trovato nel browser.', 'danger'); return; }
+    var orderList = (type === 'supplier') ? db.supplierOrders : db.customerOrders;
+    var order = orderList.find(function(o){ return (o.number||'').trim() === (orderNumber||'').trim(); });
+    if (!order) { showToast('Ordine non trovato.', 'danger'); return; }
+
+    // Reject editing fully-processed orders (all lines locked)
+    var allLocked = order.lines.every(function(line){
+      return (type==='supplier') ? (line.receivedQty||0) > 0 && (line.receivedQty >= (line.qty||0)) :
+                                   (line.shippedQty||0) > 0 && (line.shippedQty >= (line.qty||0));
+    });
+    if (allLocked) {
+      showToast('Ordine già completamente lavorato: modifica non consentita.', 'warning');
+      return;
+    }
+
+    var modalId = (type==='supplier') ? '#supplierOrderDetailModal' : '#customerOrderDetailModal';
+    var modalBody = document.querySelector(modalId + ' .modal-body');
+    var modalTitle = document.querySelector(modalId + ' .modal-title');
+    if (!modalBody || !modalTitle) return;
+    modalTitle.textContent = (type==='supplier') ? 'Modifica Ordine Fornitore' : 'Modifica Ordine Cliente';
+    modalBody.innerHTML = buildOrderEditHtml(order, type, db);
+
+    // Default price for add line
+    var addSel = modalBody.querySelector('#edit-add-product');
+    var addPrice = modalBody.querySelector('#edit-add-price');
+    if (addSel && addPrice) {
+      var setDefaultPrice = function(){
+        var opt = addSel.options[addSel.selectedIndex];
+        var v = (type==='supplier') ? parseFloat(opt.getAttribute('data-purchase')||'0') :
+                                      parseFloat(opt.getAttribute('data-sale')||'0');
+        addPrice.value = isNaN(v) ? 0 : v;
+      };
+      setDefaultPrice();
+      addSel.addEventListener('change', setDefaultPrice);
+    }
+
+    // Events within modal
+    modalBody.addEventListener('input', function(ev){
+      if (ev.target.classList.contains('edit-line-qty') || ev.target.classList.contains('edit-line-price')) {
+        recalcEditModalTotals(modalBody);
+      }
+    });
+    modalBody.addEventListener('click', function(ev){
+      if (ev.target.closest('.edit-line-delete')) {
+        var tr = ev.target.closest('tr');
+        tr.parentElement.removeChild(tr);
+        recalcEditModalTotals(modalBody);
+      }
+    });
+    var addBtn = modalBody.querySelector('#edit-add-line-btn');
+    if (addBtn) {
+      addBtn.addEventListener('click', function(){
+        var sel = modalBody.querySelector('#edit-add-product');
+        var qtyEl = modalBody.querySelector('#edit-add-qty');
+        var priceEl = modalBody.querySelector('#edit-add-price');
+        var pid = sel.value;
+        var qty = parseFloat(qtyEl.value || '0');
+        var price = parseFloat(priceEl.value || '0');
+        if (!pid || isNaN(qty) || qty<=0) { showToast('Specificare prodotto e quantità > 0', 'warning'); return; }
+        // Append new row
+        var products = (getDB()||{}).products || [];
+        var p = products.find(function(x){ return x.id === pid; });
+        var pname = p ? (p.code||'') + ' - ' + (p.description||'') : 'Prodotto';
+        var tbody = modalBody.querySelector('tbody');
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td>'+pname+'</td>' +
+                       '<td class="text-end"><input type="number" min="1" class="form-control form-control-sm text-end edit-line-qty" value="'+qty+'"></td>' +
+                       '<td class="text-end"><small class="text-muted">-</small></td>' +
+                       '<td class="text-end"><input type="number" step="0.01" class="form-control form-control-sm text-end edit-line-price" value="'+price+'"></td>' +
+                       '<td class="text-end"><span class="edit-line-subtotal"></span></td>' +
+                       '<td class="text-end"><button type="button" class="btn btn-outline-danger btn-sm edit-line-delete"><i class="fas fa-trash"></i></button></td>';
+        tr.dataset.productId = pid;
+        tbody.appendChild(tr);
+        recalcEditModalTotals(modalBody);
+      });
+    }
+
+    recalcEditModalTotals(modalBody);
+
+    // Footer buttons (create if missing)
+    var footer = document.querySelector(modalId + ' .modal-footer');
+    if (footer && !footer.querySelector('.btn-save-order-edits')) {
+      var saveBtn = document.createElement('button');
+      saveBtn.className = 'btn btn-primary btn-save-order-edits';
+      saveBtn.textContent = 'Salva modifiche';
+      footer.insertBefore(saveBtn, footer.firstChild);
+      saveBtn.addEventListener('click', function(){
+        // Build new lines array from modal rows
+        var newLines = [];
+        var ok = true;
+        var dbNow = getDB() || db;
+        var products = dbNow.products || [];
+        var original = order; // ref
+        modalBody.querySelectorAll('tbody tr').forEach(function(tr){
+          // Trying to map by product name (since we may not always have IDs on existing rows).
+          var nameCell = tr.children[0].textContent.trim();
+          var pid = tr.dataset.productId;
+          if (!pid) {
+            // Try to find by code in name prefix "CODE - desc"
+            var code = (nameCell.split(' - ')[0] || '').trim();
+            var prod = products.find(function(pp){ return (pp.code||'') === code; });
+            if (prod) pid = prod.id;
+          }
+          var qty = parseFloat(tr.querySelector('.edit-line-qty')?.value || '0');
+          var price = parseFloat(tr.querySelector('.edit-line-price')?.value || '0');
+          if (isNaN(qty) || qty<=0) { ok = false; }
+          var existingLine = (original.lines||[]).find(function(l){
+            return (l.productId && pid && l.productId === pid) || (l.productName && nameCell && l.productName.trim() === nameCell);
+          }) || {};
+          var shipped = existingLine.shippedQty || 0;
+          var received = existingLine.receivedQty || 0;
+          if (type==='customer' && qty < shipped) {
+            ok = false;
+            showToast('Quantità di una riga inferiore a quanto già spedito ('+shipped+').', 'danger');
+          }
+          if (type==='supplier' && qty < received) {
+            ok = false;
+            showToast('Quantità di una riga inferiore a quanto già ricevuto ('+received+').', 'danger');
+          }
+          var pname = nameCell;
+          if (!pname) {
+            var p = products.find(function(x){ return x.id === pid; });
+            pname = p ? (p.code||'') + ' - ' + (p.description||'') : '';
+          }
+          var line = {
+            productId: pid || existingLine.productId || null,
+            productName: pname || existingLine.productName || '',
+            qty: qty,
+            price: price,
+            subtotal: qty * price
+          };
+          if (type==='customer') line.shippedQty = shipped;
+          if (type==='supplier') line.receivedQty = received;
+          newLines.push(line);
+        });
+        if (!ok || newLines.length===0) {
+          if (newLines.length===0) showToast('L\'ordine non può rimanere senza righe.', 'danger');
+          return;
+        }
+
+        // Persist
+        original.lines = newLines;
+        // Recalc total & status
+        var total = newLines.reduce(function(acc, l){ return acc + (l.subtotal||0); }, 0);
+        original.total = total;
+        if (type==='customer') {
+          var allShipped = original.lines.every(function(l){ return (l.shippedQty||0) >= (l.qty||0); });
+          var anyShipped = original.lines.some(function(l){ return (l.shippedQty||0) > 0 && (l.shippedQty||0) < (l.qty||0); });
+          original.status = allShipped ? 'Evaso' : (anyShipped ? 'Parzialmente Evaso' : 'In lavorazione');
+        } else {
+          var allReceived = original.lines.every(function(l){ return (l.receivedQty||0) >= (l.qty||0); });
+          var anyReceived = original.lines.some(function(l){ return (l.receivedQty||0) > 0 && (l.receivedQty||0) < (l.qty||0); });
+          original.status = allReceived ? 'Completato' : (anyReceived ? 'Parzialmente Ricevuto' : 'Inviato');
+        }
+        saveDB(dbNow);
+
+        // Try to refresh the tables gracefully, else fallback to reload
+        try {
+          if (type==='customer' && typeof window.renderCustomerOrdersTable === 'function') { window.renderCustomerOrdersTable(); }
+          if (type==='supplier' && typeof window.renderSupplierOrdersTable === 'function') { window.renderSupplierOrdersTable(); }
+        } catch(e){}
+        try {
+          var m = bootstrap.Modal.getOrCreateInstance(document.querySelector(modalId));
+          m.hide();
+        } catch(e){}
+        showToast('Ordine aggiornato con successo.', 'success');
+        setTimeout(function(){
+          // Final fallback to ensure UI reflects changes
+          if (typeof window.renderCustomerOrdersTable !== 'function' && typeof window.renderSupplierOrdersTable !== 'function') {
+            location.reload();
+          }
+        }, 500);
+      });
+    }
+
+    try {
+      var modalEl = document.querySelector(modalId);
+      var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+      modal.show();
+    } catch(e){ console.error(e); }
+  }
+
+  function deleteSupplierOrder(orderNumber) {
+    ensureToast();
+    var db = getDB();
+    if (!db) { showToast('Database non trovato nel browser.', 'danger'); return; }
+    var idx = db.supplierOrders.findIndex(function(o){ return (o.number||'').trim() === (orderNumber||'').trim(); });
+    if (idx === -1) { showToast('Ordine non trovato.', 'danger'); return; }
+    var ord = db.supplierOrders[idx];
+    var hasReceived = (ord.lines||[]).some(function(l){ return (l.receivedQty||0) > 0; });
+    if (hasReceived) { showToast('Impossibile eliminare: alcune righe hanno quantità già ricevute.', 'warning'); return; }
+    if (!confirm('Confermi l\'eliminazione dell\'ordine '+ord.number+'?')) return;
+    db.supplierOrders.splice(idx,1);
+    saveDB(db);
+    try {
+      if (typeof window.renderSupplierOrdersTable === 'function') window.renderSupplierOrdersTable();
+    } catch(e){}
+    showToast('Ordine fornitore eliminato.', 'success');
+    setTimeout(function(){
+      if (typeof window.renderSupplierOrdersTable !== 'function') location.reload();
+    }, 400);
+  }
+
+  // Event delegation ----------------------------------------------------------
+  document.addEventListener('click', function(ev){
+    var t = ev.target;
+    var btn;
+    if ((btn = t.closest('.btn-edit-supplier-order'))) {
+      openEditModal('supplier', btn.dataset.orderNumber);
+    } else if ((btn = t.closest('.btn-edit-customer-order'))) {
+      openEditModal('customer', btn.dataset.orderNumber);
+    } else if ((btn = t.closest('.btn-delete-supplier-order'))) {
+      // Check role
+      var role = getRoleFromSidebar();
+      if (role !== 'Admin' && role !== 'Supervisor') {
+        ensureToast(); showToast('Permesso negato.', 'danger'); return;
+      }
+      deleteSupplierOrder(btn.dataset.orderNumber);
+    }
+  });
+
+  // Kickoff after DOM and possible core render
+  document.addEventListener('DOMContentLoaded', function(){
+    ensureToast();
+    setTimeout(installObservers, 600);
+    // Also try again later in case sections render lazily
+    setTimeout(installObservers, 2000);
+    setTimeout(installObservers, 4000);
+  });
+})();
+</script>
+
+<!-- Patch: status badges for order lists -->
+<script>
+(function () {
+  function mapStatusToBadge(text) {
+    const raw = (text || "").trim();
+    const s = raw.toLowerCase();
+    // Map common statuses to Bootstrap contextual classes
+    let cls = "text-bg-secondary";
+    if (s === "in lavorazione") cls = "text-bg-secondary";
+    else if (s === "parzialmente evaso" || s === "parzialmente evasa" || s === "parzialmente ricevuto" || s === "parzialmente ricevuta") cls = "text-bg-warning";
+    else if (s === "evaso" || s === "evasa" || s === "ricevuto" || s === "ricevuta" || s === "fatturato" || s === "fatturata") cls = "text-bg-success";
+    else if (s === "annullato" || s === "annullata" || s === "cancellato" || s === "cancellata") cls = "text-bg-dark";
+    else if (s === "spedito" || s === "spedita") cls = "text-bg-info";
+    else if (s === "da fatturare") cls = "text-bg-primary";
+    return '<span class="badge rounded-pill ' + cls + '">' + raw + '</span>';
+  }
+
+  function decorateStatusCells(tbodySelector, statusColIndex) {
+    const tbody = document.querySelector(tbodySelector);
+    if (!tbody) return;
+    tbody.querySelectorAll("tr").forEach(function (tr) {
+      const cells = tr.querySelectorAll("td");
+      if (cells.length > statusColIndex) {
+        const cell = cells[statusColIndex];
+        if (!cell) return;
+        // Avoid double-decoration
+        if (cell.dataset.badgeDecorated === "1") return;
+        const txt = (cell.textContent || "").trim();
+        if (!txt) return;
+        cell.innerHTML = mapStatusToBadge(txt);
+        cell.dataset.badgeDecorated = "1";
+      }
+    });
+  }
+
+  function runOnce() {
+    // In both tabelle ordini, lo stato è la 5a colonna (indice 4)
+    decorateStatusCells("#customer-orders-table-body", 4);
+    decorateStatusCells("#supplier-orders-table-body", 4);
+  }
+
+  // Esecuzione iniziale
+  document.addEventListener("DOMContentLoaded", runOnce);
+  // Osserva cambiamenti nelle tabelle (render dinamico) e ri-applica
+  const observerTargets = ["#customer-orders-table-body", "#supplier-orders-table-body"];
+  const observers = [];
+  observerTargets.forEach(function(sel){
+    const el = document.querySelector(sel);
+    if (!el) return;
+    const obs = new MutationObserver(function(){ runOnce(); });
+    obs.observe(el, { childList: true, subtree: true });
+    observers.push(obs);
+  });
+  // Fallback: osserva il body in caso di re-render completo delle sezioni
+  const bodyObs = new MutationObserver(function(){ runOnce(); });
+  bodyObs.observe(document.body, { childList: true, subtree: true });
+})();
+</script>
+
+
+  <script src="script_badges_tooltips_patch.js"></script>
 </body>
 </html>
