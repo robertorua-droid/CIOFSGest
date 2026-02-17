@@ -16,7 +16,7 @@ export function isLegacyBackup(obj) {
 /**
  * Normalizza il backup legacy nello schema DB corrente.
  * - converte id numerici in stringhe (per consistenza)
- * - mappa campi prodotti: corsia/scaffale/piano/giacenza -> loc*/stockQty
+ * - mappa campi prodotti: corsia/scaffale/piano/giacenza -> campi locX + stockQty
  * - mappa customerDdts/supplierDdts (legacy) -> customerDDTs/supplierDDTs
  * - note array -> notes object { userId: text }
  */
