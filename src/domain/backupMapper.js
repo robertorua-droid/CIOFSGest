@@ -84,6 +84,10 @@ export function mapBackupToDb(backup) {
     if (out.subtotal !== undefined) out.subtotal = Number(out.subtotal || 0);
     if (out.receivedQty !== undefined) out.receivedQty = Number(out.receivedQty || 0);
     if (out.shippedQty !== undefined) out.shippedQty = Number(out.shippedQty || 0);
+
+    // Compat: alcuni backup usano productName al posto di description (o viceversa)
+    if (out.description == null && out.productName != null) out.description = out.productName;
+    if (out.productName == null && out.description != null) out.productName = out.description;
     return out;
   });
 

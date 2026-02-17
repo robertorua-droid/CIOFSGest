@@ -70,5 +70,62 @@ export function normalizeDb(input) {
     if (db[k] == null) db[k] = base[k];
   }
 
+  // ===== Backwards compatibility / denormalization =====
+  // I backup legacy non includono spesso campi "denormalizzati" come customerName/supplierName
+  // e possono usare productName al posto di description (o viceversa).
+  // Qui arricchiamo i documenti in memoria per evitare "undefined" in UI/PDF.
+  try {
+    const custById = new Map((db.customers || []).map(c => [String(c.id), c]));
+    const supById = new Map((db.suppliers || []).map(s => [String(s.id), s]));
+
+    const fixLines = (lines) => {
+      if (!Array.isArray(lines)) return;
+      for (const l of lines) {
+        if (l && l.description == null && l.productName != null) l.description = l.productName;
+        if (l && l.productName == null && l.description != null) l.productName = l.description;
+      }
+    };
+
+    for (const o of (db.customerOrders || [])) {
+      if (o && (o.customerName == null || o.customerName === '')) {
+        const c = custById.get(String(o.customerId));
+        if (c?.name) o.customerName = c.name;
+      }
+      fixLines(o?.lines);
+    }
+    for (const o of (db.supplierOrders || [])) {
+      if (o && (o.supplierName == null || o.supplierName === '')) {
+        const s = supById.get(String(o.supplierId));
+        if (s?.name) o.supplierName = s.name;
+      }
+      fixLines(o?.lines);
+    }
+
+    for (const d of (db.customerDDTs || [])) {
+      if (d && (d.customerName == null || d.customerName === '')) {
+        const c = custById.get(String(d.customerId));
+        if (c?.name) d.customerName = c.name;
+      }
+      fixLines(d?.lines);
+    }
+    for (const d of (db.supplierDDTs || [])) {
+      if (d && (d.supplierName == null || d.supplierName === '')) {
+        const s = supById.get(String(d.supplierId));
+        if (s?.name) d.supplierName = s.name;
+      }
+      fixLines(d?.lines);
+    }
+
+    for (const inv of (db.invoices || [])) {
+      if (inv && (inv.customerName == null || inv.customerName === '')) {
+        const c = custById.get(String(inv.customerId));
+        if (c?.name) inv.customerName = c.name;
+      }
+      fixLines(inv?.lines);
+    }
+  } catch {
+    // best effort: non blocchiamo la UI
+  }
+
   return db;
 }

@@ -1,6 +1,7 @@
 /* impostazioni/index.js - azienda, utenti, avanzate (MODULARE) */
 import { App } from '../../core/app.js';
 import { isLegacyBackup, mapBackupToDb, summarizeDb } from '../../domain/backupMapper.js';
+import { normalizeDb } from '../../core/dbSchema.js';
 
   const Impostazioni = {
     initCompany() {
@@ -236,7 +237,7 @@ import { isLegacyBackup, mapBackupToDb, summarizeDb } from '../../domain/backupM
         try {
           const imported = JSON.parse(text);
           const normalized = isLegacyBackup(imported) ? mapBackupToDb(imported) : imported;
-          App.db.save(normalized);
+          App.db.save(normalizeDb(normalized));
           App.ui.showToast('Dati importati. Ricarico...', 'success');
           setTimeout(()=>location.reload(), 600);
         } catch { App.ui.showToast('File non valido.', 'danger'); }
@@ -273,8 +274,8 @@ import { isLegacyBackup, mapBackupToDb, summarizeDb } from '../../domain/backupM
       async function loadBackupFromText(text, label) {
         const obj = JSON.parse(text);
         const normalized = isLegacyBackup(obj) ? mapBackupToDb(obj) : obj;
-        _loadedBackupDb = normalized;
-        setPreview(normalized, label);
+        _loadedBackupDb = normalizeDb(normalized);
+        setPreview(_loadedBackupDb, label);
         enableBackupActions(true);
       }
 
