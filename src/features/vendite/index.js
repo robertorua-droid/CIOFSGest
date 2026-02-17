@@ -351,14 +351,16 @@ const Clienti = {
 
       // Build preview
       const lines = [];
-      ddts.forEach(d => d.lines.forEach(l => {
-        // Keep original pricing where available; fallback to product price
-        const code = (l.description || '').split(' - ')[0];
-        const p = (db.products || []).find(pp => pp.code === code);
-        const price = (l.price != null) ? l.price : (p && p.salePrice || 0);
-        const iva = (l.iva != null) ? l.iva : (p && p.iva || 22);
-        lines.push({ description: l.description, qty: l.qty, price, iva });
-      }));
+      ddts.forEach(d => {
+        d.lines.forEach(l => {
+          // Keep original pricing where available; fallback to product price
+          const code = (l.description || '').split(' - ')[0];
+          const p = (db.products || []).find(pp => pp.code === code);
+          const price = (l.price != null) ? l.price : (p && p.salePrice || 0);
+          const iva = (l.iva != null) ? l.iva : (p && p.iva || 22);
+          lines.push({ description: l.description, qty: l.qty, price, iva });
+        });
+      });
 
       const previewBody = document.getElementById('invoice-preview-lines-tbody');
       previewBody.innerHTML = lines.map((r, i) => `
