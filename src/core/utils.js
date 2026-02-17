@@ -16,29 +16,40 @@ export const utils = {
     const num = Number.isFinite(v) ? v : 0;
     return '€ ' + num.toFixed(2).replace('.', ',');
   },
+  _ensureCounters(db) {
+    if (!db || typeof db !== 'object') throw new Error('DB non valido');
+    if (!db.counters || typeof db.counters !== 'object' || Array.isArray(db.counters)) db.counters = {};
+    return db.counters;
+  },
+
 
   // === Numeratori ===
   nextCustomerOrderNumber(db) {
-    db.counters.orderCustomer = (db.counters.orderCustomer || 0) + 1;
-    return 'OC-' + String(db.counters.orderCustomer).padStart(4, '0');
+    const c = this._ensureCounters(db);
+    c.orderCustomer = (c.orderCustomer || 0) + 1;
+    return 'OC-' + String(c.orderCustomer).padStart(4, '0');
   },
   nextSupplierOrderNumber(db) {
-    db.counters.orderSupplier = (db.counters.orderSupplier || 0) + 1;
-    return 'OF-' + String(db.counters.orderSupplier).padStart(4, '0');
+    const c = this._ensureCounters(db);
+    c.orderSupplier = (c.orderSupplier || 0) + 1;
+    return 'OF-' + String(c.orderSupplier).padStart(4, '0');
   },
   nextCustomerDDTNumber(db) {
-    db.counters.ddtCustomer = (db.counters.ddtCustomer || 0) + 1;
+    const c = this._ensureCounters(db);
+    c.ddtCustomer = (c.ddtCustomer || 0) + 1;
     const y = new Date().getFullYear();
-    return `DDT-${y}-${String(db.counters.ddtCustomer).padStart(4,'0')}`;
+    return `DDT-${y}-${String(c.ddtCustomer).padStart(4,'0')}`;
   },
   nextSupplierDDTNumber(db) {
-    db.counters.ddtSupplier = (db.counters.ddtSupplier || 0) + 1;
+    const c = this._ensureCounters(db);
+    c.ddtSupplier = (c.ddtSupplier || 0) + 1;
     const y = new Date().getFullYear();
-    return `R-DDT-${y}-${String(db.counters.ddtSupplier).padStart(4,'0')}`;
+    return `R-DDT-${y}-${String(c.ddtSupplier).padStart(4,'0')}`;
   },
   nextInvoiceNumber(db) {
-    db.counters.invoice = (db.counters.invoice || 0) + 1;
+    const c = this._ensureCounters(db);
+    c.invoice = (c.invoice || 0) + 1;
     const y = new Date().getFullYear();
-    return `F-${y}-${String(db.counters.invoice).padStart(4,'0')}`;
+    return `F-${y}-${String(c.invoice).padStart(4,'0')}`;
   }
 };

@@ -1,5 +1,5 @@
 import { config } from './config.js';
-import { createInitialDb } from './dbSchema.js';
+import { createInitialDb, normalizeDb } from './dbSchema.js';
 import { firebase } from './firebase.js';
 import { firestoreRepo } from './firestoreRepo.js';
 
@@ -44,13 +44,14 @@ export function createDb(events) {
           const repo = firestoreRepo(firebase.fs, firebase.getRootPath());
           const remote = await repo.loadAll();
           if (remote) {
-            this._cache = remote;
+            const norm = normalizeDb(remote);
+            this._cache = norm;
             // fallback locale per offline
-            localStorage.setItem(this._key, JSON.stringify(remote));
+            localStorage.setItem(this._key, JSON.stringify(norm));
             this._syncEnabled = true;
             this._syncStatus = { ...this._syncStatus, state: 'idle', lastError: null };
             events?.emit?.('sync:status', this._syncStatus);
-            return remote;
+            return norm;
           }
         } catch (e) {
           // fallback locale
@@ -66,7 +67,10 @@ export function createDb(events) {
         db = createInitialDb();
         this.save(db);
       } else {
+        db = normalizeDb(db);
         this._cache = db;
+        // persisti eventuali default aggiunti
+        localStorage.setItem(this._key, JSON.stringify(db));
       }
       return this._cache;
     },
@@ -93,7 +97,10 @@ export function createDb(events) {
         db = createInitialDb();
         this.save(db);
       } else {
+        db = normalizeDb(db);
         this._cache = db;
+        // persisti eventuali default aggiunti
+        localStorage.setItem(this._key, JSON.stringify(db));
       }
       return db;
     },
@@ -107,7 +114,7 @@ export function createDb(events) {
     },
 
     async migrateLocalToFirebase() {
-      const local = this.load() || this.ensure();
+      const local = normalizeDb(this.load() || this.ensure());
       await firebase.init();
       const repo = firestoreRepo(firebase.fs, firebase.getRootPath());
       this._syncStatus = { ...this._syncStatus, state: 'syncing', lastError: null };
@@ -125,8 +132,9 @@ export function createDb(events) {
       const repo = firestoreRepo(firebase.fs, firebase.getRootPath());
       const remote = await repo.loadAll();
       if (remote) {
-        this.save(remote);
-        return remote;
+        const norm = normalizeDb(remote);
+        this.save(norm);
+        return norm;
       }
       return null;
     },
