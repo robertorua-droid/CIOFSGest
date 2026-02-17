@@ -56,3 +56,119 @@ body { background-color: #f8f9fa; }
   .modal-content { border: none !important; box-shadow: none !important; }
   .modal-header, .modal-footer, #help-btn { display: none !important; }
 }
+
+/* === OL: Dark mode + badge utilities (appended) === */
+html[data-bs-theme='dark'] body {
+  background-color: #0b0e12;
+  color: #e2e8f0;
+}
+html[data-bs-theme='dark'] .content-section {
+  background-color: #151a21;
+  color: #e2e8f0;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+html[data-bs-theme='dark'] .sidebar {
+  background-color: #111827;
+  color: #e5e7eb;
+}
+html[data-bs-theme='dark'] .sidebar .nav-link { color: #cbd5e1; }
+html[data-bs-theme='dark'] .sidebar .nav-link:hover { background-color: #1f2937; color: #fff; }
+html[data-bs-theme='dark'] .sidebar .nav-link.active { background-color: #3b82f6; color: #fff; }
+html[data-bs-theme='dark'] .table { color: #e2e8f0; }
+html[data-bs-theme='dark'] .form-control, 
+html[data-bs-theme='dark'] .form-select, 
+html[data-bs-theme='dark'] .btn {
+  border-color: #374151;
+}
+html[data-bs-theme='dark'] .card { background-color: #0f172a; color: #e2e8f0; }
+html[data-bs-theme='dark'] .modal-content { background-color: #101826; color:#e2e8f0; }
+html[data-bs-theme='dark'] .badge.bg-warning,
+html[data-bs-theme='dark'] .badge.text-bg-warning { color: #111; }
+html[data-bs-theme='dark'] .badge.bg-light,
+html[data-bs-theme='dark'] .badge.text-bg-light { color: #111; }
+
+/* Defensive right align for last column (quantities) */
+#inventario table td:last-child, #inventario table th:last-child { text-align: right; }
+
+
+/* =========================
+   DARK MODE OVERRIDES (Bootstrap 5.3 data-bs-theme)
+   ========================= */
+:root[data-bs-theme='dark'] {
+  --ol-panel-bg: #1f232a;
+  --ol-panel-border: #2b2f36;
+  --ol-surface: #2b2f36;
+  --ol-text: #e6e6e6;
+  --ol-muted: #a6a6a6;
+}
+
+[data-bs-theme='dark'] body { background-color: #121212; color: var(--ol-text); }
+[data-bs-theme='dark'] .content-section { background-color: var(--ol-panel-bg); color: var(--ol-text); border-color: var(--ol-panel-border); box-shadow: 0 2px 4px rgba(0,0,0,.35); }
+[data-bs-theme='dark'] .card { background-color: var(--ol-panel-bg); color: var(--ol-text); border-color: var(--ol-panel-border); }
+[data-bs-theme='dark'] .modal-content { background-color: var(--ol-panel-bg); color: var(--ol-text); border-color: var(--ol-panel-border); }
+[data-bs-theme='dark'] .modal-header, 
+[data-bs-theme='dark'] .modal-footer { border-color: var(--ol-panel-border); }
+
+/* Tables */
+[data-bs-theme='dark'] .table { color: var(--ol-text); border-color: var(--ol-panel-border); }
+[data-bs-theme='dark'] .table thead th { background-color: var(--ol-surface); color: var(--ol-text); }
+[data-bs-theme='dark'] .table tbody tr { border-color: var(--ol-panel-border); }
+[data-bs-theme='dark'] .table-hover>tbody>tr:hover { background-color: rgba(255,255,255,.06); }
+
+/* Forms */
+[data-bs-theme='dark'] .form-control,
+[data-bs-theme='dark'] .form-select,
+[data-bs-theme='dark'] .form-control:focus,
+[data-bs-theme='dark'] .form-select:focus {
+  background-color: var(--ol-surface);
+  color: var(--ol-text);
+  border-color: var(--ol-panel-border);
+}
+[data-bs-theme='dark'] .form-control::placeholder { color: var(--ol-muted); }
+
+/* Misc */
+[data-bs-theme='dark'] hr { border-color: var(--ol-panel-border); }
+[data-bs-theme='dark'] #calendar-widget th { background-color: var(--ol-panel-bg); }
+[data-bs-theme='dark'] #calendar-widget td,
+[data-bs-theme='dark'] #calendar-widget th { border-color: var(--ol-panel-border); }
+[data-bs-theme='dark'] .list-group-item { background-color: var(--ol-panel-bg); color: var(--ol-text); border-color: var(--ol-panel-border); }
+[data-bs-theme='dark'] .toast { background-color: var(--ol-surface); color: var(--ol-text); border-color: var(--ol-panel-border); }
+
+/* Ensure badges remain readable on dark */
+[data-bs-theme='dark'] .badge { filter: none; }
+
+/* === OL: Dark Mode overrides (Bootstrap 5.3 color modes) === */
+:root[data-bs-theme='dark'] { --ol-surface:#1f232a; --ol-border:#2b2f36; --ol-text:#e6e6e6; --ol-muted:#a6a6a6; }
+
+[data-bs-theme='dark'] body { background-color:#121212; color:var(--ol-text); }
+[data-bs-theme='dark'] .content-section { background-color:var(--ol-surface); color:var(--ol-text); border-color:var(--ol-border); box-shadow:0 2px 4px rgba(0,0,0,.35); }
+[data-bs-theme='dark'] .card { background-color:var(--ol-surface); color:var(--ol-text); border-color:var(--ol-border); }
+[data-bs-theme='dark'] .modal-content { background-color:var(--ol-surface); color:var(--ol-text); border-color:var(--ol-border); }
+[data-bs-theme='dark'] .modal-header, [data-bs-theme='dark'] .modal-footer { border-color:var(--ol-border); }
+
+/* Tables */
+[data-bs-theme='dark'] .table { color:var(--ol-text); border-color:var(--ol-border); }
+[data-bs-theme='dark'] .table thead th { background-color:#252a31; color:var(--ol-text); border-color:var(--ol-border); }
+[data-bs-theme='dark'] .table tbody tr { border-color:var(--ol-border); }
+[data-bs-theme='dark'] .table-hover>tbody>tr:hover { background-color:rgba(255,255,255,.06); }
+
+/* Forms */
+[data-bs-theme='dark'] .form-control,
+[data-bs-theme='dark'] .form-select,
+[data-bs-theme='dark'] .form-control:focus,
+[data-bs-theme='dark'] .form-select:focus {
+  background-color:#2b2f36; color:var(--ol-text); border-color:#3a3f47;
+}
+[data-bs-theme='dark'] .form-control::placeholder { color:var(--ol-muted); }
+
+/* Others */
+[data-bs-theme='dark'] hr { border-color:var(--ol-border); }
+[data-bs-theme='dark'] #calendar-widget th { background-color:var(--ol-surface); }
+[data-bs-theme='dark'] #calendar-widget td, [data-bs-theme='dark'] #calendar-widget th { border-color:var(--ol-border); }
+[data-bs-theme='dark'] .list-group-item { background-color:var(--ol-surface); color:var(--ol-text); border-color:var(--ol-border); }
+[data-bs-theme='dark'] .toast { background-color:#2b2f36; color:var(--ol-text); border-color:var(--ol-border); }
+[data-bs-theme='dark'] .sidebar .nav-link.active { background-color:#3b82f6; color:#fff; }
+[data-bs-theme='dark'] .sidebar .nav-link:hover { background-color:#1f2937; color:#fff; }
+
+/* Defensive alignment for Inventario last column */
+#inventario table tbody td:last-child { text-align:right; }
