@@ -351,6 +351,13 @@ import { isLegacyBackup, mapBackupToDb, summarizeDb } from '../../domain/backupM
       // inizializza preview
       enableBackupActions(false);
       setPreview(null);
+        try {
+          const imported = JSON.parse(text);
+          App.db.save(imported);
+          App.ui.showToast('Dati importati. Ricarico...', 'success');
+          setTimeout(()=>location.reload(), 600);
+        } catch { App.ui.showToast('File non valido.', 'danger'); }
+      });
 
       btnDelete?.addEventListener('click', () => {
         if (confirm('Questa operazione cancellerà tutti i dati. Procedere?')) {
