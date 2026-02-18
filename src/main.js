@@ -1,5 +1,6 @@
 import { App } from './core/app.js';
 import { initThemeToggle } from './core/theme.js';
+import { initDataSourceBadge } from './core/dataSourceBadge.js';
 import { initLogin } from './features/login/index.js';
 import { initAnagraficheFeature } from './features/anagrafiche/index.js';
 import { initMagazzinoFeature } from './features/magazzino/index.js';
@@ -13,6 +14,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // bootstrap (DB locale o Firestore)
   await App.boot();
+
+  // Badge sorgente dati (Firebase/Local)
+  try { initDataSourceBadge(App); } catch {}
 
   // inizializzazioni
   initLogin();

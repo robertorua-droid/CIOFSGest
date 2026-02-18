@@ -98,6 +98,11 @@
 
     <div class="main-content">
 
+    <div class="d-flex justify-content-end align-items-center px-3 py-2 border-bottom position-sticky top-0 bg-body" style="z-index: 1020;">
+      <span id="data-source-badge" class="badge rounded-pill text-bg-secondary">Sorgente dati attiva: Local</span>
+    </div>
+
+
       <!-- Pagina Home -->
       <div id="home" class="content-section">
         <h2 id="welcome-message">Benvenuto</h2>
@@ -470,29 +475,20 @@
           </div>
         </div>
 
-        <div class="card mt-4">
-          <div class="card-body">
-            <h5 class="card-title">Esporta Dati</h5>
-            <p class="card-text">Salva tutti i dati attuali in un file <code>.json</code> sul tuo computer.</p>
-            <button class="btn btn-info" id="export-data-btn"><i class="fas fa-download"></i> Esporta Dati</button>
-          </div>
-        </div>
-
-        <div class="card mt-4">
-          <div class="card-body">
-            <h5 class="card-title">Importa Dati</h5>
-            <p class="card-text">Carica un file <code>.json</code> di backup. <strong>Attenzione:</strong> sovrascriverà tutti i dati attuali.</p>
-            <label for="import-file-input" class="btn btn-warning"><i class="fas fa-upload"></i> Seleziona File per l'Importazione</label>
-            <input type="file" id="import-file-input" class="d-none" accept=".json">
-          </div>
-        </div>
         <div class="card mt-4 border-primary">
           <div class="card-body">
-            <h5 class="card-title">Test Import Backup (JSON → Schema → Firebase)</h5>
+            <h5 class="card-title">Backup &amp; Ripristino</h5>
             <p class="card-text mb-2">
-              Carica un backup <code>.json</code> (anche legacy) e verifica che venga normalizzato nello schema corrente.
-              Puoi poi importarlo nel gestionale oppure caricarlo su Firebase <strong>nel tuo spazio utente</strong>.
+              Esporta un backup <code>.json</code> dei dati correnti oppure importa un backup (anche legacy) e applicalo alla
+              <strong>cache locale</strong> o al tuo spazio <strong>Firebase</strong>.
             </p>
+
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+              <button class="btn btn-info" id="backup-export-current-btn"><i class="fas fa-download"></i> Esporta backup (JSON)</button>
+              <button class="btn btn-outline-info" id="backup-export-firebase-btn"><i class="fas fa-cloud-download-alt"></i> Esporta da Firebase</button>
+            </div>
+
+            <hr class="my-3" />
 
             <div class="d-flex flex-wrap gap-2 align-items-center">
               <button class="btn btn-outline-primary" id="backup-load-sample-btn">
@@ -519,26 +515,32 @@
 
             <div class="mt-3 d-flex flex-wrap gap-2">
               <button class="btn btn-success" id="backup-import-local-btn" disabled>
-                <i class="fas fa-database"></i> Importa nel gestionale (locale)
+                <i class="fas fa-database"></i> Applica alla cache locale
               </button>
               <button class="btn btn-outline-success" id="backup-import-firebase-btn" disabled>
-                <i class="fas fa-cloud-upload-alt"></i> Importa su Firebase (utente)
+                <i class="fas fa-cloud-upload-alt"></i> Applica su Firebase (utente)
               </button>
             </div>
 
             <div class="small text-muted mt-2">
-              Nota: per importare su Firebase devi aver abilitato <strong>Authentication (Anonymous)</strong> e aggiunto
-              <code>robertorua-droid.github.io</code> tra i domini autorizzati.
+              Nota: per leggere/scrivere su Firebase devi aver abilitato <strong>Authentication (Anonymous)</strong> e impostato regole Firestore per utente.
             </div>
           </div>
         </div>
 
+        <div class="card mt-4">
+          <div class="card-body">
+            <h5 class="card-title">Cache locale</h5>
+            <p class="card-text mb-2">Svuota solo la cache del browser (non tocca i dati salvati su Firebase).</p>
+            <button class="btn btn-outline-danger" id="clear-local-cache-btn"><i class="fas fa-broom"></i> Svuota cache locale</button>
+          </div>
+        </div>
 
         <div class="card mt-4 bg-light border-danger">
           <div class="card-body">
-            <h5 class="card-title text-danger">Zona Pericolosa</h5>
-            <p class="card-text">Questa operazione cancellerà permanentemente tutti i dati del gestionale dal tuo browser.</p>
-            <button class="btn btn-danger" id="delete-all-data-btn"><i class="fas fa-trash-alt"></i> Cancella Tutti i Dati</button>
+            <h5 class="card-title text-danger">Dati Firebase</h5>
+            <p class="card-text mb-2">Cancella i dati su Firestore <strong>solo nel tuo spazio utente</strong>. Operazione irreversibile.</p>
+            <button class="btn btn-danger" id="delete-firebase-data-btn"><i class="fas fa-trash-alt"></i> Cancella dati su Firebase (utente)</button>
           </div>
         </div>
       </div>

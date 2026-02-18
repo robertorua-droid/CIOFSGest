@@ -100,9 +100,10 @@ import { normalizeDb } from '../../core/dbSchema.js';
       let db = App.db.ensure();
       App.events.on('db:changed', d => { db = d; });
       const btnSend = document.getElementById('send-data-btn');
-      const btnExport = document.getElementById('export-data-btn');
-      const inputImport = document.getElementById('import-file-input');
-      const btnDelete = document.getElementById('delete-all-data-btn');
+      const btnExportCurrent = document.getElementById('backup-export-current-btn');
+      const btnExportFirebase = document.getElementById('backup-export-firebase-btn');
+      const btnClearLocalCache = document.getElementById('clear-local-cache-btn');
+      const btnDeleteFirebaseData = document.getElementById('delete-firebase-data-btn');
 
       // Backup test/import (JSON legacy -> schema corrente)
       const btnLoadSample = document.getElementById('backup-load-sample-btn');
@@ -206,41 +207,45 @@ import { normalizeDb } from '../../core/dbSchema.js';
       App.events.on('sync:status', (s) => renderSync(s));
       renderSync();
 
-      btnSend?.addEventListener('click', () => {
-        const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
+      const downloadJson = (obj, filename) => {
+        const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = 'dati_gestionale.json';
+        a.download = filename;
         a.click();
         URL.revokeObjectURL(a.href);
+      };
+
+      btnSend?.addEventListener('click', () => {
+        downloadJson(db, 'dati_gestionale.json');
         const mailto = 'mailto:docente@example.com?subject=' + encodeURIComponent('Revisione dati gestionale') +
                        '&body=' + encodeURIComponent('In allegato i dati esportati del gestionale.');
         window.location.href = mailto;
       });
 
-      btnExport?.addEventListener('click', () => {
+      // Backup export (dati correnti)
+      btnExportCurrent?.addEventListener('click', () => {
         const side = document.getElementById('user-name-sidebar')?.textContent || '';
         const m = side.match(/Utente:\s*([^\s]+)/);
-        const surname = m ? m[1] : 'export';
-        const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `backup_${surname}.json`;
-        a.click();
-        URL.revokeObjectURL(a.href);
+        const tag = m ? m[1] : 'export';
+        const filename = `backup_${tag}_${new Date().toISOString().slice(0,10)}.json`;
+        downloadJson(db, filename);
       });
 
-            // Import "raw" (schema corrente) oppure backup legacy (mappato)
-      inputImport?.addEventListener('change', async () => {
-        const file = inputImport.files?.[0]; if (!file) return;
-        const text = await file.text();
+      // Backup export (da Firebase) - NON modifica i dati locali
+      btnExportFirebase?.addEventListener('click', async () => {
         try {
-          const imported = JSON.parse(text);
-          const normalized = isLegacyBackup(imported) ? mapBackupToDb(imported) : imported;
-          App.db.save(normalizeDb(normalized));
-          App.ui.showToast('Dati importati. Ricarico...', 'success');
-          setTimeout(()=>location.reload(), 600);
-        } catch { App.ui.showToast('File non valido.', 'danger'); }
+          await App.firebase.init();
+          if (!App.firebase.uid) throw new Error('Firebase Auth non disponibile.');
+          const repo = (await import('../../core/firestoreRepo.js')).firestoreRepo(App.firebase.fs, App.firebase.getRootPath());
+          const remote = await repo.loadAll();
+          const norm = normalizeDb(remote);
+          const filename = `backup_firebase_${new Date().toISOString().slice(0,10)}.json`;
+          downloadJson(norm, filename);
+          App.ui.showToast('Backup esportato da Firebase.', 'success');
+        } catch (e) {
+          App.ui.showToast('Export Firebase fallito: ' + (e?.message || e), 'danger');
+        }
       });
 
       // === Test import backup (preview + import locale + import Firebase) ===
@@ -312,7 +317,13 @@ import { normalizeDb } from '../../core/dbSchema.js';
 
       btnImportLocal?.addEventListener('click', async () => {
         if (!_loadedBackupDb) return;
-        if (!confirm('Importare questo backup nel gestionale (locale)?\nSovrascriverà i dati attuali.')) return;
+        const mode = App.db.getMode();
+        if (mode === 'firebase') {
+          if (!confirm('Applico questo backup alla cache locale del browser.\n\nPer vederlo subito passerò in modalità Local (senza Firebase). Continuare?')) return;
+          App.db.setMode('local');
+        } else {
+          if (!confirm('Applicare questo backup alla cache locale del browser?\nSovrascriverà i dati locali attuali.')) return;
+        }
         App.db.save(_loadedBackupDb);
         App.ui.showToast('Import completato. Ricarico...', 'success');
         setTimeout(()=>location.reload(), 600);
@@ -353,12 +364,32 @@ import { normalizeDb } from '../../core/dbSchema.js';
       enableBackupActions(false);
       setPreview(null);
 
-      btnDelete?.addEventListener('click', () => {
-        if (confirm('Questa operazione cancellerà tutti i dati. Procedere?')) {
+      // Svuota SOLO la cache locale (non tocca Firebase)
+      btnClearLocalCache?.addEventListener('click', () => {
+        if (!confirm('Svuotare la cache locale del browser?\n\nI dati su Firebase NON verranno toccati.')) return;
+        localStorage.removeItem(App.config.DB_KEY);
+        App.db.resetCache();
+        App.ui.showToast('Cache locale svuotata. Ricarico…', 'info');
+        setTimeout(()=>location.reload(), 600);
+      });
+
+      // Cancella dati su Firebase (utente)
+      btnDeleteFirebaseData?.addEventListener('click', async () => {
+        const txt = prompt('Operazione irreversibile.\n\nScrivi CANCELLA per confermare la cancellazione dei dati su Firebase (utente).');
+        if (txt !== 'CANCELLA') return;
+        try {
+          await App.firebase.init();
+          if (!App.firebase.uid) throw new Error('Firebase Auth non disponibile.');
+          const repo = (await import('../../core/firestoreRepo.js')).firestoreRepo(App.firebase.fs, App.firebase.getRootPath());
+          App.ui.showToast('Cancellazione dati su Firebase…', 'warning');
+          await repo.wipeAll();
+          // pulisci cache locale per evitare UI con dati vecchi
           localStorage.removeItem(App.config.DB_KEY);
           App.db.resetCache();
-          App.ui.showToast('Dati cancellati. Ricarico...', 'warning');
-          setTimeout(()=>location.reload(), 600);
+          App.ui.showToast('Dati Firebase cancellati. Ricarico…', 'success');
+          setTimeout(()=>location.reload(), 900);
+        } catch (e) {
+          App.ui.showToast('Cancellazione Firebase fallita: ' + (e?.message || e), 'danger');
         }
       });
     },
