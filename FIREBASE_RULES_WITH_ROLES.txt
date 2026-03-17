@@ -1,0 +1,50 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+
+    // Bootstrap: metti qui le email dei docenti (minuscole) che devono essere Supervisor
+    function isBootstrapSupervisor() {
+      return signedIn() && request.auth.token.email != null
+        && (request.auth.token.email in [
+          // ESEMPIO:
+          // 'docente@scuola.it'
+        ]);
+    }
+
+    // Utenti: ogni utente può leggere/scrivere SOLO il proprio spazio dati
+    match /users/{uid}/{document=**} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+
+    // Directory utenti per gestione ruoli: appUsers/{uid}
+    match /appUsers/{uid} {
+
+      // Legge: ciascuno vede il proprio profilo; i Supervisor vedono anche gli altri
+      allow read: if signedIn() && (request.auth.uid == uid || isBootstrapSupervisor());
+
+      // Creazione: ciascuno crea il proprio profilo.
+      // - di default ruolo 'User'
+      // - i docenti in whitelist possono creare subito con ruolo 'Supervisor'
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && (
+          request.resource.data.role == 'User'
+          || (request.resource.data.role == 'Supervisor' && isBootstrapSupervisor())
+        );
+
+      // Update:
+      // - utente normale: può aggiornare i propri campi ma NON cambiare ruolo
+      // - Supervisor: può aggiornare chiunque (incluso il ruolo)
+      allow update: if signedIn() && (
+        (request.auth.uid == uid && request.resource.data.role == resource.data.role)
+        || isBootstrapSupervisor()
+      );
+
+      // Delete (facoltativo): permette all'utente di cancellare il proprio profilo (utile per re-bootstrap),
+      // oppure al Supervisor di fare pulizia.
+      allow delete: if signedIn() && (request.auth.uid == uid || isBootstrapSupervisor());
+    }
+  }
+}
