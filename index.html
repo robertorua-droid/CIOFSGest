@@ -24,22 +24,22 @@
 <button class="nav-link active" id="tab-login" type="button">Accedi</button>
 <button class="nav-link" id="tab-register" type="button">Registrati</button>
 </div>
-<form autocomplete="on" id="login-form" novalidate="novalidate">
+<form autocomplete="off" id="login-form" novalidate="novalidate">
 <div class="mb-3">
 <label class="form-label" for="login-email">Email (oppure admin)</label>
-<input autofocus="" class="form-control" id="login-email" placeholder="nome.cognome@email.it oppure admin" type="email"/>
+<input autofocus="" class="form-control" id="login-email" placeholder="nome.cognome@email.it oppure admin" type="email" autocomplete="off" spellcheck="false" />
 </div>
 <div class="mb-3">
 <label class="form-label" for="login-password">Password</label>
 <div class="input-group">
-<input class="form-control" id="login-password" type="password"/>
+<input class="form-control" id="login-password" type="password" autocomplete="new-password" />
 <button class="btn btn-outline-secondary" id="toggleLoginPassword" type="button" title="Mostra/Nascondi password"><i class="fas fa-eye"></i></button>
 </div>
 </div>
 <div class="mb-3 d-none" id="confirm-wrapper">
 <label class="form-label" for="login-password-confirm">Conferma password</label>
 <div class="input-group">
-<input class="form-control" id="login-password-confirm" type="password"/>
+<input class="form-control" id="login-password-confirm" type="password" autocomplete="new-password" />
 <button class="btn btn-outline-secondary" id="toggleLoginPassword2" type="button" title="Mostra/Nascondi password"><i class="fas fa-eye"></i></button>
 </div>
 </div>
