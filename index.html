@@ -31,11 +31,17 @@
 </div>
 <div class="mb-3">
 <label class="form-label" for="login-password">Password</label>
+<div class="input-group">
 <input class="form-control" id="login-password" type="password"/>
+<button class="btn btn-outline-secondary" id="toggleLoginPassword" type="button" title="Mostra/Nascondi password"><i class="fas fa-eye"></i></button>
+</div>
 </div>
 <div class="mb-3 d-none" id="confirm-wrapper">
 <label class="form-label" for="login-password-confirm">Conferma password</label>
+<div class="input-group">
 <input class="form-control" id="login-password-confirm" type="password"/>
+<button class="btn btn-outline-secondary" id="toggleLoginPassword2" type="button" title="Mostra/Nascondi password"><i class="fas fa-eye"></i></button>
+</div>
 </div>
 <div class="text-danger mb-3 d-none" id="error-message">Credenziali non corrette.</div>
 <button class="btn btn-primary w-100" id="login-submit-btn" type="submit">Accedi</button>
@@ -513,7 +519,27 @@
 <div class="modal-header"><h5 class="modal-title" id="userModalTitle">Nuovo Utente</h5><button class="btn-close" data-bs-dismiss="modal" type="button"></button></div>
 <div class="modal-body">
 <form class="needs-validation" id="userForm" novalidate="">
+
 <input id="user-id" type="hidden"/>
+<input id="user-fb-uid" type="hidden"/>
+
+<div id="firebaseUserFields" class="d-none">
+  <div class="mb-3">
+    <label class="form-label">Email (Firebase)</label>
+    <input class="form-control" id="user-email" type="email" readonly/>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Nome</label>
+    <input class="form-control" id="user-fb-name" type="text" placeholder="(opzionale)"/>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Cognome</label>
+    <input class="form-control" id="user-fb-surname" type="text" placeholder="(opzionale)"/>
+  </div>
+</div>
+
+<div id="localUserFields">
+
 <div class="mb-3">
 <label class="form-label">Cognome (Login)</label>
 <input class="form-control" id="user-surname" required="" type="text"/>
@@ -532,6 +558,8 @@
 <div class="invalid-feedback">La password è obbligatoria.</div>
 </div>
 </div>
+</div>
+
 <div class="mb-3">
 <label class="form-label">Ruolo</label>
 <select class="form-select" id="user-role">

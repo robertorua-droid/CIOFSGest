@@ -56,3 +56,44 @@ In **Impostazioni → Avanzate** abilita lo switch:
 “Usa Firebase come archivio principale”
 
 e premi “Scarica da Firebase” (oppure importa prima un backup su Firebase).
+
+
+## Directory utenti e ruoli (appUsers)
+
+Per gestire i ruoli (User/Supervisor) dall'app serve una collezione globale `appUsers/{uid}`.
+Esempio regole consigliate:
+
+```js
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn(){ return request.auth != null; }
+    function isSupervisor(){
+      return signedIn() && get(/databases/$(database)/documents/appUsers/$(request.auth.uid)).data.role == 'Supervisor';
+    }
+
+    // Dati gestionali per singolo utente
+    match /users/{uid}/{document=**} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+
+    // Directory utenti globale (ruoli)
+    match /appUsers/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isSupervisor());
+
+      // Ogni utente può creare il proprio profilo SOLO con ruolo User
+      allow create: if signedIn() && request.auth.uid == uid && request.resource.data.role == 'User';
+
+      // L'utente può aggiornare il proprio profilo ma NON cambiare ruolo
+      allow update: if signedIn() && (
+        (request.auth.uid == uid && request.resource.data.role == resource.data.role)
+        || isSupervisor()
+      );
+
+      allow delete: if isSupervisor();
+    }
+  }
+}
+```
+
+> Nota: per la prima attivazione del docente come Supervisor puoi aggiungere la sua email in `src/core/config.js` (SUPERVISOR_EMAILS).
