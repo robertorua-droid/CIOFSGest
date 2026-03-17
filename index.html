@@ -19,21 +19,33 @@
       <div class="col-md-5 col-lg-4">
         <div class="card">
           <div class="card-body">
-            <h3 class="card-title text-center mb-4">Accesso Gestionale</h3>
+            <h3 class="card-title text-center mb-3">Accesso CIOFS Gest</h3>
+
+            <div class="nav nav-pills nav-fill mb-3" role="tablist">
+              <button type="button" class="nav-link active" id="tab-login">Accedi</button>
+              <button type="button" class="nav-link" id="tab-register">Registrati</button>
+            </div>
+
             <form id="login-form" autocomplete="on">
               <div class="mb-3">
-                <label for="username" class="form-label">Username (Cognome)</label>
-                <input type="text" class="form-control" id="username" placeholder="Inserisci il tuo Cognome" required autofocus>
+                <label for="login-email" class="form-label">Email</label>
+                <input type="email" class="form-control" id="login-email" placeholder="nome.cognome@email.it" required autofocus>
               </div>
               <div class="mb-3">
-                <label for="password" class="form-label">Password</label>
-                <input type="password" class="form-control" id="password" required>
+                <label for="login-password" class="form-label">Password</label>
+                <input type="password" class="form-control" id="login-password" required>
               </div>
-              <div id="error-message" class="text-danger mb-3 d-none">Cognome o password non corretti.</div>
-              <button type="submit" class="btn btn-primary w-100">Accedi</button>
+              <div class="mb-3 d-none" id="confirm-wrapper">
+                <label for="login-password-confirm" class="form-label">Conferma password</label>
+                <input type="password" class="form-control" id="login-password-confirm">
+              </div>
+
+              <div id="error-message" class="text-danger mb-3 d-none">Credenziali non corrette.</div>
+              <button type="submit" class="btn btn-primary w-100" id="login-submit-btn">Accedi</button>
             </form>
+
             <div class="small text-muted mt-3">
-              Primo accesso? Il sistema propone <code>admin</code> / <code>gestionale</code> se non sono presenti utenti.
+              Accesso emergenza sempre disponibile: <code>admin</code> / <code>gestionale</code>.
             </div>
           </div>
         </div>

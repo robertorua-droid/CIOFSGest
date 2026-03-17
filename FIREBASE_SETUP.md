@@ -9,7 +9,7 @@ dove `{uid}` è l'identificativo restituito da **Firebase Authentication**.
 ## 1) Firebase Console – configurazione minima
 
 1. **Authentication → Sign-in method**
-   - abilita **Anonymous** (consigliato per test veloci).
+   - abilita **Email/Password** (consigliato) e, se vuoi, anche **Anonymous** come fallback.
 
 2. **Authentication → Settings → Authorized domains**
    - aggiungi: `robertorua-droid.github.io`
