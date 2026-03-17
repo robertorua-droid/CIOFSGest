@@ -332,12 +332,12 @@ import { normalizeDb } from '../../core/dbSchema.js';
       btnImportFirebase?.addEventListener('click', async () => {
         if (!_loadedBackupDb) return;
 
-        if (!confirm('Importare questo backup su Firebase (Firestore) nel tuo spazio utente?\n\nConsiglio: abilita prima Authentication (Anonymous) e regole Firestore per utente.')) return;
+        if (!confirm('Importare questo backup su Firebase (Firestore) nel tuo spazio utente?\n\nConsiglio: abilita Authentication (Email/Password) e regole Firestore per utente. Devi essere autenticato per usare Firestore.')) return;
 
         try {
           await App.firebase.init();
           if (!App.firebase.uid) {
-            throw new Error('Firebase Auth non disponibile (Anonymous non abilitato o dominio non autorizzato).');
+            throw new Error('Firebase Auth non disponibile: fai login con Email/Password (o abilita Anonymous) e verifica gli Authorized domains.');
           }
 
           const repo = (await import('../../core/firestoreRepo.js')).firestoreRepo(App.firebase.fs, App.firebase.getRootPath());

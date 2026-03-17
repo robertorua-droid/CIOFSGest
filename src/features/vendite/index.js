@@ -111,6 +111,84 @@ import { adjustStockBatch } from '../../domain/inventory.service.js';
       });
     },
 
+    wireOrderDetailAndDelete() {
+      let db = App.db.ensure();
+      App.events.on('db:changed', d => { db = d; });
+
+      const tbody = document.getElementById('customer-orders-table-body');
+      if (!tbody) return;
+      if (tbody.dataset.wiredView === '1') return;
+      tbody.dataset.wiredView = '1';
+
+      tbody.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-action]'); if (!btn) return;
+        if (btn.getAttribute('data-action') !== 'view') return;
+        const num = btn.getAttribute('data-num');
+        const o = (db.customerOrders || []).find(x => x.number === num);
+        if (!o) return;
+
+        const title = document.getElementById('customerOrderDetailModalTitle');
+        const body = document.getElementById('customerOrderDetailModalBody');
+        const delBtn = document.getElementById('delete-customer-order-btn');
+
+        if (title) title.textContent = `Dettaglio Ordine Cliente ${o.number}`;
+
+        const lines = (o.lines || []);
+        let html = `<div class="mb-2"><strong>Cliente:</strong> ${o.customerName || ''}</div>`;
+        html += `<div class="mb-2"><strong>Data:</strong> ${o.date || ''}</div>`;
+        html += `<div class="mb-2"><strong>Stato:</strong> ${o.status || 'In lavorazione'}</div>`;
+        html += `<div class="mb-3"><strong>Totale:</strong> ${App.utils.fmtMoney(o.total || 0)}</div>`;
+        html += `<table class="table table-sm">
+          <thead><tr>
+            <th>Prodotto</th>
+            <th class="text-end">Ord.</th>
+            <th class="text-end">Evaso</th>
+            <th class="text-end">Residuo</th>
+            <th class="text-end">Prezzo</th>
+            <th class="text-end">Imponibile</th>
+          </tr></thead><tbody>`;
+
+        lines.forEach(l => {
+          const qty = Number(l.qty || 0);
+          const shipped = Number(l.shippedQty || 0);
+          const resid = Math.max(0, qty - shipped);
+          const price = Number(l.price || 0);
+          html += `<tr>
+            <td>${l.productName || l.description || ''}</td>
+            <td class="text-end">${qty}</td>
+            <td class="text-end">${shipped}</td>
+            <td class="text-end">${resid}</td>
+            <td class="text-end">${App.utils.fmtMoney(price)}</td>
+            <td class="text-end">${App.utils.fmtMoney(qty * price)}</td>
+          </tr>`;
+        });
+        html += `</tbody></table>`;
+
+        if (body) body.innerHTML = html;
+
+        // Delete order (only if no DDT exists for it)
+        if (delBtn) {
+          delBtn.disabled = false;
+          delBtn.onclick = () => {
+            const hasDDT = (db.customerDDTs || []).some(d => d.orderNumber === o.number);
+            if (hasDDT) {
+              return App.ui.showToast('Impossibile eliminare: esistono DDT collegati a questo ordine.', 'warning');
+            }
+            if (!confirm(`Eliminare l'ordine ${o.number}?`)) return;
+
+            const idx = (db.customerOrders || []).findIndex(x => x.number === o.number);
+            if (idx >= 0) db.customerOrders.splice(idx, 1);
+            App.db.save(db);
+            Clienti.renderOrders();
+            App.ui.showToast('Ordine eliminato', 'success');
+
+            try { bootstrap.Modal.getOrCreateInstance(document.getElementById('customerOrderDetailModal')).hide(); } catch {}
+          };
+        }
+
+        try { bootstrap.Modal.getOrCreateInstance(document.getElementById('customerOrderDetailModal')).show(); } catch {}
+      });
+    },
     // =============== DDT (Cliente) =================
     renderDDTs() {
       const db = App.db.ensure();
@@ -502,6 +580,7 @@ import { adjustStockBatch } from '../../domain/inventory.service.js';
     init() {
       App.events.on('logged-in', () => {
         this.renderOrders();
+        this.wireOrderDetailAndDelete();
         this.initNewOrderForm();
         this.renderDDTs();
         this.wireDDTDetailAndDelete();

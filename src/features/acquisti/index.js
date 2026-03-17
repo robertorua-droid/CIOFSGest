@@ -95,6 +95,99 @@ import { adjustStockBatch } from '../../domain/inventory.service.js';
       });
     },
 
+    wireOrderDetail() {
+      let db = App.db.ensure();
+      App.events.on('db:changed', d => { db = d; });
+
+      const tbody = document.getElementById('supplier-orders-table-body');
+      if (!tbody) return;
+      if (tbody.dataset.wiredView === '1') return;
+      tbody.dataset.wiredView = '1';
+
+      tbody.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-action]'); if (!btn) return;
+        if (btn.getAttribute('data-action') !== 'view') return;
+        const num = btn.getAttribute('data-num');
+        const o = (db.supplierOrders || []).find(x => x.number === num);
+        if (!o) return;
+
+        const title = document.getElementById('supplierOrderDetailModalTitle');
+        const body = document.getElementById('supplierOrderDetailModalBody');
+        if (title) title.textContent = `Dettaglio Ordine Fornitore ${o.number}`;
+
+        let html = `<div class="mb-2"><strong>Fornitore:</strong> ${o.supplierName || ''}</div>`;
+        html += `<div class="mb-2"><strong>Data:</strong> ${o.date || ''}</div>`;
+        html += `<div class="mb-2"><strong>Stato:</strong> ${o.status || 'Inviato'}</div>`;
+        html += `<div class="mb-3"><strong>Totale:</strong> ${App.utils.fmtMoney(o.total || 0)}</div>`;
+
+        html += `<table class="table table-sm">
+          <thead><tr>
+            <th>Prodotto</th>
+            <th class="text-end">Ord.</th>
+            <th class="text-end">Ricevuto</th>
+            <th class="text-end">Residuo</th>
+            <th class="text-end">Prezzo</th>
+            <th class="text-end">Imponibile</th>
+          </tr></thead><tbody>`;
+        (o.lines || []).forEach(l => {
+          const qty = Number(l.qty || 0);
+          const rec = Number(l.receivedQty || 0);
+          const resid = Math.max(0, qty - rec);
+          const price = Number(l.price || 0);
+          html += `<tr>
+            <td>${l.productName || l.description || ''}</td>
+            <td class="text-end">${qty}</td>
+            <td class="text-end">${rec}</td>
+            <td class="text-end">${resid}</td>
+            <td class="text-end">${App.utils.fmtMoney(price)}</td>
+            <td class="text-end">${App.utils.fmtMoney(qty * price)}</td>
+          </tr>`;
+        });
+        html += `</tbody></table>`;
+
+        if (body) body.innerHTML = html;
+
+        try { bootstrap.Modal.getOrCreateInstance(document.getElementById('supplierOrderDetailModal')).show(); } catch {}
+      });
+    },
+
+    wireSupplierDDTDetail() {
+      let db = App.db.ensure();
+      App.events.on('db:changed', d => { db = d; });
+
+      const tbody = document.getElementById('supplier-ddts-table-body');
+      if (!tbody) return;
+      if (tbody.dataset.wiredDetail === '1') return;
+      tbody.dataset.wiredDetail = '1';
+
+      tbody.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-action]'); if (!btn) return;
+        if (btn.getAttribute('data-action') !== 'view-supplier-ddt') return;
+        const num = btn.getAttribute('data-num');
+        const d = (db.supplierDDTs || []).find(x => x.number === num);
+        if (!d) return;
+
+        const title = document.getElementById('supplierDdtDetailModalTitle');
+        const body = document.getElementById('supplierDdtDetailModalBody');
+        if (title) title.textContent = `Dettaglio DDT Fornitore ${d.number}`;
+
+        const dest = d.customerName || (db.company?.name || 'Nostra Sede');
+
+        let html = `<div class="mb-2"><strong>Fornitore:</strong> ${d.supplierName || ''}</div>`;
+        html += `<div class="mb-2"><strong>Data:</strong> ${d.date || ''}</div>`;
+        html += `<div class="mb-2"><strong>Destinazione:</strong> ${dest}</div>`;
+        html += `<div class="mb-3"><strong>Riferimento Ordine:</strong> ${d.orderNumber || ''}</div>`;
+        html += `<table class="table table-sm"><thead><tr><th>Descrizione</th><th class="text-end">Qtà</th><th class="text-end">Prezzo</th></tr></thead><tbody>`;
+        (d.lines || []).forEach(l => {
+          html += `<tr><td>${l.description || ''}</td><td class="text-end">${l.qty || 0}</td><td class="text-end">${App.utils.fmtMoney(l.price || 0)}</td></tr>`;
+        });
+        html += `</tbody></table>`;
+
+        if (body) body.innerHTML = html;
+
+        try { bootstrap.Modal.getOrCreateInstance(document.getElementById('supplierDdtDetailModal')).show(); } catch {}
+      });
+    },
     // DDT fornitore (merce in entrata)
     renderDDTs() {
       const db = App.db.ensure();
@@ -208,9 +301,11 @@ import { adjustStockBatch } from '../../domain/inventory.service.js';
     init() {
       App.events.on('logged-in', () => {
         this.renderOrders();
+        this.wireOrderDetail();
         this.initNewOrderForm();
         this.initNewSupplierDDT();
         this.renderDDTs();
+        this.wireSupplierDDTDetail();
       });
     }
   };
