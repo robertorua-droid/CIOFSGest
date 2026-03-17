@@ -112,6 +112,51 @@ export function initLogin() {
   const submitBtn = document.getElementById('login-submit-btn');
   const confirmWrap = document.getElementById('confirm-wrapper');
 
+  const emailInput = document.getElementById('login-email');
+  const passInput = document.getElementById('login-password');
+  const pass2Input = document.getElementById('login-password-confirm');
+  const btnToggle1 = document.getElementById('toggleLoginPassword');
+  const btnToggle2 = document.getElementById('toggleLoginPassword2');
+
+  function setPwVisible(input, btn, visible) {
+    if (!input || !btn) return;
+    input.type = visible ? 'text' : 'password';
+    const icon = btn.querySelector('i');
+    if (icon) {
+      icon.classList.toggle('fa-eye', !visible);
+      icon.classList.toggle('fa-eye-slash', visible);
+    }
+    btn.setAttribute('aria-pressed', visible ? 'true' : 'false');
+  }
+
+  // Mostra/Nascondi password
+  let pw1Visible = false;
+  let pw2Visible = false;
+  btnToggle1?.addEventListener('click', () => {
+    pw1Visible = !pw1Visible;
+    setPwVisible(passInput, btnToggle1, pw1Visible);
+  });
+  btnToggle2?.addEventListener('click', () => {
+    pw2Visible = !pw2Visible;
+    setPwVisible(pass2Input, btnToggle2, pw2Visible);
+  });
+
+  // Pulisci sempre i campi al caricamento (evita tracce di login precedenti)
+  function clearLoginFields() {
+    try {
+      if (emailInput) emailInput.value = '';
+      if (passInput) passInput.value = '';
+      if (pass2Input) pass2Input.value = '';
+      // reset visibilità
+      pw1Visible = false; pw2Visible = false;
+      setPwVisible(passInput, btnToggle1, false);
+      setPwVisible(pass2Input, btnToggle2, false);
+    } catch {}
+  }
+  clearLoginFields();
+  // alcuni browser ripristinano valori da cache: ripulisci anche dopo un tick
+  setTimeout(clearLoginFields, 50);
+
   let mode = 'login';
 
   function isValidEmail(v) {
@@ -152,6 +197,7 @@ export function initLogin() {
         const exists = (db.users || []).some(u => (u.surname || '').toLowerCase() === 'admin');
         if (!exists) { db.users = db.users || []; db.users.push({ ...user }); App.db.save(db); }
       } catch {}
+      clearLoginFields();
       await enterApp({ user, db, isFirebaseUser: false });
       return;
     }
@@ -243,6 +289,7 @@ export function initLogin() {
       role
     };
 
+    clearLoginFields();
     await enterApp({ user, db, isFirebaseUser: true });
   });
 }

@@ -128,7 +128,28 @@ import { normalizeDb } from '../../core/dbSchema.js';
 
           if (isFirebaseMode) {
             if (!canManageFirebaseUsers) return App.ui.showToast('Permesso negato: serve ruolo Supervisor.', 'warning');
-            if (action === 'promote') {
+            if (action === 'demote') {
+              const uid = id;
+              const u = firebaseUsersCache.find(x => (x.uid === uid || x.id === uid));
+              if (!u) return;
+              // Evita di declassare l'utente bootstrap (docente) o te stesso (per non bloccarti fuori)
+              const meUid = App.firebase?.uid;
+              const emailLc = String(u.email || '').toLowerCase();
+              const bootstrap = (App.config?.SUPERVISOR_EMAILS || []).map(e => String(e).toLowerCase());
+              if (bootstrap.includes(emailLc)) return App.ui.showToast('Questo Supervisor è protetto (docente).', 'info');
+              if (meUid && uid === meUid) return App.ui.showToast('Non puoi declassare te stesso da qui.', 'warning');
+              // Evita di lasciare il sistema senza Supervisor
+              const nSup = firebaseUsersCache.filter(x => String(x.role||'') === 'Supervisor').length;
+              if (nSup <= 1) return App.ui.showToast('Deve rimanere almeno un Supervisor.', 'warning');
+              if (!confirm(`Declassare ${u.email || uid} a User?`)) return;
+              try {
+                await App.userDirectory.update(uid, { role: 'User' });
+                App.ui.showToast('Ruolo aggiornato: User', 'success');
+                await renderFirebaseUsers();
+              } catch (e) {
+                App.ui.showToast('Declassamento fallito: ' + (e?.message || e), 'danger');
+              }
+            } else if (action === 'promote') {
               const uid = id;
               const u = firebaseUsersCache.find(x => (x.uid === uid || x.id === uid));
               if (!u) return;
@@ -203,7 +224,7 @@ import { normalizeDb } from '../../core/dbSchema.js';
 
       const renderFirebaseUsers = async () => {
         if (theadRow) theadRow.innerHTML = '<th>UID</th><th>Email</th><th>Nome</th><th>Cognome</th><th>Ruolo</th><th class="text-end">Azioni</th>';
-        if (infoP) infoP.innerHTML = 'Gli account vengono creati dalla schermata <strong>Registrati</strong>. Qui puoi gestire i <strong>ruoli</strong> (solo Supervisor).';
+        if (infoP) infoP.innerHTML = 'Gli account vengono creati dalla schermata <strong>Registrati</strong>. In elenco compaiono gli utenti che hanno effettuato almeno un accesso (profilo <code>appUsers</code>). Qui puoi gestire i <strong>ruoli</strong> (solo Supervisor).';
         if (newBtn) {
           newBtn.classList.remove('d-none');
           newBtn.disabled = !canManageFirebaseUsers;
@@ -232,9 +253,22 @@ import { normalizeDb } from '../../core/dbSchema.js';
             <td>${u.role || ''}</td>
             <td class="text-end">
               <div class="btn-group btn-group-sm" role="group">
-                ${((u.role || '') !== 'Supervisor')
-                  ? `<button class="btn btn-outline-success" data-action="promote" data-id="${u.uid || u.id}">Promuovi a Supervisor</button>`
-                  : `<button class="btn btn-outline-secondary" disabled>Supervisor</button>`}
+                ${(() => {
+                  const role = String(u.role || '');
+                  const emailLc = String(u.email || '').toLowerCase();
+                  const bootstrap = (App.config?.SUPERVISOR_EMAILS || []).map(e => String(e).toLowerCase());
+                  const meUid = App.firebase?.uid;
+                  if (role !== 'Supervisor') {
+                    return `<button class=\"btn btn-outline-success\" data-action=\"promote\" data-id=\"${u.uid || u.id}\">Promuovi a Supervisor</button>`;
+                  }
+                  if (bootstrap.includes(emailLc)) {
+                    return `<button class=\"btn btn-outline-secondary\" disabled>Supervisor (docente)</button>`;
+                  }
+                  if (meUid && (u.uid || u.id) === meUid) {
+                    return `<button class=\"btn btn-outline-secondary\" disabled>Supervisor (tu)</button>`;
+                  }
+                  return `<button class=\"btn btn-outline-warning\" data-action=\"demote\" data-id=\"${u.uid || u.id}\">Riporta a User</button>`;
+                })()}
                 <button class="btn btn-outline-primary" data-action="edit" data-id="${u.uid || u.id}">Modifica</button>
               </div>
             </td>
