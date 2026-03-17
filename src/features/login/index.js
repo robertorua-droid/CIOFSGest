@@ -47,6 +47,9 @@ function friendlyAuthError(e) {
 }
 
 async function enterApp({ user, db, isFirebaseUser }) {
+  // Store current user
+  try { App.currentUser = user; App.events.emit('auth:changed', user); } catch {}
+
   // Show app
   document.getElementById('login-container')?.classList.add('d-none');
   document.getElementById('main-app')?.classList.remove('d-none');

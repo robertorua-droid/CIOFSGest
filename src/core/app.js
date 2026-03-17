@@ -6,6 +6,7 @@ import { ui } from './ui.js';
 import { createHome } from './home.js';
 import { createStats } from './stats.js';
 import { firebase } from './firebase.js';
+import { userDirectory } from './userDirectory.js';
 
 const events = createEventBus();
 const db = createDb(events);
@@ -17,6 +18,8 @@ export const App = {
   events,
   db,
   firebase,
+  userDirectory,
+  currentUser: null,
   utils,
   ui,
   home,

@@ -29,14 +29,150 @@ import { normalizeDb } from '../../core/dbSchema.js';
       });
     },
 
+    
     initUsers() {
       let db = App.db.ensure();
       App.events.on('db:changed', d => { db = d; });
+
+      const section = document.getElementById('anagrafica-utenti');
       const tbody = document.getElementById('users-table-body');
       const saveBtn = document.getElementById('saveUserBtn');
-      if (!tbody || !saveBtn) return;
+      const newBtn = document.getElementById('newUserBtn');
+      const infoP = section?.querySelector('p');
+      const theadRow = section?.querySelector('table thead tr');
 
-      const render = () => {
+      const modal = document.getElementById('userModal');
+      const form = document.getElementById('userForm');
+      const localFields = document.getElementById('localUserFields');
+      const fbFields = document.getElementById('firebaseUserFields');
+
+      if (!tbody || !saveBtn || !form) return;
+
+      const isFirebaseMode = (App.db.getMode?.() === 'firebase');
+      const currentRole = App.currentUser?.role || 'User';
+      const canManageFirebaseUsers = (currentRole === 'Supervisor' || currentRole === 'Admin');
+
+      const setModalMode = (mode) => {
+        form.dataset.mode = mode;
+        if (mode === 'firebase') {
+          localFields?.classList.add('d-none');
+          fbFields?.classList.remove('d-none');
+          document.getElementById('userModalTitle').textContent = 'Modifica Utente (Firebase)';
+        } else {
+          fbFields?.classList.add('d-none');
+          localFields?.classList.remove('d-none');
+          document.getElementById('userModalTitle').textContent = 'Utente (Locale)';
+        }
+      };
+
+      // Avoid duplicate handlers if initUsers is re-called
+      if (saveBtn.dataset.bound === '1') {
+        // still refresh view
+      } else {
+        saveBtn.dataset.bound = '1';
+
+        saveBtn.addEventListener('click', async () => {
+          const mode = form.dataset.mode || 'local';
+
+          if (mode === 'firebase') {
+            if (!canManageFirebaseUsers) return App.ui.showToast('Permesso negato: serve ruolo Supervisor.', 'warning');
+            const uid = document.getElementById('user-fb-uid').value;
+            const email = document.getElementById('user-email').value;
+            const name = document.getElementById('user-fb-name').value.trim();
+            const surname = document.getElementById('user-fb-surname').value.trim();
+            const role = document.getElementById('user-role').value || 'User';
+            if (!uid || !email) return App.ui.showToast('Utente non valido.', 'warning');
+
+            try {
+              await App.userDirectory.update(uid, { role, name, surname });
+              App.ui.showToast('Utente aggiornato su Firebase', 'success');
+              try { bootstrap.Modal.getOrCreateInstance(modal).hide(); } catch {}
+              await renderFirebaseUsers();
+            } catch (e) {
+              App.ui.showToast('Salvataggio fallito: ' + (e?.message || e), 'danger');
+            }
+            return;
+          }
+
+          // LOCAL mode (legacy / emergenza)
+          const id = document.getElementById('user-id').value || App.utils.uuid();
+          const surname = document.getElementById('user-surname').value.trim();
+          const name = document.getElementById('user-name').value.trim();
+          const password = document.getElementById('user-password').value;
+          const role = document.getElementById('user-role').value;
+
+          if (!surname || !name || !password) return App.ui.showToast('Compila i campi obbligatori.', 'warning');
+
+          const idx = (db.users || []).findIndex(u => u.id === id);
+          const payload = { id, surname, name, password, role };
+          if (idx >= 0) db.users[idx] = payload; else (db.users = db.users || []).push(payload);
+          App.db.save(db);
+          renderLocalUsers();
+          App.ui.showToast('Utente salvato', 'success');
+          try { bootstrap.Modal.getOrCreateInstance(modal).hide(); } catch {}
+        });
+
+        // Toggle password visibility (local modal)
+        document.getElementById('togglePassword')?.addEventListener('click', () => {
+          const inp = document.getElementById('user-password');
+          if (!inp) return;
+          inp.type = (inp.type === 'password') ? 'text' : 'password';
+          const ic = document.querySelector('#togglePassword i');
+          if (ic) ic.className = (inp.type === 'password') ? 'fas fa-eye' : 'fas fa-eye-slash';
+        });
+
+        tbody.addEventListener('click', async (e) => {
+          const btn = e.target.closest('button[data-action]'); if (!btn) return;
+          const id = btn.getAttribute('data-id');
+          const action = btn.getAttribute('data-action');
+
+          if (isFirebaseMode) {
+            if (!canManageFirebaseUsers) return App.ui.showToast('Permesso negato: serve ruolo Supervisor.', 'warning');
+            if (action === 'edit') {
+              const u = firebaseUsersCache.find(x => x.uid === id || x.id === id);
+              if (!u) return;
+              setModalMode('firebase');
+              document.getElementById('user-fb-uid').value = u.uid || u.id || '';
+              document.getElementById('user-email').value = u.email || '';
+              document.getElementById('user-fb-name').value = u.name || '';
+              document.getElementById('user-fb-surname').value = u.surname || '';
+              document.getElementById('user-role').value = u.role || 'User';
+              try { bootstrap.Modal.getOrCreateInstance(modal).show(); } catch {}
+            } else if (action === 'del') {
+              App.ui.showToast('Per sicurezza: la cancellazione utenti Firebase non è abilitata dall’app.', 'warning');
+            }
+            return;
+          }
+
+          // LOCAL
+          if (action === 'edit') {
+            const u = (db.users || []).find(x => x.id === id); if (!u) return;
+            setModalMode('local');
+            document.getElementById('user-id').value = u.id;
+            document.getElementById('user-surname').value = u.surname || '';
+            document.getElementById('user-name').value = u.name || '';
+            document.getElementById('user-password').value = u.password || '';
+            document.getElementById('user-role').value = u.role || 'User';
+            try { bootstrap.Modal.getOrCreateInstance(modal).show(); } catch {}
+          } else if (action === 'del') {
+            const i = (db.users || []).findIndex(x => x.id === id);
+            if (i >= 0 && confirm('Eliminare l’utente?')) {
+              db.users.splice(i,1); App.db.save(db); renderLocalUsers();
+            }
+          }
+        });
+      }
+
+      // --- Render helpers
+      const renderLocalUsers = () => {
+        if (theadRow) theadRow.innerHTML = '<th>ID</th><th>Cognome (Login)</th><th>Nome</th><th>Ruolo</th><th class="text-end">Azioni</th>';
+        if (infoP) infoP.innerHTML = 'Il <strong>Cognome</strong> e la <strong>Password</strong> sono usati per il Login locale (emergenza).';
+        if (newBtn) {
+          newBtn.classList.remove('d-none');
+          newBtn.disabled = false;
+          newBtn.innerHTML = '<i class="fas fa-plus"></i> Nuovo Utente';
+          newBtn.onclick = () => { setModalMode('local'); form.reset(); document.getElementById('user-id').value = ''; try { bootstrap.Modal.getOrCreateInstance(modal).show(); } catch {} };
+        }
         tbody.innerHTML = (db.users || []).map(u => `
           <tr>
             <td>${u.id || ''}</td>
@@ -50,51 +186,53 @@ import { normalizeDb } from '../../core/dbSchema.js';
           </tr>`).join('');
       };
 
-      saveBtn.addEventListener('click', () => {
-        const id = document.getElementById('user-id').value || App.utils.uuid();
-        const surname = document.getElementById('user-surname').value.trim();
-        const name = document.getElementById('user-name').value.trim();
-        const password = document.getElementById('user-password').value;
-        const role = document.getElementById('user-role').value;
-        if (!surname || !name || !password) return App.ui.showToast('Compila i campi obbligatori.', 'warning');
-        const idx = (db.users || []).findIndex(u => u.id === id);
-        const payload = { id, surname, name, password, role };
-        if (idx >= 0) db.users[idx] = payload; else db.users.push(payload);
-        App.db.save(db);
-        render();
-        App.ui.showToast('Utente salvato', 'success');
-        try { bootstrap.Modal.getOrCreateInstance(document.getElementById('userModal')).hide(); } catch {}
-      });
+      let firebaseUsersCache = [];
 
-      tbody.addEventListener('click', (e) => {
-        const btn = e.target.closest('button[data-action]'); if (!btn) return;
-        const id = btn.getAttribute('data-id');
-        const action = btn.getAttribute('data-action');
-        if (action === 'edit') {
-          const u = db.users.find(x => x.id === id); if (!u) return;
-          document.getElementById('user-id').value = u.id;
-          document.getElementById('user-surname').value = u.surname || '';
-          document.getElementById('user-name').value = u.name || '';
-          document.getElementById('user-password').value = u.password || '';
-          document.getElementById('user-role').value = u.role || 'User';
-          try { bootstrap.Modal.getOrCreateInstance(document.getElementById('userModal')).show(); } catch {}
-        } else if (action === 'del') {
-          const i = db.users.findIndex(x => x.id === id);
-          if (i >= 0 && confirm('Eliminare l’utente?')) {
-            db.users.splice(i,1); App.db.save(db); render();
-          }
+      const renderFirebaseUsers = async () => {
+        if (theadRow) theadRow.innerHTML = '<th>UID</th><th>Email</th><th>Nome</th><th>Cognome</th><th>Ruolo</th><th class="text-end">Azioni</th>';
+        if (infoP) infoP.innerHTML = 'Gli account vengono creati dalla schermata <strong>Registrati</strong>. Qui puoi gestire i <strong>ruoli</strong> (solo Supervisor).';
+        if (newBtn) {
+          newBtn.classList.remove('d-none');
+          newBtn.disabled = !canManageFirebaseUsers;
+          newBtn.innerHTML = '<i class="fas fa-rotate-right"></i> Aggiorna elenco';
+          newBtn.onclick = async () => { await renderFirebaseUsers(); };
         }
-      });
 
-      // Toggle password visibility
-      document.getElementById('togglePassword')?.addEventListener('click', () => {
-        const inp = document.getElementById('user-password');
-        if (!inp) return;
-        inp.type = (inp.type === 'password') ? 'text' : 'password';
-      });
+        if (!canManageFirebaseUsers) {
+          tbody.innerHTML = `<tr><td colspan="6"><em>Accesso limitato: serve ruolo Supervisor per vedere/modificare gli utenti.</em></td></tr>`;
+          return;
+        }
 
-      render();
+        try {
+          firebaseUsersCache = await App.userDirectory.listAll();
+        } catch (e) {
+          tbody.innerHTML = `<tr><td colspan="6" class="text-danger">Impossibile leggere la directory utenti su Firebase: ${(e?.message || e)}</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = firebaseUsersCache.map(u => `
+          <tr>
+            <td title="${u.uid || u.id || ''}">${String(u.uid || u.id || '').slice(0,8)}</td>
+            <td>${u.email || ''}</td>
+            <td>${u.name || ''}</td>
+            <td>${u.surname || ''}</td>
+            <td>${u.role || ''}</td>
+            <td class="text-end">
+              <button class="btn btn-sm btn-outline-primary" data-action="edit" data-id="${u.uid || u.id}">Modifica</button>
+            </td>
+          </tr>`).join('');
+      };
+
+      // Initial render depending on mode
+      if (isFirebaseMode) {
+        setModalMode('firebase');
+        renderFirebaseUsers();
+      } else {
+        setModalMode('local');
+        renderLocalUsers();
+      }
     },
+
 
     initAdvanced() {
       let db = App.db.ensure();
