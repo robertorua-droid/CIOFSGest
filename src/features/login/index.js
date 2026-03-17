@@ -111,6 +111,12 @@ export function initLogin() {
 
   let mode = 'login';
 
+  function isValidEmail(v) {
+    // semplice check lato client; Firebase farà comunque validazione server-side
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || '').trim());
+  }
+
+
   function setMode(m) {
     mode = m;
     tabLogin?.classList.toggle('active', mode === 'login');
@@ -133,7 +139,8 @@ export function initLogin() {
     const password2 = document.getElementById('login-password-confirm')?.value || '';
 
     // Emergency local login always allowed
-    if (email.toLowerCase() === 'admin' && password === 'gestionale') {
+    if (email.toLowerCase() === 'admin') {
+      if (password !== 'gestionale') { setError('Credenziali admin non valide.'); return; }
       try { App.db.setMode('local'); } catch {}
       const db = App.db.ensure();
       const user = { id: 'admin', name: 'Admin', surname: 'admin', role: 'Admin', password: 'gestionale' };
@@ -148,6 +155,7 @@ export function initLogin() {
 
     if (!email) { setError('Inserisci la tua email.'); return; }
     if (!password) { setError('Inserisci la password.'); return; }
+    if (!isValidEmail(email)) { setError('Inserisci un indirizzo email valido.'); return; }
     if (mode === 'register' && password !== password2) { setError('Le password non coincidono.'); return; }
 
     // Firebase Auth (Email/Password)
