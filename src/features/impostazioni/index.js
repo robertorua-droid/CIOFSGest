@@ -128,7 +128,20 @@ import { normalizeDb } from '../../core/dbSchema.js';
 
           if (isFirebaseMode) {
             if (!canManageFirebaseUsers) return App.ui.showToast('Permesso negato: serve ruolo Supervisor.', 'warning');
-            if (action === 'edit') {
+            if (action === 'promote') {
+              const uid = id;
+              const u = firebaseUsersCache.find(x => (x.uid === uid || x.id === uid));
+              if (!u) return;
+              if ((u.role || '') === 'Supervisor') return App.ui.showToast('Utente già Supervisor.', 'info');
+              if (!confirm(`Promuovere ${u.email || uid} a Supervisor?`)) return;
+              try {
+                await App.userDirectory.update(uid, { role: 'Supervisor' });
+                App.ui.showToast('Ruolo aggiornato: Supervisor', 'success');
+                await renderFirebaseUsers();
+              } catch (e) {
+                App.ui.showToast('Promozione fallita: ' + (e?.message || e), 'danger');
+              }
+            } else if (action === 'edit') {
               const u = firebaseUsersCache.find(x => x.uid === id || x.id === id);
               if (!u) return;
               setModalMode('firebase');
@@ -218,7 +231,12 @@ import { normalizeDb } from '../../core/dbSchema.js';
             <td>${u.surname || ''}</td>
             <td>${u.role || ''}</td>
             <td class="text-end">
-              <button class="btn btn-sm btn-outline-primary" data-action="edit" data-id="${u.uid || u.id}">Modifica</button>
+              <div class="btn-group btn-group-sm" role="group">
+                ${((u.role || '') !== 'Supervisor')
+                  ? `<button class="btn btn-outline-success" data-action="promote" data-id="${u.uid || u.id}">Promuovi a Supervisor</button>`
+                  : `<button class="btn btn-outline-secondary" disabled>Supervisor</button>`}
+                <button class="btn btn-outline-primary" data-action="edit" data-id="${u.uid || u.id}">Modifica</button>
+              </div>
             </td>
           </tr>`).join('');
       };
