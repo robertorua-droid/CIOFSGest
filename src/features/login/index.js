@@ -192,10 +192,18 @@ export function initLogin() {
       db = App.db.ensure();
     }
 
+        // Ruolo e profilo: usa directory utenti su Firestore (appUsers/{uid})
+    let profile = null;
+    try {
+      profile = await App.userDirectory.ensureMyProfile(email);
+    } catch (e) {
+      // Se le rules non permettono ancora appUsers, continuiamo con fallback locale
+    }
+
     const uid = App.firebase.uid || email;
     const emailLc = String(email || '').toLowerCase();
     const sup = (App.config?.SUPERVISOR_EMAILS || []).map(e => String(e).toLowerCase());
-    let role = sup.includes(emailLc) ? 'Supervisor' : (App.config?.DEFAULT_ROLE || 'User');
+    let role = (profile && profile.role) ? profile.role : (sup.includes(emailLc) ? 'Supervisor' : (App.config?.DEFAULT_ROLE || 'User'));
 
     // Manteniamo un record utente nel DB applicativo per mostrare/gestire ruoli
     db.users = Array.isArray(db.users) ? db.users : [];
@@ -206,12 +214,19 @@ export function initLogin() {
         id: uid,
         email,
         name: (email.split('@')[0] || email),
-        surname: '',
+        surname: profile?.surname || '',
         role
       };
       db.users.push(appUser);
       App.db.save(db);
     } else {
+      // Se ho un profilo Firestore con ruolo, allineo il record locale
+      if (profile && profile.role && appUser.role !== profile.role) {
+        appUser.role = profile.role;
+        if (profile.name) appUser.name = profile.name;
+        if (profile.surname) appUser.surname = profile.surname;
+        App.db.save(db);
+      }
       // Se l'email è in lista Supervisor, forziamo il ruolo
       if (sup.includes(emailLc) && appUser.role !== 'Supervisor') {
         appUser.role = 'Supervisor';
