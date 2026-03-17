@@ -97,3 +97,7 @@ service cloud.firestore {
 ```
 
 > Nota: per la prima attivazione del docente come Supervisor puoi aggiungere la sua email in `src/core/config.js` (SUPERVISOR_EMAILS).
+
+
+### Nota Docente
+Nel file `src/core/config.js` trovi già impostata l’email docente `roberto.rua@gmail.com` in `SUPERVISOR_EMAILS`. Se vuoi cambiarla, modifica quell’elenco e ripubblica su GitHub.
