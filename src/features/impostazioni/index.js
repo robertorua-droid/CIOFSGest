@@ -221,10 +221,27 @@ import { normalizeDb } from '../../core/dbSchema.js';
       };
 
       let firebaseUsersCache = [];
+      let selectedFirebaseUids = new Set();
 
       const renderFirebaseUsers = async () => {
-        if (theadRow) theadRow.innerHTML = '<th>UID</th><th>Email</th><th>Nome</th><th>Cognome</th><th>Ruolo</th><th class="text-end">Azioni</th>';
+        if (theadRow) theadRow.innerHTML = '<th class="text-center" style="width:36px"><input class="form-check-input" type="checkbox" id="users-select-all"></th><th>UID</th><th>Email</th><th>Nome</th><th>Cognome</th><th>Ruolo</th><th class="text-end">Azioni</th>';
         if (infoP) infoP.innerHTML = 'Gli account vengono creati dalla schermata <strong>Registrati</strong>. In elenco compaiono gli utenti che hanno effettuato almeno un accesso (profilo <code>appUsers</code>). Qui puoi gestire i <strong>ruoli</strong> (solo Supervisor).';
+        // Bulk actions toolbar (multi-select)
+        let bulkBar = document.getElementById('users-bulk-actions');
+        if (!bulkBar && section) {
+          bulkBar = document.createElement('div');
+          bulkBar.id = 'users-bulk-actions';
+          bulkBar.className = 'd-flex flex-wrap gap-2 align-items-center mb-2';
+          infoP?.after(bulkBar);
+        }
+        if (bulkBar) {
+          bulkBar.innerHTML = `
+            <button class="btn btn-sm btn-outline-success" id="bulk-promote-btn"><i class="fas fa-user-shield"></i> Promuovi selezionati</button>
+            <button class="btn btn-sm btn-outline-warning" id="bulk-demote-btn"><i class="fas fa-user"></i> Riporta selezionati a User</button>
+            <span class="ms-2 text-muted" id="bulk-selected-count">0 selezionati</span>
+          `;
+        }
+
         if (newBtn) {
           newBtn.classList.remove('d-none');
           newBtn.disabled = !canManageFirebaseUsers;
@@ -233,19 +250,24 @@ import { normalizeDb } from '../../core/dbSchema.js';
         }
 
         if (!canManageFirebaseUsers) {
-          tbody.innerHTML = `<tr><td colspan="6"><em>Accesso limitato: serve ruolo Supervisor per vedere/modificare gli utenti.</em></td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="7"><em>Accesso limitato: serve ruolo Supervisor per vedere/modificare gli utenti.</em></td></tr>`;
           return;
         }
 
         try {
           firebaseUsersCache = await App.userDirectory.listAll();
+          // prune selection (uids no longer present)
+          const present = new Set(firebaseUsersCache.map(x => String(x.uid || x.id || '')));
+          selectedFirebaseUids = new Set([...selectedFirebaseUids].filter(uid => present.has(uid)));
+
         } catch (e) {
-          tbody.innerHTML = `<tr><td colspan="6" class="text-danger">Impossibile leggere la directory utenti su Firebase: ${(e?.message || e)}</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="7" class="text-danger">Impossibile leggere la directory utenti su Firebase: ${(e?.message || e)}</td></tr>`;
           return;
         }
 
         tbody.innerHTML = firebaseUsersCache.map(u => `
           <tr>
+            <td class="text-center"><input class="form-check-input user-select" type="checkbox" data-id="${u.uid || u.id}" ${selectedFirebaseUids.has(String(u.uid || u.id)) ? 'checked' : ''}></td>
             <td title="${u.uid || u.id || ''}">${String(u.uid || u.id || '').slice(0,8)}</td>
             <td>${u.email || ''}</td>
             <td>${u.name || ''}</td>
@@ -273,6 +295,130 @@ import { normalizeDb } from '../../core/dbSchema.js';
               </div>
             </td>
           </tr>`).join('');
+
+        // --- Multi-select wiring
+        const updateBulkCount = () => {
+          const el = document.getElementById('bulk-selected-count');
+          if (el) el.textContent = `${selectedFirebaseUids.size} selezionati`;
+        };
+
+        const syncSelectAll = () => {
+          const all = document.getElementById('users-select-all');
+          if (!all) return;
+          const boxes = [...tbody.querySelectorAll('input.user-select')];
+          const checked = boxes.filter(b => b.checked).length;
+          all.checked = (boxes.length > 0 && checked === boxes.length);
+          all.indeterminate = (checked > 0 && checked < boxes.length);
+          updateBulkCount();
+        };
+
+        // bind once
+        if (tbody.dataset.selectBound !== '1') {
+          tbody.dataset.selectBound = '1';
+
+          tbody.addEventListener('change', (e) => {
+            const box = e.target.closest('input.user-select');
+            if (!box) return;
+            const uid = String(box.getAttribute('data-id') || '');
+            if (!uid) return;
+            if (box.checked) selectedFirebaseUids.add(uid);
+            else selectedFirebaseUids.delete(uid);
+            syncSelectAll();
+          });
+        }
+
+        const selectAll = document.getElementById('users-select-all');
+        if (selectAll && selectAll.dataset.bound !== '1') {
+          selectAll.dataset.bound = '1';
+          selectAll.addEventListener('change', () => {
+            const boxes = [...tbody.querySelectorAll('input.user-select')];
+            boxes.forEach(b => {
+              b.checked = selectAll.checked;
+              const uid = String(b.getAttribute('data-id') || '');
+              if (!uid) return;
+              if (b.checked) selectedFirebaseUids.add(uid);
+              else selectedFirebaseUids.delete(uid);
+            });
+            syncSelectAll();
+          });
+        }
+
+        // Bulk promote / demote
+        const bulkPromote = document.getElementById('bulk-promote-btn');
+        if (bulkPromote && bulkPromote.dataset.bound !== '1') {
+          bulkPromote.dataset.bound = '1';
+          bulkPromote.addEventListener('click', async () => {
+            const ids = [...selectedFirebaseUids];
+            if (!ids.length) return App.ui.showToast('Seleziona almeno un utente.', 'info');
+
+            const toPromote = ids.filter(uid => {
+              const u = firebaseUsersCache.find(x => String(x.uid || x.id) === uid);
+              return u && String(u.role || '') !== 'Supervisor';
+            });
+
+            if (!toPromote.length) return App.ui.showToast('Nessun utente selezionato è promuovibile.', 'info');
+            if (!confirm(`Promuovere ${toPromote.length} utenti a Supervisor?`)) return;
+
+            try {
+              if (App.userDirectory.updateManyRole) {
+                await App.userDirectory.updateManyRole(toPromote, 'Supervisor');
+              } else {
+                for (const uid of toPromote) await App.userDirectory.update(uid, { role: 'Supervisor' });
+              }
+              App.ui.showToast('Promozione completata.', 'success');
+              selectedFirebaseUids.clear();
+              await renderFirebaseUsers();
+            } catch (e) {
+              App.ui.showToast('Promozione fallita: ' + (e?.message || e), 'danger');
+            }
+          });
+        }
+
+        const bulkDemote = document.getElementById('bulk-demote-btn');
+        if (bulkDemote && bulkDemote.dataset.bound !== '1') {
+          bulkDemote.dataset.bound = '1';
+          bulkDemote.addEventListener('click', async () => {
+            const ids = [...selectedFirebaseUids];
+            if (!ids.length) return App.ui.showToast('Seleziona almeno un utente.', 'info');
+
+            const meUid = App.firebase?.uid;
+            const bootstrap = (App.config?.SUPERVISOR_EMAILS || []).map(e => String(e).toLowerCase());
+
+            const supervisors = firebaseUsersCache.filter(x => String(x.role || '') === 'Supervisor');
+            const nSup = supervisors.length;
+
+            const toDemote = ids.filter(uid => {
+              const u = firebaseUsersCache.find(x => String(x.uid || x.id) === uid);
+              if (!u) return false;
+              if (String(u.role || '') !== 'Supervisor') return false;
+              if (meUid && uid === meUid) return false;
+              const emailLc = String(u.email || '').toLowerCase();
+              if (bootstrap.includes(emailLc)) return false;
+              return true;
+            });
+
+            if (!toDemote.length) return App.ui.showToast('Nessun Supervisor selezionato è declassabile.', 'info');
+            if (nSup - toDemote.length < 1) return App.ui.showToast('Deve rimanere almeno un Supervisor.', 'warning');
+            if (!confirm(`Riportare ${toDemote.length} utenti a User?`)) return;
+
+            try {
+              if (App.userDirectory.updateManyRole) {
+                await App.userDirectory.updateManyRole(toDemote, 'User');
+              } else {
+                for (const uid of toDemote) await App.userDirectory.update(uid, { role: 'User' });
+              }
+              App.ui.showToast('Declassamento completato.', 'success');
+              selectedFirebaseUids.clear();
+              await renderFirebaseUsers();
+            } catch (e) {
+              App.ui.showToast('Declassamento fallito: ' + (e?.message || e), 'danger');
+            }
+          });
+        }
+
+        // initial sync
+        syncSelectAll();
+
       };
 
       // Initial render depending on mode
@@ -294,6 +440,16 @@ import { normalizeDb } from '../../core/dbSchema.js';
       const btnExportFirebase = document.getElementById('backup-export-firebase-btn');
       const btnClearLocalCache = document.getElementById('clear-local-cache-btn');
       const btnDeleteFirebaseData = document.getElementById('delete-firebase-data-btn');
+
+      // Permessi: alcune azioni sono riservate ai Supervisor
+      const role = App.currentUser?.role || 'User';
+      const isSupervisor = (role === 'Supervisor' || role === 'Admin');
+      // Nasconde la card 'Dati Firebase' per gli User
+      if (!isSupervisor) {
+        const card = btnDeleteFirebaseData?.closest('.card');
+        if (card) card.classList.add('d-none');
+      }
+
 
       // Backup test/import (JSON legacy -> schema corrente)
       const btnLoadSample = document.getElementById('backup-load-sample-btn');

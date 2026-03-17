@@ -12,8 +12,7 @@ function applyMenuForRole(user) {
   const restrictedForUser = new Set([
     'menu-anagrafica-azienda',
     'menu-anagrafica-utenti',
-    'menu-avanzate'
-  ]);
+      ]);
 
   document.querySelectorAll('.menu-item').forEach(el => {
     const hide = isUser && restrictedForUser.has(el.id);

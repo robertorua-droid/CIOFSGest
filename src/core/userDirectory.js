@@ -8,6 +8,7 @@ import {
   getDocs,
   setDoc,
   updateDoc,
+  writeBatch,
   serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js';
 
@@ -75,6 +76,25 @@ export const userDirectory = {
     // ordinamento: email
     items.sort((a,b) => String(a.email||'').localeCompare(String(b.email||'')));
     return items;
+  },
+
+
+  async updateManyRole(uids, role) {
+    await firebase.init();
+    if (!firebase.uid) throw new Error('Firebase non autenticato');
+    const list = (uids || []).map(u => String(u)).filter(Boolean);
+    if (!list.length) return;
+
+    const CHUNK = 450;
+    for (let i = 0; i < list.length; i += CHUNK) {
+      const batch = writeBatch(firebase.fs);
+      const slice = list.slice(i, i + CHUNK);
+      for (const uid of slice) {
+        const ref = doc(firebase.fs, `appUsers/${uid}`);
+        batch.update(ref, { role, updatedAt: serverTimestamp() });
+      }
+      await batch.commit();
+    }
   },
 
   async update(uid, patch) {
