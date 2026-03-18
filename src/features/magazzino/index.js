@@ -44,7 +44,7 @@ export function initMagazzinoFeature() {
   wireSearch(unloadSearch, unloadSel, 'Seleziona...');
   wireSearch(stockSearch, stockSel, 'Seleziona un prodotto...');
 
-  const renderInventory =  = () => {
+  const renderInventory = () => {
     const db = App.db.ensure();
     if (!inventoryBody) return;
     inventoryBody.innerHTML = (db.products || []).map(p => `
