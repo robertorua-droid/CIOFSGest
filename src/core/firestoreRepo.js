@@ -80,6 +80,7 @@ export function firestoreRepo(fs, rootPath) {
     metaOps.push({ ref: doc(fs, base(META_DOCS.company)), data: dbObj.company || {} });
     metaOps.push({ ref: doc(fs, base(META_DOCS.counters)), data: dbObj.counters || {} });
     metaOps.push({ ref: doc(fs, base(META_DOCS.notes)), data: dbObj.notes || {} });
+    metaOps.push({ ref: doc(fs, base(META_DOCS.settings)), data: dbObj.settings || {} });
     metaOps.push({ ref: doc(fs, base(META_DOCS.users)), data: { users: dbObj.users || [] } });
 
     // Arrays
@@ -135,6 +136,7 @@ export function firestoreRepo(fs, rootPath) {
       company: nextDb.company || {},
       counters: nextDb.counters || {},
       notes: nextDb.notes || {},
+      settings: nextDb.settings || {},
       users: nextDb.users || []
     };
     const nextMetaHash = JSON.stringify(nextMeta);
@@ -145,6 +147,7 @@ export function firestoreRepo(fs, rootPath) {
       ops.push({ ref: doc(fs, base(META_DOCS.company)), data: nextMeta.company });
       ops.push({ ref: doc(fs, base(META_DOCS.counters)), data: nextMeta.counters });
       ops.push({ ref: doc(fs, base(META_DOCS.notes)), data: nextMeta.notes });
+      ops.push({ ref: doc(fs, base(META_DOCS.settings)), data: nextMeta.settings });
       ops.push({ ref: doc(fs, base(META_DOCS.users)), data: { users: nextMeta.users } });
     }
 

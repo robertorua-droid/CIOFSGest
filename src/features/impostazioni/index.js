@@ -2,6 +2,7 @@
 import { App } from '../../core/app.js';
 import { isLegacyBackup, mapBackupToDb, summarizeDb } from '../../domain/backupMapper.js';
 import { normalizeDb } from '../../core/dbSchema.js';
+import { firestoreRepo } from '../../core/firestoreRepo.js';
 
   const Impostazioni = {
     initCompany() {
@@ -446,6 +447,10 @@ import { normalizeDb } from '../../core/dbSchema.js';
       const elFsDocs = document.getElementById('fs-doc-count');
       const elFsPct = document.getElementById('fs-used-pct');
       const elFsBar = document.getElementById('fs-usage-bar');
+      const btnFsClass = document.getElementById('fs-class-calc-btn');
+      const lblFsUsers = document.getElementById('fs-class-users');
+      const noteFsClass = document.getElementById('fs-class-calc-note');
+      const chkAllowNeg = document.getElementById('allow-negative-stock-checkbox');
 
       // Permessi: alcune azioni sono riservate ai Supervisor
       const role = App.currentUser?.role || 'User';
@@ -470,19 +475,34 @@ import { normalizeDb } from '../../core/dbSchema.js';
       const syncAllowNegToggle = () => {
         if (!chkAllowNeg) return;
         const val = (db.settings?.allowNegativeStock !== false);
-        // evita loop: aggiorna solo se diverso
         if (chkAllowNeg.checked !== val) chkAllowNeg.checked = val;
       };
 
       if (chkAllowNeg) {
-        // se il db non ha settings, inizializza default true e persisti
+        // inizializza default true se mancante (e persiste)
         db.settings = db.settings || {};
         if (db.settings.allowNegativeStock === undefined) {
           db.settings.allowNegativeStock = true;
           App.db.save(db);
         }
         syncAllowNegToggle();
-      // ===== Utilizzo Firestore (stima) – visibile solo Supervisor =====
+
+        chkAllowNeg.addEventListener('change', () => {
+          db.settings = db.settings || {};
+          db.settings.allowNegativeStock = !!chkAllowNeg.checked;
+          App.db.save(db);
+          App.ui.showToast('Impostazione salvata.', 'success');
+        });
+
+        // mantiene il toggle sincronizzato se il DB cambia (sync/pull/import)
+        App.events.on('db:changed', (d) => {
+          db = d;
+          syncAllowNegToggle();
+        });
+      }
+// ===== Utilizzo Firestore (stima) – visibile solo Supervisor =====
+      
+      // ===== Utilizzo Firestore (classe) – solo Supervisor =====
       if (fsUsageCard && !isSupervisor) fsUsageCard.classList.add('d-none');
 
       const formatBytes = (bytes) => {
@@ -490,15 +510,14 @@ import { normalizeDb } from '../../core/dbSchema.js';
         if (!Number.isFinite(b) || b < 0) return '—';
         const units = ['B','KB','MB','GB'];
         let v = b; let u = 0;
-        while (v >= 1024 && u < units.length-1) { v /= 1024; u++; }
+        while (v >= 1024 && u < units.length - 1) { v /= 1024; u++; }
         return `${v.toFixed(u === 0 ? 0 : 2)} ${units[u]}`;
       };
 
+      const FREE = 1024 * 1024 * 1024; // 1 GiB (Spark)
       const estimateDocCount = (d) => {
         const dbx = d || {};
-        let n = 0;
-        // meta docs (company, counters, notes, settings, localUsers)
-        n += 5;
+        let n = 4; // meta docs
         n += (dbx.products || []).length;
         n += (dbx.customers || []).length;
         n += (dbx.suppliers || []).length;
@@ -507,40 +526,54 @@ import { normalizeDb } from '../../core/dbSchema.js';
         n += (dbx.customerDDTs || []).length;
         n += (dbx.supplierDDTs || []).length;
         n += (dbx.invoices || []).length;
-        // appUsers/{uid}
-        n += 1;
         return n;
       };
 
-      const updateFsUsage = () => {
-        if (!isSupervisor) return;
-        if (!elFsJson || !elFsEst || !elFsDocs || !elFsPct || !elFsBar) return;
-        let raw = '';
-        try { raw = JSON.stringify(db || {}); } catch { raw = ''; }
-        const bytes = (new TextEncoder().encode(raw)).length;
-        const est = Math.round(bytes * 2); // indici/overhead grossolano
-        const FREE = 1024 * 1024 * 1024; // 1 GiB
-        const pct = FREE ? (est / FREE) * 100 : 0;
+      btnFsClass?.addEventListener('click', async () => {
+        if (!isSupervisor) return App.ui.showToast('Permesso negato: serve ruolo Supervisor.', 'warning');
+        try {
+          if (noteFsClass) noteFsClass.textContent = 'Calcolo in corso…';
+          // elenco utenti (appUsers)
+          const users = await App.userDirectory.listAll();
+          const uids = (users || []).map(u => String(u.uid || u.id || '')).filter(Boolean);
+          if (lblFsUsers) lblFsUsers.textContent = String(uids.length);
 
-        elFsJson.textContent = formatBytes(bytes);
-        elFsEst.textContent = formatBytes(est);
-        elFsDocs.textContent = String(estimateDocCount(db));
-        elFsPct.textContent = `${pct.toFixed(pct < 1 ? 2 : 1)}%`;
-        elFsBar.style.width = `${Math.max(0, Math.min(100, pct))}%`;
-      };
+          // somma dimensione JSON dei dataset di tutti gli utenti
+          const enc = new TextEncoder();
+          let totalBytes = 0;
+          let totalDocs = 0;
 
-      // update now + on changes
-      try { updateFsUsage(); } catch {}
-      App.events.on('db:changed', () => { try { updateFsUsage(); syncAllowNegToggle(); } catch {} });
+          // ATTENZIONE: richiede rules che permettano al Supervisor di leggere /users/{uid}/...
+          // Se non abilitate, qui riceverai permission-denied.
+          await App.firebase.init();
+          for (const uid of uids) {
+            const root = `users/${uid}`;
+            const repo = firestoreRepo(App.firebase.fs, root);
+            const data = await repo.loadAll();
+            totalBytes += enc.encode(JSON.stringify(data || {})).length;
+            totalDocs += estimateDocCount(data);
+          }
 
+          // overhead/indici: stima x2
+          const est = Math.round(totalBytes * 2);
+          const pct = (est / FREE) * 100;
 
-        chkAllowNeg.addEventListener('change', () => {
-          db.settings = db.settings || {};
-          db.settings.allowNegativeStock = !!chkAllowNeg.checked;
-          App.db.save(db);
-          App.ui.showToast('Impostazione salvata.', 'success');
-        });
-      }
+          if (elFsJson) elFsJson.textContent = formatBytes(totalBytes);
+          if (elFsEst) elFsEst.textContent = formatBytes(est);
+          if (elFsDocs) elFsDocs.textContent = String(totalDocs);
+          if (elFsPct) elFsPct.textContent = `${pct.toFixed(pct < 1 ? 2 : 1)}%`;
+          if (elFsBar) elFsBar.style.width = `${Math.max(0, Math.min(100, pct))}%`;
+
+          if (noteFsClass) noteFsClass.textContent = 'Calcolo completato.';
+        } catch (e) {
+          if (noteFsClass) noteFsClass.textContent = '';
+          App.ui.showToast('Errore calcolo utilizzo classe: ' + (e?.message || e), 'danger');
+          // hint
+          if (String(e?.message || e).includes('permission') || String(e?.code || '').includes('permission')) {
+            App.ui.showToast('Nota: per calcolare il totale classe, il Supervisor deve poter leggere i dati degli altri utenti (/users/{uid}). Aggiorna le Firestore Rules.', 'warning');
+          }
+        }
+      });
 
 
       // Firebase sync UI (opzionale)
