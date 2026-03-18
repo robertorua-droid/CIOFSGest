@@ -539,25 +539,34 @@ dateEl.value = App.utils.todayISO();
         const preCust = document.getElementById('invoice-preview-customer');
         const preNum = document.getElementById('invoice-preview-number');
         const preDate = document.getElementById('invoice-preview-date');
-        const preBody = document.getElementById('invoice-preview-tbody');
-        const preTot = document.getElementById('invoice-preview-total');
+        const preBody = document.getElementById('invoice-preview-lines-tbody');
+        const summary = document.getElementById('invoice-summary');
+        
 
-        if (preCust) preCust.textContent = cust.name;
-        if (preNum) preNum.textContent = App.utils.nextInvoiceNumber(db);
-        if (preDate) preDate.textContent = App.utils.todayISO();
+        if (preCust) preCust.value = cust.name;
+        if (preNum) preNum.value = App.utils.nextInvoiceNumber(db);
+        if (preDate) preDate.value = App.utils.todayISO();
         if (preBody) {
           preBody.innerHTML = lines.map(l => `
             <tr>
               <td>${l.description}</td>
               <td class="text-end">${l.qty}</td>
               <td class="text-end">€ ${App.utils.money(l.price)}</td>
-              <td class="text-end">${l.iva}%</td>
               <td class="text-end">€ ${App.utils.money(l.qty*l.price)}</td>
+              <td class="text-end">${l.iva}%</td>
             </tr>`).join('');
         }
-        if (preTot) preTot.textContent = `€ ${App.utils.money(total)}`;
+      
+        if (summary) {
+          summary.innerHTML = `
+            <div class="d-flex justify-content-between"><span>Imponibile</span><strong>€ ${App.utils.money(subtotal)}</strong></div>
+            <div class="d-flex justify-content-between"><span>IVA</span><strong>€ ${App.utils.money(ivaTotal)}</strong></div>
+            <hr class="my-2"/>
+            <div class="d-flex justify-content-between"><span>Totale</span><strong>€ ${App.utils.money(total)}</strong></div>
+          `;
+        }
 
-        previewSection?.classList.remove('d-none');
+        document.getElementById('invoice-preview-section')?.classList.remove('d-none');
       });
 
       btnConfirm?.addEventListener('click', () => {
@@ -569,7 +578,7 @@ dateEl.value = App.utils.todayISO();
         if (!ddts.length) return App.ui.showToast('Seleziona almeno un DDT.', 'warning');
 
         const invoiceNumber = App.utils.nextInvoiceNumber(db);
-        const invDate = App.utils.todayISO();
+        const invDate = (document.getElementById('invoice-preview-date')?.value) || App.utils.todayISO();
 
         const invLines = [];
         ddts.forEach(d => d.lines.forEach(l => {

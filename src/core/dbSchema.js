@@ -19,6 +19,9 @@ export function createInitialDb() {
       // Didattica: consenti giacenze negative con conferma
       allowNegativeStock: true
     },
+    meta: {
+      updatedAt: Date.now()
+    },
     counters: {
       orderCustomer: 0,
       orderSupplier: 0,
@@ -50,6 +53,9 @@ export function normalizeDb(input) {
 
   if (!db.settings || typeof db.settings !== 'object' || Array.isArray(db.settings)) db.settings = {};
   if (db.settings.allowNegativeStock === undefined) db.settings.allowNegativeStock = true;
+
+  if (!db.meta || typeof db.meta !== 'object' || Array.isArray(db.meta)) db.meta = {};
+  if (!db.meta.updatedAt) db.meta.updatedAt = Date.now();
 
   if (!db.counters || typeof db.counters !== 'object' || Array.isArray(db.counters)) db.counters = {};
   for (const [k, v] of Object.entries(base.counters)) {

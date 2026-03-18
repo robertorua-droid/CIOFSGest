@@ -12,6 +12,7 @@ export function createDb(events) {
     _key: config.DB_KEY,
     _cache: null,
     _modeKey: config.PERSISTENCE_KEY,
+    _syncTsKey: `${config.DB_KEY}__lastSyncedAt`,
     _syncEnabled: false,
     _syncStatus: { state: 'idle', lastError: null, lastSyncedAt: null },
     _syncState: null,
@@ -38,10 +39,35 @@ export function createDb(events) {
     async init() {
       // carica il DB nel cache prima che la UI venga inizializzata
       const mode = this.getMode();
+
+      // Local-first: carica sempre la cache locale (utile se refresh prima della sync)
+      let local = this.load();
+      if (local) {
+        local = normalizeDb(local);
+        this._cache = local;
+        localStorage.setItem(this._key, JSON.stringify(local));
+      }
+
       if (mode === 'firebase') {
         try {
           await firebase.init();
           const repo = firestoreRepo(firebase.fs, firebase.getRootPath());
+
+          // Se la cache locale è più recente dell'ultima sync completata, non sovrascrivere con remoto:
+          const lastSyncedAt = parseInt(localStorage.getItem(this._syncTsKey) || '0', 10) || 0;
+          const localUpdatedAt = this._cache?.meta?.updatedAt || 0;
+
+          if (this._cache && localUpdatedAt > lastSyncedAt) {
+            // tenta di riallineare subito il remoto dalla cache locale
+            await repo.writeAll(this._cache);
+            this._syncState = repo.buildState(this._cache);
+            this._syncEnabled = true;
+            this._syncStatus = { state: 'idle', lastError: null, lastSyncedAt: Date.now() };
+            try { localStorage.setItem(this._syncTsKey, String(this._syncStatus.lastSyncedAt)); } catch {}
+            events?.emit?.('sync:status', this._syncStatus);
+            return this._cache;
+          }
+
           const remote = await repo.loadAll();
           if (remote) {
             const norm = normalizeDb(remote);
@@ -50,6 +76,7 @@ export function createDb(events) {
             localStorage.setItem(this._key, JSON.stringify(norm));
             this._syncEnabled = true;
             this._syncStatus = { ...this._syncStatus, state: 'idle', lastError: null };
+            try { localStorage.setItem(this._syncTsKey, String(Date.now())); } catch {}
             events?.emit?.('sync:status', this._syncStatus);
             return norm;
           }
@@ -58,6 +85,7 @@ export function createDb(events) {
           this._syncEnabled = false;
           this._syncStatus = { ...this._syncStatus, state: 'error', lastError: String(e?.message || e) };
           events?.emit?.('sync:status', this._syncStatus);
+          if (this._cache) return this._cache;
         }
       }
 
@@ -76,6 +104,9 @@ export function createDb(events) {
     },
 
     save(db) {
+      // aggiorna timestamp modifiche
+      db.meta = (db.meta && typeof db.meta === 'object') ? db.meta : {};
+      db.meta.updatedAt = Date.now();
       // cache -> garantisce che tutti i moduli lavorino sulla stessa reference
       this._cache = db;
       localStorage.setItem(this._key, JSON.stringify(db));
@@ -123,6 +154,8 @@ export function createDb(events) {
       this._syncState = null; // reset diff state
       this.setMode('firebase');
       this._syncStatus = { state: 'idle', lastError: null, lastSyncedAt: Date.now() };
+      try { localStorage.setItem(this._syncTsKey, String(this._syncStatus.lastSyncedAt)); } catch {}
+          try { localStorage.setItem(this._syncTsKey, String(this._syncStatus.lastSyncedAt)); } catch {}
       events?.emit?.('sync:status', this._syncStatus);
       return true;
     },
@@ -173,6 +206,7 @@ export function createDb(events) {
           }
 
           this._syncStatus = { state: 'idle', lastError: null, lastSyncedAt: Date.now() };
+          try { localStorage.setItem(this._syncTsKey, String(this._syncStatus.lastSyncedAt)); } catch {}
           events?.emit?.('sync:status', this._syncStatus);
         } catch (e) {
           this._syncStatus = { ...this._syncStatus, state: 'error', lastError: String(e?.message || e) };
