@@ -430,6 +430,7 @@ dateEl.value = App.utils.todayISO();
     initInvoicing() {
       let db = App.db.ensure();
       App.events.on('db:changed', d => { db = d; });
+
       const custSel = document.getElementById('invoice-customer-select');
       const ddtSection = document.getElementById('invoice-ddt-section');
       const previewSection = document.getElementById('invoice-preview-section');
@@ -439,35 +440,38 @@ dateEl.value = App.utils.todayISO();
 
       if (!custSel) return;
 
-      // Load customers
       const fillCustomers = () => {
         const curDb = App.db.ensure();
         const prev = custSel.value;
         custSel.innerHTML = '<option selected disabled value="">Seleziona un cliente...</option>'
-          + (curDb.customers||[]).map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+          + (curDb.customers||[]).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
         if (prev) custSel.value = prev;
       };
-      fillCustomers();
-        fillDDTsForSelectedCustomer();
 
       const fillDDTsForSelectedCustomer = () => {
         const curDb = App.db.ensure();
         const custId = custSel.value;
-        if (!custId) { 
-          ddtSection?.classList.add('d-none'); 
-          previewSection?.classList.add('d-none'); 
-          if (ddtList) ddtList.innerHTML = '';
-          return;
-        }
-        const cust = (curDb.customers||[]).find(c=>c.id===custId);
-        if (!cust) return;
-        const openDDT = (curDb.customerDDTs||[]).filter(d=>d.customerId===cust.id && d.status==='Da Fatturare');
-        if (openDDT.length === 0) {
-          ddtSection?.classList.add('d-none'); 
+
+        if (!custId) {
+          ddtSection?.classList.add('d-none');
           previewSection?.classList.add('d-none');
           if (ddtList) ddtList.innerHTML = '';
           return;
         }
+
+        const cust = (curDb.customers||[]).find(c => String(c.id) === String(custId));
+        if (!cust) return;
+
+        const openDDT = (curDb.customerDDTs||[])
+          .filter(d => String(d.customerId) === String(cust.id) && (d.status || 'Da Fatturare') === 'Da Fatturare');
+
+        if (!openDDT.length) {
+          ddtSection?.classList.add('d-none');
+          previewSection?.classList.add('d-none');
+          if (ddtList) ddtList.innerHTML = '';
+          return;
+        }
+
         if (ddtList) {
           ddtList.innerHTML = openDDT.map(d => `
             <div class="form-check">
@@ -475,51 +479,125 @@ dateEl.value = App.utils.todayISO();
               <label class="form-check-label" for="chk-${d.number}">${d.number} — ${d.date}</label>
             </div>`).join('');
         }
+
         ddtSection?.classList.remove('d-none');
         previewSection?.classList.add('d-none');
       };
 
       const resetInvoicing = () => {
-        // pulizia UI
         custSel.value = '';
         if (ddtList) ddtList.innerHTML = '';
         ddtSection?.classList.add('d-none');
         previewSection?.classList.add('d-none');
         fillCustomers();
-
-      const fillDDTsForSelectedCustomer = () => {
-        const curDb = App.db.ensure();
-        const custId = custSel.value;
-        if (!custId) { 
-          ddtSection?.classList.add('d-none'); 
-          previewSection?.classList.add('d-none'); 
-          if (ddtList) ddtList.innerHTML = '';
-          return;
-        }
-        const cust = (curDb.customers||[]).find(c=>c.id===custId);
-        if (!cust) return;
-        const openDDT = (curDb.customerDDTs||[]).filter(d=>d.customerId===cust.id && d.status==='Da Fatturare');
-        if (openDDT.length === 0) {
-          ddtSection?.classList.add('d-none'); 
-          previewSection?.classList.add('d-none');
-          if (ddtList) ddtList.innerHTML = '';
-          return;
-        }
-        if (ddtList) {
-          ddtList.innerHTML = openDDT.map(d => `
-            <div class="form-check">
-              <input class="form-check-input invoice-ddt-check" type="checkbox" value="${d.number}" id="chk-${d.number}" checked>
-              <label class="form-check-label" for="chk-${d.number}">${d.number} — ${d.date}</label>
-            </div>`).join('');
-        }
-        ddtSection?.classList.remove('d-none');
-        previewSection?.classList.add('d-none');
       };
 
-      };
+      // initial
+      fillCustomers();
+
       App.events.on('section:changed', (sid) => {
         if (sid === 'fatturazione') resetInvoicing();
         if (sid === 'elenco-fatture') Clienti.renderInvoices();
+      });
+
+      App.events.on('customers:changed', () => { fillCustomers(); fillDDTsForSelectedCustomer(); });
+      App.events.on('customerDDTs:changed', fillDDTsForSelectedCustomer);
+      App.events.on('db:changed', () => { fillCustomers(); fillDDTsForSelectedCustomer(); });
+
+      custSel.addEventListener('change', () => {
+        fillDDTsForSelectedCustomer();
+        const curDb = App.db.ensure();
+        const cust = (curDb.customers||[]).find(c => String(c.id) === String(custSel.value));
+        const openDDT = cust ? (curDb.customerDDTs||[]).filter(d => String(d.customerId) === String(cust.id) && (d.status || 'Da Fatturare') === 'Da Fatturare') : [];
+        if (cust && openDDT.length === 0) App.ui.showToast('Nessun DDT da fatturare per questo cliente.', 'info');
+      });
+
+      btnPreview?.addEventListener('click', () => {
+        const cust = (db.customers||[]).find(c => String(c.id) === String(custSel.value));
+        if (!cust) return;
+
+        const selected = Array.from(document.querySelectorAll('.invoice-ddt-check:checked')).map(i => i.value);
+        const ddts = (db.customerDDTs||[]).filter(d => selected.includes(d.number));
+        if (!ddts.length) return App.ui.showToast('Seleziona almeno un DDT.', 'warning');
+
+        // Build preview
+        const lines = [];
+        ddts.forEach(d => d.lines.forEach(l => {
+          const code = (l.description||'').split(' - ')[0];
+          const p = (db.products||[]).find(pp => pp.code === code);
+          const price = (l.price!=null) ? l.price : (p?.salePrice || 0);
+          const iva = (l.iva!=null) ? l.iva : (p?.iva || 22);
+          lines.push({ description: l.description, qty: l.qty, price, iva });
+        }));
+
+        // Totals
+        const subtotal = lines.reduce((s, l) => s + (l.qty * l.price), 0);
+        const ivaTotal = lines.reduce((s, l) => s + (l.qty * l.price * (l.iva/100)), 0);
+        const total = subtotal + ivaTotal;
+
+        // Render preview
+        const preCust = document.getElementById('invoice-preview-customer');
+        const preNum = document.getElementById('invoice-preview-number');
+        const preDate = document.getElementById('invoice-preview-date');
+        const preBody = document.getElementById('invoice-preview-tbody');
+        const preTot = document.getElementById('invoice-preview-total');
+
+        if (preCust) preCust.textContent = cust.name;
+        if (preNum) preNum.textContent = App.utils.nextInvoiceNumber(db);
+        if (preDate) preDate.textContent = App.utils.todayISO();
+        if (preBody) {
+          preBody.innerHTML = lines.map(l => `
+            <tr>
+              <td>${l.description}</td>
+              <td class="text-end">${l.qty}</td>
+              <td class="text-end">€ ${App.utils.money(l.price)}</td>
+              <td class="text-end">${l.iva}%</td>
+              <td class="text-end">€ ${App.utils.money(l.qty*l.price)}</td>
+            </tr>`).join('');
+        }
+        if (preTot) preTot.textContent = `€ ${App.utils.money(total)}`;
+
+        previewSection?.classList.remove('d-none');
+      });
+
+      btnConfirm?.addEventListener('click', () => {
+        const cust = (db.customers||[]).find(c => String(c.id) === String(custSel.value));
+        if (!cust) return;
+
+        const selected = Array.from(document.querySelectorAll('.invoice-ddt-check:checked')).map(i => i.value);
+        const ddts = (db.customerDDTs||[]).filter(d => selected.includes(d.number));
+        if (!ddts.length) return App.ui.showToast('Seleziona almeno un DDT.', 'warning');
+
+        const invoiceNumber = App.utils.nextInvoiceNumber(db);
+        const invDate = App.utils.todayISO();
+
+        const invLines = [];
+        ddts.forEach(d => d.lines.forEach(l => invLines.push({ ...l })));
+
+        const invoice = {
+          number: invoiceNumber,
+          date: invDate,
+          customerId: cust.id,
+          customerName: cust.name,
+          ddtNumbers: ddts.map(d => d.number),
+          lines: invLines
+        };
+
+        db.invoices = db.invoices || [];
+        db.invoices.push(invoice);
+
+        // Mark ddts as invoiced
+        ddts.forEach(d => { d.status = 'Fatturato'; d.invoiceNumber = invoiceNumber; });
+
+        App.db.save(db);
+        App.ui.showToast('Fattura emessa', 'success');
+        Clienti.renderDDTs();
+        Clienti.renderInvoices();
+        resetInvoicing();
+      });
+    }
+
+    renderInvoices();
       });
 
       App.events.on('customers:changed', fillCustomers);
