@@ -572,7 +572,37 @@ dateEl.value = App.utils.todayISO();
         const invDate = App.utils.todayISO();
 
         const invLines = [];
-        ddts.forEach(d => d.lines.forEach(l => invLines.push({ ...l })));
+        ddts.forEach(d => d.lines.forEach(l => {
+          // normalizza righe e assegna prezzo/IVA se mancanti
+          const pid = l.productId;
+          const p = pid ? (db.products||[]).find(pp => String(pp.id) === String(pid)) : null;
+
+          // fallback: prova a ricavare il codice da "COD - descrizione"
+          let pByCode = null;
+          if (!p && l.description) {
+            const code = String(l.description).split(' - ')[0].trim();
+            pByCode = (db.products||[]).find(pp => String(pp.code || '').trim() === code);
+          }
+          const prod = p || pByCode;
+
+          const qty = Number(l.qty || 0);
+          const price = (l.price != null && l.price !== '') ? Number(l.price) : Number(prod?.salePrice || 0);
+          const iva = (l.iva != null && l.iva !== '') ? Number(l.iva) : Number(prod?.iva || 22);
+          const desc = l.description || prod ? `${prod.code} - ${prod.description}` : '';
+
+          invLines.push({
+            productId: pid || prod?.id || null,
+            description: desc,
+            qty,
+            price,
+            iva
+          });
+        }));
+
+        // Totali (IVA inclusa nel totale)
+        const subtotal = invLines.reduce((s, l) => s + (Number(l.qty||0) * Number(l.price||0)), 0);
+        const ivaTotal = invLines.reduce((s, l) => s + (Number(l.qty||0) * Number(l.price||0) * (Number(l.iva||0) / 100)), 0);
+        const total = subtotal + ivaTotal;
 
         const invoice = {
           number: invoiceNumber,
@@ -580,7 +610,10 @@ dateEl.value = App.utils.todayISO();
           customerId: cust.id,
           customerName: cust.name,
           ddtNumbers: ddts.map(d => d.number),
-          lines: invLines
+          lines: invLines,
+          subtotal,
+          ivaTotal,
+          total
         };
 
         db.invoices = db.invoices || [];
