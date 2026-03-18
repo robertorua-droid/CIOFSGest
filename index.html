@@ -461,7 +461,21 @@
 <div class="small text-muted mt-2">Utile per simulare backorder, rettifiche e situazioni reali. Anche con opzione attiva, il gestionale chiede conferma prima di andare in negativo.</div>
 </div>
 </div>
-<div class="card mt-4 border-primary">
+<div class="card mt-4" id="fs-usage-card">
+<div class="card-body">
+<h5 class="card-title">Utilizzo Firestore (stima)</h5>
+<p class="card-text mb-2">Stima dello spazio occupato dai dati del <strong>tuo</strong> account su Firestore rispetto alla quota gratuita (Spark).</p>
+<div class="small">Dataset (JSON): <span id="fs-json-size">—</span></div>
+<div class="small">Stima Firestore (incl. indici/overhead ~×2): <span id="fs-est-size">—</span></div>
+<div class="small">Documenti stimati: <span id="fs-doc-count">—</span></div>
+<div class="small">Quota free: <span id="fs-free-limit">1 GiB</span> → usato: <strong><span id="fs-used-pct">—</span></strong></div>
+<div class="progress mt-2" style="height: 10px;">
+  <div class="progress-bar" id="fs-usage-bar" style="width:0%"></div>
+</div>
+<div class="small text-muted mt-2">Nota: è una stima approssimativa (non include i dati di altri utenti). Per i valori reali vedi Firebase Console → Firestore → Usage.</div>
+</div>
+</div>
+<div class="card<div class="card mt-4 border-primary">
 <div class="card-body">
 <h5 class="card-title">Backup &amp; Ripristino</h5>
 <p class="card-text mb-2">
