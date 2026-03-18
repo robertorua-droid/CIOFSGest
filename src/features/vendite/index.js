@@ -551,18 +551,18 @@ dateEl.value = App.utils.todayISO();
             <tr>
               <td>${l.description}</td>
               <td class="text-end">${l.qty}</td>
-              <td class="text-end">€ ${App.utils.money(l.price)}</td>
-              <td class="text-end">€ ${App.utils.money(l.qty*l.price)}</td>
+              <td class="text-end">${App.utils.fmtMoney(l.price)}</td>
+              <td class="text-end">${App.utils.fmtMoney(l.qty*l.price)}</td>
               <td class="text-end">${l.iva}%</td>
             </tr>`).join('');
         }
       
         if (summary) {
           summary.innerHTML = `
-            <div class="d-flex justify-content-between"><span>Imponibile</span><strong>€ ${App.utils.money(subtotal)}</strong></div>
-            <div class="d-flex justify-content-between"><span>IVA</span><strong>€ ${App.utils.money(ivaTotal)}</strong></div>
+            <div class="d-flex justify-content-between"><span>Imponibile</span><strong>${App.utils.fmtMoney(subtotal)}</strong></div>
+            <div class="d-flex justify-content-between"><span>IVA</span><strong>${App.utils.fmtMoney(ivaTotal)}</strong></div>
             <hr class="my-2"/>
-            <div class="d-flex justify-content-between"><span>Totale</span><strong>€ ${App.utils.money(total)}</strong></div>
+            <div class="d-flex justify-content-between"><span>Totale</span><strong>${App.utils.fmtMoney(total)}</strong></div>
           `;
         }
 
