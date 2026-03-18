@@ -15,7 +15,8 @@ service cloud.firestore {
 
     // Utenti: ogni utente può leggere/scrivere SOLO il proprio spazio dati
     match /users/{uid}/{document=**} {
-      allow read, write: if signedIn() && request.auth.uid == uid;
+      allow read: if signedIn() && (request.auth.uid == uid || isSupervisor());
+      allow write: if signedIn() && request.auth.uid == uid;
     }
 
     // Directory utenti per gestione ruoli: appUsers/{uid}

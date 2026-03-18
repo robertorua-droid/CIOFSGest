@@ -455,7 +455,7 @@
 <div class="card-body">
 <h5 class="card-title">Didattica</h5>
 <div class="form-check form-switch">
-<input class="form-check-input" id="allow-negative-stock-checkbox" role="switch" type="checkbox"/>
+<input class="form-check-input" id="allow-negative-stock-checkbox" role="switch" type="checkbox" checked/>
 <label class="form-check-label" for="allow-negative-stock-checkbox">Consenti giacenza negativa (con conferma)</label>
 </div>
 <div class="small text-muted mt-2">Utile per simulare backorder, rettifiche e situazioni reali. Anche con opzione attiva, il gestionale chiede conferma prima di andare in negativo.</div>
@@ -463,9 +463,14 @@
 </div>
 <div class="card mt-4" id="fs-usage-card">
 <div class="card-body">
-<h5 class="card-title">Utilizzo Firestore (stima)</h5>
-<p class="card-text mb-2">Stima dello spazio occupato dai dati del <strong>tuo</strong> account su Firestore rispetto alla quota gratuita (Spark).</p>
-<div class="small">Dataset (JSON): <span id="fs-json-size">—</span></div>
+<h5 class="card-title">Utilizzo Firestore (classe)</h5>
+<p class="card-text mb-2">Calcolo dello spazio totale occupato dai dati della <strong>classe</strong> (somma di tutti gli utenti registrati) rispetto alla quota gratuita (Spark). <span class="text-muted">(solo Supervisor)</span></p>
+<div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+  <button class="btn btn-outline-dark btn-sm" id="fs-class-calc-btn"><i class="fas fa-gauge"></i> Calcola utilizzo classe</button>
+  <span class="small text-muted" id="fs-class-calc-note"></span>
+</div>
+<div class="small">Utenti (appUsers): <span id="fs-class-users">—</span></div>
+<div class="small">Dataset totale (JSON): <span id="fs-json-size">—</span></div>
 <div class="small">Stima Firestore (incl. indici/overhead ~×2): <span id="fs-est-size">—</span></div>
 <div class="small">Documenti stimati: <span id="fs-doc-count">—</span></div>
 <div class="small">Quota free: <span id="fs-free-limit">1 GiB</span> → usato: <strong><span id="fs-used-pct">—</span></strong></div>

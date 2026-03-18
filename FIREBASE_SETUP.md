@@ -101,3 +101,20 @@ service cloud.firestore {
 
 ### Nota Docente
 Nel file `src/core/config.js` trovi già impostata l’email docente `roberto.rua@gmail.com` in `SUPERVISOR_EMAILS`. Se vuoi cambiarla, modifica quell’elenco e ripubblica su GitHub.
+
+
+## 5) Utilizzo Firestore (classe)
+
+La card “Utilizzo Firestore (classe)” (in Impostazioni → Avanzate) calcola la somma dei dati di **tutti gli utenti**.
+Per farlo, il Supervisor deve poter **leggere** anche i dati degli altri utenti sotto `users/{uid}/...`.
+
+Aggiungi quindi `|| isSupervisor()` alle regole di lettura:
+
+```js
+match /users/{uid}/{document=**} {
+  allow read: if signedIn() && (request.auth.uid == uid || isSupervisor());
+  allow write: if signedIn() && request.auth.uid == uid;
+}
+```
+
+Nota: questo non permette al Supervisor di modificare i dati degli studenti (solo leggere).
