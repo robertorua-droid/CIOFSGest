@@ -179,7 +179,9 @@
 <div class="content-section d-none" id="carico-manuale">
 <h2>Carico Manuale a Magazzino</h2>
 <form class="mt-4 col-md-8 col-lg-6" id="manual-load-form">
-<div class="mb-3"><label class="form-label">Seleziona Prodotto</label><select class="form-select" id="load-product-select" required=""></select></div>
+<div class="mb-3"><label class="form-label">Seleziona Prodotto</label>
+<input class="form-control mb-2" id="load-product-search" type="search" placeholder="Cerca prodotto (codice o descrizione)..." autocomplete="off"/>
+<select class="form-select" id="load-product-select" required=""></select></div>
 <div class="mb-3"><label class="form-label">Quantità da Caricare</label><input class="form-control" id="load-product-qty" min="1" required="" type="number"/></div>
 <div class="mb-3"><label class="form-label">Causale/Note</label><textarea class="form-control" id="load-product-reason" placeholder="Es. Rettifica inventariale, reso da cliente..." rows="2"></textarea></div>
 <button class="btn btn-primary" type="submit">Esegui Carico</button>
@@ -188,7 +190,9 @@
 <div class="content-section d-none" id="scarico-manuale">
 <h2>Scarico Manuale da Magazzino</h2>
 <form class="mt-4 col-md-8 col-lg-6" id="manual-unload-form">
-<div class="mb-3"><label class="form-label">Seleziona Prodotto</label><select class="form-select" id="unload-product-select" required=""></select></div>
+<div class="mb-3"><label class="form-label">Seleziona Prodotto</label>
+<input class="form-control mb-2" id="unload-product-search" type="search" placeholder="Cerca prodotto (codice o descrizione)..." autocomplete="off"/>
+<select class="form-select" id="unload-product-select" required=""></select></div>
 <div class="mb-3"><label class="form-label">Quantità da Scaricare</label><input class="form-control" id="unload-product-qty" min="1" required="" type="number"/></div>
 <div class="mb-3"><label class="form-label">Causale/Note</label><textarea class="form-control" id="unload-product-reason" placeholder="Es. Rottura, uso interno, campione..." rows="2"></textarea></div>
 <button class="btn btn-danger" type="submit">Esegui Scarico</button>
