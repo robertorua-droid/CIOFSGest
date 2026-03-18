@@ -50,7 +50,24 @@ import { adjustStockBatch } from '../../domain/inventory.service.js';
       App.events.on('products:changed', fillSelects);
       App.events.on('db:changed', fillSelects);
 
-      dateEl.value = App.utils.todayISO();
+            const resetOrderForm = () => {
+        form.reset();
+        tmp.splice(0);
+        recalc();
+        dateEl.value = App.utils.todayISO();
+        if (!numEl.value) numEl.value = App.utils.nextCustomerOrderNumber(db);
+        if (qtyEl) qtyEl.value = '1';
+        try { if (prodSel?.options?.length) prodSel.dispatchEvent(new Event('change')); } catch {}
+      };
+      App.events.on('section:changed', (sid) => {
+        if (sid === 'nuovo-ordine-cliente') {
+          fillSelects();
+          resetOrderForm();
+        }
+        if (sid === 'elenco-ordini-cliente') Clienti.renderOrders();
+      });
+
+dateEl.value = App.utils.todayISO();
       numEl.value = App.utils.nextCustomerOrderNumber(db);
       App.db.save(db);
 
@@ -106,6 +123,10 @@ import { adjustStockBatch } from '../../domain/inventory.service.js';
         App.db.save(db);
         App.ui.showToast('Ordine cliente salvato', 'success');
         tmp.splice(0); recalc();
+        // precompila prossimo numero e ripulisce campi
+        numEl.value = App.utils.nextCustomerOrderNumber(db);
+        dateEl.value = App.utils.todayISO();
+        App.db.save(db);
         Clienti.renderOrders();
         App.ui.showSection('elenco-ordini-cliente');
       });
@@ -221,12 +242,30 @@ import { adjustStockBatch } from '../../domain/inventory.service.js';
       const ddtDate = document.getElementById('ddt-date');
       const tbody = document.getElementById('ddt-products-tbody');
 
-      const openOrders = (db.customerOrders || []).filter(o => {
-        // if any residual to ship
-        return (o.lines||[]).some(l => (l.shippedQty||0) < (l.qty||0));
+            const fillOpenOrders = () => {
+        const curDb = App.db.ensure();
+        const prev = selOrder.value;
+        const openOrders = (curDb.customerOrders || []).filter(o => (o.lines||[]).some(l => (l.shippedQty||0) < (l.qty||0)));
+        selOrder.innerHTML = '<option selected disabled value="">Seleziona un ordine...</option>'
+          + openOrders.map(o => `<option value="${o.number}">${o.number} - ${o.customerName}</option>`).join('');
+        if (prev) selOrder.value = prev;
+      };
+      fillOpenOrders();
+      const resetDDTForm = () => {
+        form.reset();
+        if (details) details.classList.add('d-none');
+        if (tbody) tbody.innerHTML = '';
+        try { custName.value = ''; ddtNum.value = ''; ddtDate.value = ''; } catch {}
+        fillOpenOrders();
+      };
+      App.events.on('section:changed', (sid) => {
+        if (sid === 'nuovo-ddt-cliente') resetDDTForm();
+        if (sid === 'elenco-ddt-cliente') Clienti.renderDDTs();
       });
-      selOrder.innerHTML = '<option selected disabled value="">Seleziona un ordine...</option>'
-        + openOrders.map(o => `<option value="${o.number}">${o.number} - ${o.customerName}</option>`).join('');
+
+      App.events.on('customerOrders:changed', fillOpenOrders);
+      App.events.on('customers:changed', fillOpenOrders);
+      App.events.on('db:changed', fillOpenOrders);
 
       selOrder.addEventListener('change', () => {
         const number = selOrder.value;
@@ -401,8 +440,29 @@ import { adjustStockBatch } from '../../domain/inventory.service.js';
       if (!custSel) return;
 
       // Load customers
-      custSel.innerHTML = '<option selected disabled value="">Seleziona un cliente...</option>'
-        + (db.customers||[]).map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+      const fillCustomers = () => {
+        const curDb = App.db.ensure();
+        const prev = custSel.value;
+        custSel.innerHTML = '<option selected disabled value="">Seleziona un cliente...</option>'
+          + (curDb.customers||[]).map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+        if (prev) custSel.value = prev;
+      };
+      fillCustomers();
+      const resetInvoicing = () => {
+        // pulizia UI
+        custSel.value = '';
+        if (ddtList) ddtList.innerHTML = '';
+        ddtSection?.classList.add('d-none');
+        previewSection?.classList.add('d-none');
+        fillCustomers();
+      };
+      App.events.on('section:changed', (sid) => {
+        if (sid === 'fatturazione') resetInvoicing();
+        if (sid === 'elenco-fatture') Clienti.renderInvoices();
+      });
+
+      App.events.on('customers:changed', fillCustomers);
+      App.events.on('db:changed', fillCustomers);
 
       custSel.addEventListener('change', () => {
         const cust = (db.customers||[]).find(c=>c.id===custSel.value);

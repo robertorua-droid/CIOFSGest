@@ -440,6 +440,7 @@ import { normalizeDb } from '../../core/dbSchema.js';
       const btnExportFirebase = document.getElementById('backup-export-firebase-btn');
       const btnClearLocalCache = document.getElementById('clear-local-cache-btn');
       const btnDeleteFirebaseData = document.getElementById('delete-firebase-data-btn');
+      const chkAllowNeg = document.getElementById('allow-negative-stock-checkbox');
 
       // Permessi: alcune azioni sono riservate ai Supervisor
       const role = App.currentUser?.role || 'User';
@@ -459,6 +460,18 @@ import { normalizeDb } from '../../core/dbSchema.js';
       const btnImportFirebase = document.getElementById('backup-import-firebase-btn');
       const chkWipe = document.getElementById('backup-wipe-checkbox');
       let _loadedBackupDb = null;
+
+      // Didattica: consenti giacenza negativa
+      if (chkAllowNeg) {
+        chkAllowNeg.checked = (db.settings?.allowNegativeStock !== false);
+        chkAllowNeg.addEventListener('change', () => {
+          db.settings = db.settings || {};
+          db.settings.allowNegativeStock = !!chkAllowNeg.checked;
+          App.db.save(db);
+          App.ui.showToast('Impostazione salvata.', 'success');
+        });
+      }
+
 
       // Firebase sync UI (opzionale)
       const chkFirebase = document.getElementById('firebase-mode-checkbox');

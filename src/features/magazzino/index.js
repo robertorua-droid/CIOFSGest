@@ -72,6 +72,31 @@ export function initMagazzinoFeature() {
 
   const refreshAll = () => { fillSelects(); renderInventory(); };
 
+  
+  // Reset forms quando si entra nelle sezioni (evita che restino i dati precedenti)
+  const resetSection = (sid) => {
+    if (sid === 'carico-manuale') {
+      loadForm?.reset();
+      if (loadSel) loadSel.value = '';
+    }
+    if (sid === 'scarico-manuale') {
+      unloadForm?.reset();
+      if (unloadSel) unloadSel.value = '';
+    }
+    if (sid === 'consultazione-giacenze') {
+      if (stockSel) stockSel.value = '';
+      const q = document.getElementById('stock-query-qty');
+      const loc = document.getElementById('stock-query-location');
+      if (q) q.textContent = '-';
+      if (loc) loc.textContent = '-';
+    }
+    if (sid === 'inventario') {
+      renderInventory();
+    }
+  };
+  App.events.on('section:changed', (sid) => { resetSection(sid); });
+
+
   App.events.on('logged-in', refreshAll);
   App.events.on('products:changed', refreshAll);
   App.events.on('db:changed', refreshAll);

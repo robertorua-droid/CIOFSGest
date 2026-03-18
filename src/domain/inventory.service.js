@@ -24,13 +24,41 @@ export function adjustStockBatch(changes, meta = {}) {
   }
 
   // validate
+  const allowNeg = (db.settings?.allowNegativeStock !== false);
+  const negatives = [];
+
   for (const [productId, delta] of grouped.entries()) {
     const p = findProduct(db, productId);
     if (!p) throw new Error(`Prodotto non trovato (${productId})`);
-    const newQty = (p.stockQty || 0) + delta;
+    const current = (p.stockQty || 0);
+    const newQty = current + delta;
     if (newQty < 0) {
-      throw new Error(`Giacenza insufficiente per ${p.code} (disponibile: ${p.stockQty || 0})`);
+      negatives.push({ p, current, delta, newQty });
     }
+  }
+
+  if (negatives.length) {
+    if (!allowNeg) {
+      const first = negatives[0];
+      throw new Error(`Giacenza insufficiente per ${first.p.code} (disponibile: ${first.current})`);
+    }
+
+    const lines = negatives.map(n => {
+      const code = n.p.code || n.p.id;
+      return `- ${code}: ${n.current} → ${n.newQty} (var: ${n.delta})`;
+    }).join('
+');
+
+    const ok = window.confirm(
+      'Attenzione: l\'operazione porta la giacenza in negativo per uno o più prodotti.
+
+'
+      + lines
+      + '
+
+Vuoi continuare?'
+    );
+    if (!ok) throw new Error('Operazione annullata.');
   }
 
   // apply

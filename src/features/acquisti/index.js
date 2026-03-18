@@ -35,14 +35,48 @@ import { adjustStockBatch } from '../../domain/inventory.service.js';
       const addBtn = document.getElementById('add-product-to-supplier-order-btn');
       const linesTbody = document.getElementById('supplier-order-lines-tbody');
       const totEl = document.getElementById('supplier-order-total');
+      const fillSelects = () => {
+        const curDb = App.db.ensure();
+        const prevSup = supSel.value;
+        const prevProd = prodSel.value;
+        supSel.innerHTML = (curDb.suppliers || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        prodSel.innerHTML = (curDb.products || []).map(p => `<option value="${p.id}" data-price="${p.purchasePrice||0}">${p.code} - ${p.description}</option>`).join('');
+        if (prevSup) supSel.value = prevSup;
+        if (prevProd) prodSel.value = prevProd;
+      };
+      fillSelects();
+      App.events.on('suppliers:changed', fillSelects);
+      App.events.on('products:changed', fillSelects);
+      App.events.on('db:changed', fillSelects);
 
-      supSel.innerHTML = (db.suppliers || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-      prodSel.innerHTML = (db.products || []).map(p => `<option value="${p.id}" data-price="${p.purchasePrice||0}">${p.code} - ${p.description}</option>`).join('');
       dateEl.value = App.utils.todayISO();
       numEl.value = App.utils.nextSupplierOrderNumber(db);
       App.db.save(db);
 
       const tmp = [];
+      const resetForm = () => {
+        // pulizia campi (evita che restino i dati precedenti)
+        form.reset();
+        tmp.splice(0);
+        if (linesTbody) linesTbody.innerHTML = '';
+        if (totEl) totEl.textContent = App.utils.fmtMoney(0);
+        dateEl.value = App.utils.todayISO();
+        // non forziamo un nuovo numero qui per evitare incrementi inutili: verrà aggiornato dopo il salvataggio
+        if (!numEl.value) numEl.value = App.utils.nextSupplierOrderNumber(db);
+        // default quantità
+        if (qtyEl) qtyEl.value = '1';
+        // price da prodotto selezionato
+        try { if (prodSel?.options?.length) prodSel.dispatchEvent(new Event('change')); } catch {}
+      };
+      // reset quando si entra nella sezione
+      App.events.on('section:changed', (sid) => {
+        if (sid === 'nuovo-ordine-fornitore') {
+          fillSelects();
+          resetForm();
+        }
+        if (sid === 'elenco-ordini-fornitore') Fornitori.renderOrders();
+      });
+
       const recalc = () => {
         const tot = tmp.reduce((a,r)=>a+r.qty*r.price,0);
         totEl.textContent = App.utils.fmtMoney(tot);
@@ -90,6 +124,10 @@ import { adjustStockBatch } from '../../domain/inventory.service.js';
         App.db.save(db);
         App.ui.showToast('Ordine fornitore salvato', 'success');
         tmp.splice(0); recalc();
+        // precompila il prossimo numero e ripulisce i campi
+        numEl.value = App.utils.nextSupplierOrderNumber(db);
+        dateEl.value = App.utils.todayISO();
+        App.db.save(db);
         Fornitori.renderOrders();
         App.ui.showSection('elenco-ordini-fornitore');
       });
@@ -219,9 +257,29 @@ import { adjustStockBatch } from '../../domain/inventory.service.js';
       const ddtDate = document.getElementById('ddt-supplier-date');
       const tbody = document.getElementById('ddt-supplier-products-tbody');
 
-      const openOrders = (db.supplierOrders || []).filter(o => (o.lines||[]).some(l => (l.receivedQty||0) < (l.qty||0)));
-      selOrder.innerHTML = '<option selected disabled value="">Seleziona un ordine...</option>'
-        + openOrders.map(o => `<option value="${o.number}">${o.number} - ${o.supplierName}</option>`).join('');
+            const fillOpenOrders = () => {
+        const curDb = App.db.ensure();
+        const prev = selOrder.value;
+        const openOrders = (curDb.supplierOrders || []).filter(o => (o.lines||[]).some(l => (l.receivedQty||0) < (l.qty||0)));
+        selOrder.innerHTML = '<option selected disabled value="">Seleziona un ordine...</option>'
+          + openOrders.map(o => `<option value="${o.number}">${o.number} - ${o.supplierName}</option>`).join('');
+        if (prev) selOrder.value = prev;
+      };
+      fillOpenOrders();
+      const resetDDTForm = () => {
+        form.reset();
+        if (details) details.classList.add('d-none');
+        if (tbody) tbody.innerHTML = '';
+        fillOpenOrders();
+      };
+      App.events.on('section:changed', (sid) => {
+        if (sid === 'nuovo-ddt-fornitore') resetDDTForm();
+        if (sid === 'elenco-ddt-fornitore') Fornitori.renderDDTs();
+      });
+
+      App.events.on('supplierOrders:changed', fillOpenOrders);
+      App.events.on('suppliers:changed', fillOpenOrders);
+      App.events.on('db:changed', fillOpenOrders);
 
       selOrder.addEventListener('change', () => {
         const number = selOrder.value;

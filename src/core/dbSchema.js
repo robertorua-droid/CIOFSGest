@@ -15,6 +15,10 @@ export function createInitialDb() {
     supplierDDTs: [],
     invoices: [],
     notes: {}, // { userId: "...": "testo" }
+    settings: {
+      // Didattica: consenti giacenze negative con conferma
+      allowNegativeStock: true
+    },
     counters: {
       orderCustomer: 0,
       orderSupplier: 0,
@@ -43,6 +47,9 @@ export function normalizeDb(input) {
   }
 
   if (!db.notes || typeof db.notes !== 'object' || Array.isArray(db.notes)) db.notes = {};
+
+  if (!db.settings || typeof db.settings !== 'object' || Array.isArray(db.settings)) db.settings = {};
+  if (db.settings.allowNegativeStock === undefined) db.settings.allowNegativeStock = true;
 
   if (!db.counters || typeof db.counters !== 'object' || Array.isArray(db.counters)) db.counters = {};
   for (const [k, v] of Object.entries(base.counters)) {
