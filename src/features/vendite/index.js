@@ -642,6 +642,7 @@ dateEl.value = App.utils.todayISO();
         this.renderOrders();
         this.wireOrderDetailAndDelete();
         this.initNewOrderForm();
+        this.initNewDDT();
         this.renderDDTs();
         this.wireDDTDetailAndDelete();
         this.initInvoicing();

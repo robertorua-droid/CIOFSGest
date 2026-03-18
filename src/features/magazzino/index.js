@@ -5,19 +5,46 @@ export function initMagazzinoFeature() {
   const loadForm = document.getElementById('manual-load-form');
   const unloadForm = document.getElementById('manual-unload-form');
   const loadSel = document.getElementById('load-product-select');
+  const loadSearch = document.getElementById('load-product-search');
   const unloadSel = document.getElementById('unload-product-select');
+  const unloadSearch = document.getElementById('unload-product-search');
   const stockSel = document.getElementById('stock-query-product-select');
+  const stockSearch = document.getElementById('stock-query-product-search');
   const inventoryBody = document.getElementById('inventory-table-body');
 
-  const fillSelects = () => {
+  const fillSelect = (sel, placeholder, q) => {
+    if (!sel) return;
     const db = App.db.ensure();
-    const opts = (db.products || []).map(p => `<option value="${p.id}">${p.code} - ${p.description}</option>`).join('');
-    if (loadSel) loadSel.innerHTML = `<option disabled selected value="">Seleziona...</option>` + opts;
-    if (unloadSel) unloadSel.innerHTML = `<option disabled selected value="">Seleziona...</option>` + opts;
-    if (stockSel) stockSel.innerHTML = `<option disabled selected value="">Seleziona un prodotto...</option>` + opts;
+    const term = String(q || '').trim().toLowerCase();
+    const list = (db.products || []).filter(p => {
+      if (!term) return true;
+      const hay = `${p.code || ''} ${p.description || ''}`.toLowerCase();
+      return hay.includes(term);
+    });
+
+    const opts = list.map(p => `<option value="${p.id}">${p.code} - ${p.description}</option>`).join('');
+    const prev = sel.value;
+    sel.innerHTML = `<option disabled selected value="">${placeholder}</option>` + opts;
+    // prova a ripristinare selezione se ancora presente
+    if (prev && list.some(p => String(p.id) === String(prev))) sel.value = prev;
   };
 
-  const renderInventory = () => {
+  const fillSelects = () => {
+    fillSelect(loadSel, 'Seleziona...', loadSearch?.value);
+    fillSelect(unloadSel, 'Seleziona...', unloadSearch?.value);
+    fillSelect(stockSel, 'Seleziona un prodotto...', stockSearch?.value);
+  };
+
+  // Search filter handlers
+  const wireSearch = (input, sel, placeholder) => {
+    if (!input || !sel) return;
+    input.addEventListener('input', () => fillSelect(sel, placeholder, input.value));
+  };
+  wireSearch(loadSearch, loadSel, 'Seleziona...');
+  wireSearch(unloadSearch, unloadSel, 'Seleziona...');
+  wireSearch(stockSearch, stockSel, 'Seleziona un prodotto...');
+
+  const renderInventory =  = () => {
     const db = App.db.ensure();
     if (!inventoryBody) return;
     inventoryBody.innerHTML = (db.products || []).map(p => `
@@ -29,7 +56,10 @@ export function initMagazzinoFeature() {
       </tr>`).join('');
   };
 
-  loadForm?.addEventListener('submit', (e) => {
+    fillSelects();
+  renderInventory();
+
+loadForm?.addEventListener('submit', (e) => {
     e.preventDefault();
     const id = loadSel?.value;
     const qty = parseFloat(document.getElementById('load-product-qty').value || '0');
