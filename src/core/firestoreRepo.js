@@ -23,6 +23,7 @@ const META_DOCS = {
   company: 'meta/company',
   counters: 'meta/counters',
   notes: 'meta/notes',
+  settings: 'meta/settings',
   users: 'meta/localUsers'
 };
 
@@ -46,6 +47,10 @@ export function firestoreRepo(fs, rootPath) {
 
     const notesSnap = await getDoc(doc(fs, base(META_DOCS.notes)));
     if (notesSnap.exists()) db.notes = notesSnap.data();
+
+
+    const settingsSnap = await getDoc(doc(fs, base(META_DOCS.settings)));
+    if (settingsSnap.exists()) db.settings = settingsSnap.data();
 
     const usersSnap = await getDoc(doc(fs, base(META_DOCS.users)));
     if (usersSnap.exists()) db.users = usersSnap.data()?.users || [];

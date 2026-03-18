@@ -440,7 +440,12 @@ import { normalizeDb } from '../../core/dbSchema.js';
       const btnExportFirebase = document.getElementById('backup-export-firebase-btn');
       const btnClearLocalCache = document.getElementById('clear-local-cache-btn');
       const btnDeleteFirebaseData = document.getElementById('delete-firebase-data-btn');
-      const chkAllowNeg = document.getElementById('allow-negative-stock-checkbox');
+      const fsUsageCard = document.getElementById('fs-usage-card');
+      const elFsJson = document.getElementById('fs-json-size');
+      const elFsEst = document.getElementById('fs-est-size');
+      const elFsDocs = document.getElementById('fs-doc-count');
+      const elFsPct = document.getElementById('fs-used-pct');
+      const elFsBar = document.getElementById('fs-usage-bar');
 
       // Permessi: alcune azioni sono riservate ai Supervisor
       const role = App.currentUser?.role || 'User';
@@ -461,9 +466,74 @@ import { normalizeDb } from '../../core/dbSchema.js';
       const chkWipe = document.getElementById('backup-wipe-checkbox');
       let _loadedBackupDb = null;
 
-      // Didattica: consenti giacenza negativa
+      // Didattica: consenti giacenza negativa (default ON)
+      const syncAllowNegToggle = () => {
+        if (!chkAllowNeg) return;
+        const val = (db.settings?.allowNegativeStock !== false);
+        // evita loop: aggiorna solo se diverso
+        if (chkAllowNeg.checked !== val) chkAllowNeg.checked = val;
+      };
+
       if (chkAllowNeg) {
-        chkAllowNeg.checked = (db.settings?.allowNegativeStock !== false);
+        // se il db non ha settings, inizializza default true e persisti
+        db.settings = db.settings || {};
+        if (db.settings.allowNegativeStock === undefined) {
+          db.settings.allowNegativeStock = true;
+          App.db.save(db);
+        }
+        syncAllowNegToggle();
+      // ===== Utilizzo Firestore (stima) – visibile solo Supervisor =====
+      if (fsUsageCard && !isSupervisor) fsUsageCard.classList.add('d-none');
+
+      const formatBytes = (bytes) => {
+        const b = Number(bytes || 0);
+        if (!Number.isFinite(b) || b < 0) return '—';
+        const units = ['B','KB','MB','GB'];
+        let v = b; let u = 0;
+        while (v >= 1024 && u < units.length-1) { v /= 1024; u++; }
+        return `${v.toFixed(u === 0 ? 0 : 2)} ${units[u]}`;
+      };
+
+      const estimateDocCount = (d) => {
+        const dbx = d || {};
+        let n = 0;
+        // meta docs (company, counters, notes, settings, localUsers)
+        n += 5;
+        n += (dbx.products || []).length;
+        n += (dbx.customers || []).length;
+        n += (dbx.suppliers || []).length;
+        n += (dbx.customerOrders || []).length;
+        n += (dbx.supplierOrders || []).length;
+        n += (dbx.customerDDTs || []).length;
+        n += (dbx.supplierDDTs || []).length;
+        n += (dbx.invoices || []).length;
+        // appUsers/{uid}
+        n += 1;
+        return n;
+      };
+
+      const updateFsUsage = () => {
+        if (!isSupervisor) return;
+        if (!elFsJson || !elFsEst || !elFsDocs || !elFsPct || !elFsBar) return;
+        let raw = '';
+        try { raw = JSON.stringify(db || {}); } catch { raw = ''; }
+        const bytes = (new TextEncoder().encode(raw)).length;
+        const est = Math.round(bytes * 2); // indici/overhead grossolano
+        const FREE = 1024 * 1024 * 1024; // 1 GiB
+        const pct = FREE ? (est / FREE) * 100 : 0;
+
+        elFsJson.textContent = formatBytes(bytes);
+        elFsEst.textContent = formatBytes(est);
+        elFsDocs.textContent = String(estimateDocCount(db));
+        elFsPct.textContent = `${pct.toFixed(pct < 1 ? 2 : 1)}%`;
+        elFsBar.style.width = `${Math.max(0, Math.min(100, pct))}%`;
+      };
+
+      // update now + on changes
+      try { updateFsUsage(); } catch {}
+      App.events.on('db:changed', () => { try { updateFsUsage(); syncAllowNegToggle(); } catch {} });
+
+
         chkAllowNeg.addEventListener('change', () => {
           db.settings = db.settings || {};
           db.settings.allowNegativeStock = !!chkAllowNeg.checked;
