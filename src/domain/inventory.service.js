@@ -46,17 +46,10 @@ export function adjustStockBatch(changes, meta = {}) {
     const lines = negatives.map(n => {
       const code = n.p.code || n.p.id;
       return `- ${code}: ${n.current} → ${n.newQty} (var: ${n.delta})`;
-    }).join('
-');
+    }).join('\n');
 
     const ok = window.confirm(
-      'Attenzione: l\'operazione porta la giacenza in negativo per uno o più prodotti.
-
-'
-      + lines
-      + '
-
-Vuoi continuare?'
+      `Attenzione: l'operazione porta la giacenza in negativo per uno o più prodotti.\n\n${lines}\n\nVuoi continuare?`
     );
     if (!ok) throw new Error('Operazione annullata.');
   }
