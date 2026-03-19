@@ -223,6 +223,34 @@
 </table>
 </div>
 <!-- CLIENTI -->
+
+
+<div class="content-section d-none" id="inventario-fisico" data-alias="inventario inventario-fisico">
+<h2>Inventario</h2>
+<div class="card">
+<div class="card-body">
+<p class="text-muted mb-3">Inserisci la <strong>giacenza fisica</strong> (conteggio reale). Il sistema confronta automaticamente con la giacenza a gestionale e mostra la differenza.</p>
+<div class="d-flex flex-wrap gap-2 mb-3">
+  <button class="btn btn-outline-danger btn-sm" id="reset-physical-counts-btn"><i class="fas fa-eraser"></i> Azzera conteggi fisici</button>
+  <span class="small text-muted align-self-center">Cancella tutti i valori inseriti nella colonna “Giacenza fisica”.</span>
+</div>
+<div class="table-responsive">
+<table class="table table-striped">
+<thead>
+<tr>
+<th>Codice</th>
+<th>Descrizione</th>
+<th>Collocazione</th>
+<th class="text-end">Giacenza (sistema)</th>
+<th class="text-end">Giacenza fisica</th>
+<th class="text-end">Differenza</th>
+</tr>
+</thead>
+<tbody id="inventory-physical-body"></tbody>
+</table>
+</div>
+
+
 <div class="content-section d-none" id="nuovo-ordine-cliente">
 <h2>Nuovo Ordine Cliente</h2>
 <form id="new-customer-order-form">
@@ -752,29 +780,3 @@
 <script src="script_badges_tooltips_patch.js"></script>
 </body>
 </html>
-
-<div class="content-section" id="inventario-fisico">
-<h2>Inventario</h2>
-<div class="card">
-<div class="card-body">
-<p class="text-muted mb-3">Inserisci la <strong>giacenza fisica</strong> (conteggio reale). Il sistema confronta automaticamente con la giacenza a gestionale e mostra la differenza.</p>
-<div class="table-responsive">
-<table class="table table-striped">
-<thead>
-<tr>
-<th>Codice</th>
-<th>Descrizione</th>
-<th>Collocazione</th>
-<th class="text-end">Giacenza (sistema)</th>
-<th class="text-end">Giacenza fisica</th>
-<th class="text-end">Differenza</th>
-</tr>
-</thead>
-<tbody id="inventory-physical-body"></tbody>
-</table>
-</div>
-<div class="small text-muted mt-2">Suggerimento: se la differenza è diversa da 0, puoi poi usare i movimenti manuali (rettifica inventario) per riallineare.</div>
-</div>
-</div>
-</div>
-
