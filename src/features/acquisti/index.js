@@ -26,6 +26,8 @@ import { adjustStockBatch } from '../../domain/inventory.service.js';
       App.events.on('db:changed', d => { db = d; });
       const form = document.getElementById('new-supplier-order-form');
       if (!form) return;
+      if (form.dataset.bound === '1') return;
+      form.dataset.bound = '1';
       const supSel = document.getElementById('order-supplier-select');
       const dateEl = document.getElementById('order-supplier-date');
       const numEl = document.getElementById('order-supplier-number');
@@ -251,6 +253,8 @@ import { adjustStockBatch } from '../../domain/inventory.service.js';
       App.events.on('db:changed', d => { db = d; });
       const form = document.getElementById('new-supplier-ddt-form');
       if (!form) return;
+      if (form.dataset.bound === '1') return;
+      form.dataset.bound = '1';
       const selOrder = document.getElementById('ddt-supplier-order-select');
       const details = document.getElementById('ddt-supplier-details-section');
       const supName = document.getElementById('ddt-supplier-name');
@@ -358,6 +362,21 @@ import { adjustStockBatch } from '../../domain/inventory.service.js';
     },
 
     init() {
+      if (this._initDone) return;
+      this._initDone = true;
+
+      const refreshSection = (sid) => {
+        if (!sid) return;
+        if (sid === 'nuovo-ordine-fornitore') {
+          try { this.initNewOrderForm(); } catch {}
+        }
+        if (sid === 'elenco-ordini-fornitore') this.renderOrders();
+        if (sid === 'nuovo-ddt-fornitore') {
+          try { this.initNewSupplierDDT(); } catch {}
+        }
+        if (sid === 'elenco-ddt-fornitore') this.renderDDTs();
+      };
+
       App.events.on('logged-in', () => {
         this.renderOrders();
         this.wireOrderDetail();
@@ -366,6 +385,12 @@ import { adjustStockBatch } from '../../domain/inventory.service.js';
         this.renderDDTs();
         this.wireSupplierDDTDetail();
       });
+
+      App.events.on('db:changed', () => {
+        const current = document.querySelector('.content-section:not(.d-none)')?.id;
+        refreshSection(current);
+      });
+      App.events.on('section:changed', refreshSection);
     }
   };
 

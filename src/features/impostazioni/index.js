@@ -8,13 +8,22 @@ import { firestoreRepo } from '../../core/firestoreRepo.js';
     initCompany() {
       const form = document.getElementById('company-info-form');
       if (!form) return;
+      const syncCompanyForm = () => {
+        const curDb = App.db.ensure();
+        document.getElementById('company-name').value = curDb.company?.name || '';
+        document.getElementById('company-address').value = curDb.company?.address || '';
+        document.getElementById('company-city').value = curDb.company?.city || '';
+        document.getElementById('company-zip').value = curDb.company?.zip || '';
+        document.getElementById('company-province').value = curDb.company?.province || '';
+      };
+      if (form.dataset.bound === '1') {
+        syncCompanyForm();
+        return;
+      }
+      form.dataset.bound = '1';
       let db = App.db.ensure();
       App.events.on('db:changed', d => { db = d; });
-      document.getElementById('company-name').value = db.company?.name || '';
-      document.getElementById('company-address').value = db.company?.address || '';
-      document.getElementById('company-city').value = db.company?.city || '';
-      document.getElementById('company-zip').value = db.company?.zip || '';
-      document.getElementById('company-province').value = db.company?.province || '';
+      syncCompanyForm();
 
       form.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -48,6 +57,11 @@ import { firestoreRepo } from '../../core/firestoreRepo.js';
       const fbFields = document.getElementById('firebaseUserFields');
 
       if (!tbody || !saveBtn || !form) return;
+      if (section?.dataset.bound === '1') {
+        if (isFirebaseMode) renderFirebaseUsers(); else renderLocalUsers();
+        return;
+      }
+      if (section) section.dataset.bound = '1';
 
       const isFirebaseMode = (App.db.getMode?.() === 'firebase');
       const currentRole = App.currentUser?.role || 'User';
@@ -470,6 +484,17 @@ import { firestoreRepo } from '../../core/firestoreRepo.js';
       const btnImportFirebase = document.getElementById('backup-import-firebase-btn');
       const chkWipe = document.getElementById('backup-wipe-checkbox');
       let _loadedBackupDb = null;
+      if (document.getElementById('avanzate')?.dataset.bound === '1') {
+        try {
+          const currentMode = App.db.getMode();
+          if (chkAllowNeg) chkAllowNeg.checked = (db.settings?.allowNegativeStock !== false);
+          const chkFirebase = document.getElementById('firebase-mode-checkbox');
+          if (chkFirebase) chkFirebase.checked = currentMode === 'firebase';
+        } catch {}
+        return;
+      }
+      const advancedSection = document.getElementById('avanzate');
+      if (advancedSection) advancedSection.dataset.bound = '1';
 
       // Didattica: consenti giacenza negativa (default ON)
       const syncAllowNegToggle = () => {
@@ -857,11 +882,27 @@ import { firestoreRepo } from '../../core/firestoreRepo.js';
     },
 
     init() {
+      if (this._initDone) return;
+      this._initDone = true;
+
+      const refreshSection = (sid) => {
+        if (!sid) return;
+        if (sid === 'anagrafica-azienda') this.initCompany();
+        if (sid === 'anagrafica-utenti') this.initUsers();
+        if (sid === 'avanzate') this.initAdvanced();
+      };
+
       App.events.on('logged-in', () => {
         this.initCompany();
         this.initUsers();
         this.initAdvanced();
       });
+
+      App.events.on('db:changed', () => {
+        const current = document.querySelector('.content-section:not(.d-none)')?.id;
+        refreshSection(current);
+      });
+      App.events.on('section:changed', refreshSection);
     }
   };
 

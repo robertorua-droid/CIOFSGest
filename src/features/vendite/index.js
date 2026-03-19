@@ -24,6 +24,8 @@ import { adjustStockBatch } from '../../domain/inventory.service.js';
     initNewOrderForm() {
       const form = document.getElementById('new-customer-order-form');
       if (!form) return;
+      if (form.dataset.bound === '1') return;
+      form.dataset.bound = '1';
       let db = App.db.ensure();
       App.events.on('db:changed', d => { db = d; });
       const custSel = document.getElementById('order-customer-select');
@@ -236,6 +238,8 @@ dateEl.value = App.utils.todayISO();
       App.events.on('db:changed', d => { db = d; });
       const form = document.getElementById('new-customer-ddt-form');
       if (!form) return;
+      if (form.dataset.bound === '1') return;
+      form.dataset.bound = '1';
       const selOrder = document.getElementById('ddt-order-select');
       const details = document.getElementById('ddt-details-section');
       const custName = document.getElementById('ddt-customer-name');
@@ -621,7 +625,7 @@ dateEl.value = App.utils.todayISO();
           const qty = Number(l.qty || 0);
           const price = (l.price != null && l.price !== '') ? Number(l.price) : Number(prod?.salePrice || 0);
           const iva = (l.iva != null && l.iva !== '') ? Number(l.iva) : Number(prod?.iva || 22);
-          const desc = l.description || prod ? `${prod.code} - ${prod.description}` : '';
+          const desc = l.description || (prod ? `${prod.code} - ${prod.description}` : '');
 
           invLines.push({
             productId: pid || prod?.id || null,
@@ -643,6 +647,7 @@ dateEl.value = App.utils.todayISO();
           customerId: cust.id,
           customerName: cust.name,
           ddtNumbers: ddts.map(d => d.number),
+          ddts: ddts.map(d => d.number),
           lines: invLines,
           subtotal,
           ivaTotal,
@@ -680,52 +685,74 @@ dateEl.value = App.utils.todayISO();
         </tr>
       `).join('');
 
-      tbody.addEventListener('click', (e) => {
-        const btn = e.target.closest('button[data-action]'); if (!btn) return;
-        const num = btn.getAttribute('data-num');
-        if (btn.getAttribute('data-action') === 'view-invoice') {
-          const inv = (db.invoices||[]).find(x=>x.number===num); if (!inv) return;
-          const body = document.getElementById('invoiceDetailModalBody');
-          const title = document.getElementById('invoiceDetailModalTitle');
-          title.textContent = `Fattura ${inv.number}`;
-          let html = `<div class="mb-2"><strong>Cliente:</strong> ${inv.customerName}</div>`;
-          html += `<div class="mb-2"><strong>Data:</strong> ${inv.date}</div>`;
-          html += `<div class="mb-2"><strong>DDT Inclusi:</strong> ${inv.ddts.join(', ')}</div>`;
-          html += `<table class="table table-sm"><thead><tr><th>Descrizione</th><th class="text-end">Qtà</th><th class="text-end">Prezzo</th><th class="text-end">Imponibile</th><th class="text-end">IVA</th></tr></thead><tbody>`;
-          inv.lines.forEach(l => { html += `<tr><td>${l.description}</td><td class="text-end">${l.qty}</td><td class="text-end">${App.utils.fmtMoney(l.price)}</td><td class="text-end">${App.utils.fmtMoney(l.qty*l.price)}</td><td class="text-end">${l.iva}%</td></tr>`; });
-          html += `</tbody></table>`;
-          body.innerHTML = html;
-          try { bootstrap.Modal.getOrCreateInstance(document.getElementById('invoiceDetailModal')).show(); } catch {}
-          // Print
-          document.getElementById('print-invoice-btn')?.addEventListener('click', () => {
-            try {
-              const { jsPDF } = window.jspdf;
-              const doc = new jsPDF();
-              doc.setFontSize(14);
-              doc.text(`Fattura ${inv.number}`, 14, 16);
-              doc.setFontSize(11);
-              doc.text(`Cliente: ${inv.customerName}`, 14, 26);
-              doc.text(`Data: ${inv.date}`, 14, 34);
-              const rows = inv.lines.map(l => [l.description, String(l.qty), (l.price||0).toFixed(2), (l.qty*l.price).toFixed(2), `${l.iva}%`]);
-              doc.autoTable({ head: [['Descrizione','Qtà','Prezzo','Imponibile','IVA']], body: rows, startY: 40 });
-              doc.save(`Fattura_${inv.number}.pdf`);
-            } catch(e){ console.error(e); }
-          }, { once: true });
-        } else if (btn.getAttribute('data-action') === 'del-invoice') {
-          const inv = (db.invoices||[]).find(x=>x.number===num); if (!inv) return;
-          if (!confirm(`Eliminare la fattura ${inv.number}?`)) return;
-          // rollback ddt state
-          (db.customerDDTs||[]).forEach(d => { if (inv.ddts.includes(d.number)) d.status = 'Da Fatturare'; });
-          const idx = (db.invoices||[]).findIndex(x=>x.number===num);
-          if (idx >= 0) db.invoices.splice(idx,1);
-          App.db.save(db);
-          Clienti.renderInvoices();
-          App.ui.showToast('Fattura eliminata', 'success');
-        }
-      });
+      if (tbody.dataset.wiredInvoices !== '1') {
+        tbody.dataset.wiredInvoices = '1';
+        tbody.addEventListener('click', (e) => {
+          const btn = e.target.closest('button[data-action]'); if (!btn) return;
+          const num = btn.getAttribute('data-num');
+          if (btn.getAttribute('data-action') === 'view-invoice') {
+            const inv = (db.invoices||[]).find(x=>x.number===num); if (!inv) return;
+            const body = document.getElementById('invoiceDetailModalBody');
+            const title = document.getElementById('invoiceDetailModalTitle');
+            title.textContent = `Fattura ${inv.number}`;
+            let html = `<div class="mb-2"><strong>Cliente:</strong> ${inv.customerName}</div>`;
+            html += `<div class="mb-2"><strong>Data:</strong> ${inv.date}</div>`;
+            html += `<div class="mb-2"><strong>DDT Inclusi:</strong> ${(inv.ddtNumbers || inv.ddts || []).join(', ')}</div>`;
+            html += `<table class="table table-sm"><thead><tr><th>Descrizione</th><th class="text-end">Qtà</th><th class="text-end">Prezzo</th><th class="text-end">Imponibile</th><th class="text-end">IVA</th></tr></thead><tbody>`;
+            inv.lines.forEach(l => { html += `<tr><td>${l.description}</td><td class="text-end">${l.qty}</td><td class="text-end">${App.utils.fmtMoney(l.price)}</td><td class="text-end">${App.utils.fmtMoney(l.qty*l.price)}</td><td class="text-end">${l.iva}%</td></tr>`; });
+            html += `</tbody></table>`;
+            body.innerHTML = html;
+            try { bootstrap.Modal.getOrCreateInstance(document.getElementById('invoiceDetailModal')).show(); } catch {}
+            // Print
+            document.getElementById('print-invoice-btn')?.addEventListener('click', () => {
+              try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                doc.setFontSize(14);
+                doc.text(`Fattura ${inv.number}`, 14, 16);
+                doc.setFontSize(11);
+                doc.text(`Cliente: ${inv.customerName}`, 14, 26);
+                doc.text(`Data: ${inv.date}`, 14, 34);
+                const rows = inv.lines.map(l => [l.description, String(l.qty), (l.price||0).toFixed(2), (l.qty*l.price).toFixed(2), `${l.iva}%`]);
+                doc.autoTable({ head: [['Descrizione','Qtà','Prezzo','Imponibile','IVA']], body: rows, startY: 40 });
+                doc.save(`Fattura_${inv.number}.pdf`);
+              } catch(e){ console.error(e); }
+            }, { once: true });
+          } else if (btn.getAttribute('data-action') === 'del-invoice') {
+            const inv = (db.invoices||[]).find(x=>x.number===num); if (!inv) return;
+            if (!confirm(`Eliminare la fattura ${inv.number}?`)) return;
+            // rollback ddt state
+            (db.customerDDTs||[]).forEach(d => { if ((inv.ddtNumbers || inv.ddts || []).includes(d.number)) d.status = 'Da Fatturare'; });
+            const idx = (db.invoices||[]).findIndex(x=>x.number===num);
+            if (idx >= 0) db.invoices.splice(idx,1);
+            App.db.save(db);
+            Clienti.renderInvoices();
+            App.ui.showToast('Fattura eliminata', 'success');
+          }
+        });
+      }
     },
 
     init() {
+      if (this._initDone) return;
+      this._initDone = true;
+
+      const refreshSection = (sid) => {
+        if (!sid) return;
+        if (sid === 'nuovo-ordine-cliente') {
+          try { this.initNewOrderForm(); } catch {}
+        }
+        if (sid === 'elenco-ordini-cliente') this.renderOrders();
+        if (sid === 'nuovo-ddt-cliente') {
+          try { this.initNewDDT(); } catch {}
+        }
+        if (sid === 'elenco-ddt-cliente') this.renderDDTs();
+        if (sid === 'fatturazione') {
+          try { this.initInvoicing(); } catch {}
+        }
+        if (sid === 'elenco-fatture') this.renderInvoices();
+      };
+
       App.events.on('logged-in', () => {
         this.renderOrders();
         this.wireOrderDetailAndDelete();
@@ -736,6 +763,12 @@ dateEl.value = App.utils.todayISO();
         this.initInvoicing();
         this.renderInvoices();
       });
+
+      App.events.on('db:changed', () => {
+        const current = document.querySelector('.content-section:not(.d-none)')?.id;
+        refreshSection(current);
+      });
+      App.events.on('section:changed', refreshSection);
     }
   };
 

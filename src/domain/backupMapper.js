@@ -127,7 +127,8 @@ export function mapBackupToDb(backup) {
     ...f,
     id: toStr(f.id || f.number),
     customerId: toStr(f.customerId),
-    ddts: (f.ddts || []).map(toStr),
+    ddtNumbers: (f.ddtNumbers || f.ddts || []).map(toStr),
+    ddts: (f.ddts || f.ddtNumbers || []).map(toStr),
     lines: (f.lines || []).map(l => ({
       ...l,
       qty: Number(l.qty || 0),

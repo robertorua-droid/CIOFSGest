@@ -17,7 +17,8 @@ export function createInitialDb() {
     notes: {}, // { userId: "...": "testo" }
     settings: {
       // Didattica: consenti giacenze negative con conferma
-      allowNegativeStock: true
+      allowNegativeStock: true,
+      physicalCounts: {}
     },
     meta: {
       updatedAt: Date.now()
@@ -53,6 +54,7 @@ export function normalizeDb(input) {
 
   if (!db.settings || typeof db.settings !== 'object' || Array.isArray(db.settings)) db.settings = {};
   if (db.settings.allowNegativeStock === undefined) db.settings.allowNegativeStock = true;
+  if (!db.settings.physicalCounts || typeof db.settings.physicalCounts !== 'object' || Array.isArray(db.settings.physicalCounts)) db.settings.physicalCounts = {};
 
   if (!db.meta || typeof db.meta !== 'object' || Array.isArray(db.meta)) db.meta = {};
   if (!db.meta.updatedAt) db.meta.updatedAt = Date.now();
@@ -134,6 +136,8 @@ export function normalizeDb(input) {
         const c = custById.get(String(inv.customerId));
         if (c?.name) inv.customerName = c.name;
       }
+      if (inv && !Array.isArray(inv.ddtNumbers) && Array.isArray(inv.ddts)) inv.ddtNumbers = [...inv.ddts];
+      if (inv && !Array.isArray(inv.ddts) && Array.isArray(inv.ddtNumbers)) inv.ddts = [...inv.ddtNumbers];
       fixLines(inv?.lines);
     }
   } catch {
