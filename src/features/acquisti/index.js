@@ -102,6 +102,7 @@ import { adjustStockBatch } from '../../domain/inventory.service.js';
         if (!p || qty <= 0) return App.ui.showToast('Seleziona un prodotto e una quantità > 0', 'warning');
         tmp.push({ productId: pid, productName: `${p.code} - ${p.description}`, qty, price, receivedQty: 0 });
         recalc();
+        qtyEl.value = '0';
       });
       linesTbody.addEventListener('click', (e) => {
         const i = e.target.closest('button')?.getAttribute('data-i');

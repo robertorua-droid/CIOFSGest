@@ -100,6 +100,7 @@ dateEl.value = App.utils.todayISO();
         if (!p || qty <= 0) return App.ui.showToast('Seleziona un prodotto e una quantità > 0', 'warning');
         tmp.push({ productId: pid, productName: `${p.code} - ${p.description}`, qty, price, shippedQty: 0 });
         recalc();
+        qtyEl.value = '0';
       });
       linesTbody.addEventListener('click', (e) => {
         const i = e.target.closest('button')?.getAttribute('data-i');
@@ -302,7 +303,30 @@ dateEl.value = App.utils.todayISO();
           const l = order.lines[i];
           const q = parseFloat(tr.querySelector('.ddt-ship-qty').value || '0');
           if (q > 0) shipLines.push({ i, qty: q });
+        })
+        // Avviso didattico: quantità da spedire oltre giacenza disponibile
+        const grouped = new Map();
+        shipLines.forEach(s => {
+          const l = order.lines[s.i];
+          const pid = l.productId;
+          grouped.set(pid, (grouped.get(pid) || 0) + s.qty);
         });
+
+        const warnings = [];
+        grouped.forEach((qty, pid) => {
+          const p = (db.products||[]).find(pp => String(pp.id) === String(pid));
+          const available = Number(p?.stockQty || 0);
+          if (qty > available) warnings.push({ code: p?.code || pid, available, qty });
+        });
+
+        if (warnings.length) {
+          const lines = warnings.map(w => `- ${w.code}: richiesti ${w.qty} / disponibili ${w.available}`).join('\n');
+          const ok = window.confirm(
+            `Attenzione: la quantità da spedire supera la giacenza per uno o più articoli.\n\n${lines}\n\nVuoi continuare?`
+          );
+          if (!ok) return;
+        }
+;
         if (shipLines.length === 0) return App.ui.showToast('Nessuna quantità da spedire.', 'warning');
 
         // Validate & update stock (atomico)
