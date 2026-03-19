@@ -37,12 +37,27 @@ export const ui = {
   },
 
   showSection(id) {
+    // Safety: evita "pagina bianca" se l'id non esiste (es. cache/rename)
+    let target = document.getElementById(id);
+
+    // Fallback alias: cerca una sezione che dichiara l'alias richiesto
+    if (!target) {
+      const alias = document.querySelector(`.content-section[data-alias~="${id}"]`);
+      if (alias?.id) target = alias;
+    }
+
+    if (!target) {
+      // non nascondiamo nulla: manteniamo la sezione corrente visibile
+      try { this.showToast('Sezione non trovata: ' + (id || '(vuoto)'), 'warning'); } catch {}
+      return;
+    }
+
     document.querySelectorAll('.content-section').forEach(s => s.classList.add('d-none'));
-    const target = document.getElementById(id);
-    if (target) target.classList.remove('d-none');
+    target.classList.remove('d-none');
 
     document.querySelectorAll('.sidebar .nav-link').forEach(a => a.classList.remove('active'));
-    const current = document.querySelector(`.sidebar .nav-link[data-target="${id}"]`);
+    const current = document.querySelector(`.sidebar .nav-link[data-target="${target.id}"]`)
+      || document.querySelector(`.sidebar .nav-link[data-target="${id}"]`);
     if (current) current.classList.add('active');
   }
 };
