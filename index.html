@@ -78,9 +78,8 @@
 <li class="nav-item"><h6 class="nav-section-title">Magazzino</h6></li>
 <li class="nav-item menu-item" id="menu-carico-manuale"><a class="nav-link" data-target="carico-manuale" href="#"><i class="fas fa-plus-circle"></i> Carico Manuale</a></li>
 <li class="nav-item menu-item" id="menu-scarico-manuale"><a class="nav-link" data-target="scarico-manuale" href="#"><i class="fas fa-minus-circle"></i> Scarico Manuale</a></li>
-<li class="nav-item menu-item" id="menu-giacenze"><a class="nav-link" data-target="consultazione-giacenze" href="#"><i class="fas fa-search"></i> Giacenza Prodotto</a></li>
-<li class="nav-item menu-item" id="menu-elenco-giacenze"><a class="nav-link" data-target="elenco-giacenze" href="#"><i class="fas fa-clipboard-list"></i> Elenco Giacenze</a></li>
-<li class="nav-item menu-item" id="menu-inventario-fisico"><a class="nav-link" data-target="inventario-fisico" href="#"><i class="fas fa-clipboard-check"></i> Inventario</a></li>
+<li class="nav-item menu-item" id="menu-giacenze"><a class="nav-link" data-target="consultazione-giacenze" href="#"><i class="fas fa-search"></i> Giacenze</a></li>
+<li class="nav-item menu-item" id="menu-inventario"><a class="nav-link" data-target="inventario" href="#"><i class="fas fa-clipboard-list"></i> Inventario</a></li>
 <li class="nav-item"><h6 class="nav-section-title">Clienti</h6></li>
 <li class="nav-item menu-item" id="menu-nuovo-ordine-cliente"><a class="nav-link" data-target="nuovo-ordine-cliente" href="#"><i class="fas fa-plus"></i> Nuovo Ordine Cliente</a></li>
 <li class="nav-item menu-item" id="menu-elenco-ordini-cliente"><a class="nav-link" data-target="elenco-ordini-cliente" href="#"><i class="fas fa-list"></i> Elenco Ordini Cliente</a></li>
@@ -215,38 +214,14 @@
 </div>
 </div>
 </div>
-<div class="content-section d-none" id="elenco-giacenze">
-<h2>Elenco Giacenze</h2>
+<div class="content-section d-none" id="inventario">
+<h2>Inventario Magazzino</h2>
 <table class="table table-hover mt-4">
 <thead><tr><th>Codice</th><th>Descrizione</th><th>Collocazione (Corsia-Scaffale-Piano)</th><th>Giacenza</th></tr></thead>
 <tbody id="inventory-table-body"></tbody>
 </table>
 </div>
 <!-- CLIENTI -->
-
-
-<div class="content-section d-none" id="inventario-fisico">
-<h2>Inventario</h2>
-<div class="card">
-<div class="card-body">
-<p class="text-muted mb-3">Inserisci la <strong>giacenza fisica</strong> (conteggio reale). Il sistema confronta automaticamente con la giacenza a gestionale e mostra la differenza.</p>
-<div class="table-responsive">
-<table class="table table-striped">
-<thead>
-<tr>
-<th>Codice</th>
-<th>Descrizione</th>
-<th>Collocazione</th>
-<th class="text-end">Giacenza (sistema)</th>
-<th class="text-end">Giacenza fisica</th>
-<th class="text-end">Differenza</th>
-</tr>
-</thead>
-<tbody id="inventory-physical-body"></tbody>
-</table>
-</div>
-
-
 <div class="content-section d-none" id="nuovo-ordine-cliente">
 <h2>Nuovo Ordine Cliente</h2>
 <form id="new-customer-order-form">

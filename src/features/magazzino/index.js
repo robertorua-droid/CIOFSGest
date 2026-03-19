@@ -8,7 +8,6 @@ export function initMagazzinoFeature() {
   const unloadSel = document.getElementById('unload-product-select');
   const stockSel = document.getElementById('stock-query-product-select');
   const inventoryBody = document.getElementById('inventory-table-body');
-  const inventoryPhysicalBody = document.getElementById('inventory-physical-body');
 
   const fillSelects = () => {
     const db = App.db.ensure();
@@ -26,49 +25,20 @@ export function initMagazzinoFeature() {
     if (prevStock) stockSel.value = prevStock;
   };
 
-  const renderElencoGiacenze = () => {
+  const renderInventory = () => {
     const db = App.db.ensure();
-    if (inventoryBody) {
-      inventoryBody.innerHTML = (db.products || []).map(p => `
-        <tr>
-          <td>${p.code}</td>
-          <td>${p.description}</td>
-          <td>${[p.locCorsia,p.locScaffale,p.locPiano].filter(Boolean).join('-')}</td>
-          <td class="text-end">${p.stockQty || 0}</td>
-        </tr>`).join('');
-    }
-  };
-
-  const renderInventarioFisico = () => {
-    const db = App.db.ensure();
-    if (!inventoryPhysicalBody) return;
-
-    const counts = (db.settings && db.settings.physicalCounts) ? db.settings.physicalCounts : {};
-    inventoryPhysicalBody.innerHTML = (db.products || []).map(p => {
-      const sysQty = Number(p.stockQty || 0);
-      const physVal = (counts && counts[p.id] !== undefined) ? counts[p.id] : '';
-      const physNum = (physVal === '' || physVal === null) ? null : Number(physVal);
-      const diff = (physNum === null || Number.isNaN(physNum)) ? '' : (physNum - sysQty);
-      const diffCls = diff === '' ? '' : (diff === 0 ? 'text-muted' : (diff > 0 ? 'text-success' : 'text-danger'));
-      const diffTxt = diff === '' ? '' : (diff > 0 ? `+${diff}` : `${diff}`);
-
-      return `
-        <tr data-pid="${p.id}">
-          <td>${p.code}</td>
-          <td>${p.description}</td>
-          <td>${[p.locCorsia,p.locScaffale,p.locPiano].filter(Boolean).join('-')}</td>
-          <td class="text-end">${sysQty}</td>
-          <td class="text-end" style="max-width:180px">
-            <input class="form-control form-control-sm text-end inv-phys-input" type="number" step="1" placeholder="—" value="${physVal}">
-          </td>
-          <td class="text-end ${diffCls} inv-diff-cell">${diffTxt}</td>
-        </tr>`;
-    }).join('');
+    if (!inventoryBody) return;
+    inventoryBody.innerHTML = (db.products || []).map(p => `
+      <tr>
+        <td>${p.code}</td>
+        <td>${p.description}</td>
+        <td>${[p.locCorsia,p.locScaffale,p.locPiano].filter(Boolean).join('-')}</td>
+        <td class="text-end">${p.stockQty || 0}</td>
+      </tr>`).join('');
   };
 
     fillSelects();
-  renderElencoGiacenze();
-  renderInventarioFisico();
+  renderInventory();
 
 loadForm?.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -78,8 +48,7 @@ loadForm?.addEventListener('submit', (e) => {
 
     try {
       adjustStock(id, qty, { reason: 'CARICO_MANUALE' });
-      renderElencoGiacenze();
-  renderInventarioFisico();
+      renderInventory();
       App.ui.showToast('Carico registrato', 'success');
     } catch (err) {
       App.ui.showToast(err.message || 'Errore durante il carico', 'danger');
@@ -94,8 +63,7 @@ loadForm?.addEventListener('submit', (e) => {
 
     try {
       adjustStock(id, -qty, { reason: 'SCARICO_MANUALE' });
-      renderElencoGiacenze();
-  renderInventarioFisico();
+      renderInventory();
       App.ui.showToast('Scarico registrato', 'success');
     } catch (err) {
       App.ui.showToast(err.message || 'Errore durante lo scarico', 'danger');
@@ -113,8 +81,7 @@ loadForm?.addEventListener('submit', (e) => {
     document.getElementById('stock-query-location').textContent = [p.locCorsia,p.locScaffale,p.locPiano].filter(Boolean).join('-');
   });
 
-  const refreshAll = () => { fillSelects(); renderElencoGiacenze();
-  renderInventarioFisico(); };
+  const refreshAll = () => { fillSelects(); renderInventory(); };
 
   
   // Reset forms quando si entra nelle sezioni (evita che restino i dati precedenti)
@@ -134,9 +101,8 @@ loadForm?.addEventListener('submit', (e) => {
       if (q) q.textContent = '-';
       if (loc) loc.textContent = '-';
     }
-    if (sid === 'elenco-giacenze') {
-      renderElencoGiacenze();
-  renderInventarioFisico();
+    if (sid === 'inventario') {
+      renderInventory();
     }
   };
   App.events.on('section:changed', (sid) => { resetSection(sid); });
