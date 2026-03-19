@@ -67,18 +67,8 @@ async function enterApp({ user, db, isFirebaseUser }) {
   document.querySelectorAll('.sidebar .nav-link[data-target]').forEach(a => {
     a.addEventListener('click', (e) => {
       e.preventDefault();
-      let id = a.getAttribute('data-target');
-      // Fallback: sezione rinominata/alias
-      if (id && !document.getElementById(id)) {
-        const alias = document.querySelector(`.content-section[data-alias~="${id}"]`);
-        if (alias?.id) id = alias.id;
-      }
-
-      if (!id || !document.getElementById(id)) {
-        App.ui.showToast('Sezione non trovata: ' + (id || '(vuoto)'), 'warning');
-        return;
-      }
-      App.ui.showSection(id);
+      const id = a.getAttribute('data-target');
+      if (id) App.ui.showSection(id);
       App.events.emit('section:changed', id);
       if (id === 'statistiche') App.stats.renderForRole(user);
     });

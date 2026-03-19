@@ -9,7 +9,6 @@ export function initMagazzinoFeature() {
   const stockSel = document.getElementById('stock-query-product-select');
   const inventoryBody = document.getElementById('inventory-table-body');
   const inventoryPhysicalBody = document.getElementById('inventory-physical-body');
-  const btnResetPhysical = document.getElementById('reset-physical-counts-btn');
 
   const fillSelects = () => {
     const db = App.db.ensure();
@@ -67,70 +66,7 @@ export function initMagazzinoFeature() {
     }).join('');
   };
 
-    
-
-  // Inventario fisico: salva conteggi e aggiorna differenza live
-  const updateRowDiff = (tr, physStr) => {
-    const dbx = App.db.ensure();
-    const pid = tr.getAttribute('data-pid');
-    const p = (dbx.products || []).find(x => String(x.id) === String(pid));
-    const sysQty = Number(p?.stockQty || 0);
-    const phys = (physStr === '' || physStr === null) ? null : Number(physStr);
-    const cell = tr.querySelector('.inv-diff-cell');
-    if (!cell) return;
-    if (phys === null || Number.isNaN(phys)) {
-      cell.textContent = '';
-      cell.classList.remove('text-success','text-danger','text-muted');
-      return;
-    }
-    const diff = phys - sysQty;
-    cell.textContent = diff > 0 ? `+${diff}` : String(diff);
-    cell.classList.remove('text-success','text-danger','text-muted');
-    cell.classList.add(diff === 0 ? 'text-muted' : (diff > 0 ? 'text-success' : 'text-danger'));
-  };
-
-  if (inventoryPhysicalBody && inventoryPhysicalBody.dataset.bound !== '1') {
-    inventoryPhysicalBody.dataset.bound = '1';
-
-    inventoryPhysicalBody.addEventListener('input', (e) => {
-      const inp = e.target.closest('.inv-phys-input');
-      if (!inp) return;
-      const tr = inp.closest('tr');
-      if (!tr) return;
-      updateRowDiff(tr, inp.value);
-    });
-
-    inventoryPhysicalBody.addEventListener('change', (e) => {
-      const inp = e.target.closest('.inv-phys-input');
-      if (!inp) return;
-      const tr = inp.closest('tr');
-      if (!tr) return;
-      const pid = tr.getAttribute('data-pid');
-      const dbx = App.db.ensure();
-      dbx.settings = dbx.settings || {};
-      dbx.settings.physicalCounts = dbx.settings.physicalCounts || {};
-      const v = String(inp.value || '').trim();
-      if (v === '') delete dbx.settings.physicalCounts[pid];
-      else dbx.settings.physicalCounts[pid] = Number(v);
-      App.db.save(dbx);
-    });
-  }
-
-  // Azzera conteggi fisici
-  if (btnResetPhysical && btnResetPhysical.dataset.bound !== '1') {
-    btnResetPhysical.dataset.bound = '1';
-    btnResetPhysical.addEventListener('click', () => {
-      if (!confirm('Azzera tutti i conteggi fisici inseriti?')) return;
-      const dbx = App.db.ensure();
-      dbx.settings = dbx.settings || {};
-      dbx.settings.physicalCounts = {};
-      App.db.save(dbx);
-      renderInventarioFisico();
-      App.ui.showToast('Conteggi fisici azzerati.', 'success');
-    });
-  }
-
-fillSelects();
+    fillSelects();
   renderElencoGiacenze();
   renderInventarioFisico();
 
@@ -200,9 +136,7 @@ loadForm?.addEventListener('submit', (e) => {
     }
     if (sid === 'elenco-giacenze') {
       renderElencoGiacenze();
-    }
-    if (sid === 'inventario-fisico') {
-      renderInventarioFisico();
+  renderInventarioFisico();
     }
   };
   App.events.on('section:changed', (sid) => { resetSection(sid); });
