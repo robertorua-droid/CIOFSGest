@@ -56,8 +56,13 @@
 </div>
 <!-- Schermata Principale -->
 <div class="d-none" id="main-app">
-<div class="sidebar">
-<h4 class="text-center my-3" id="company-name-sidebar">Gestionale OL</h4>
+<div class="sidebar" id="app-sidebar">
+<div class="sidebar-header px-3">
+<h4 class="my-3 mb-0" id="company-name-sidebar">Gestionale OL</h4>
+<button aria-label="Chiudi menu" class="btn btn-outline-light btn-sm sidebar-close-btn mobile-only" id="sidebar-close-btn" type="button">
+<i class="fas fa-times"></i>
+</button>
+</div>
 <div class="px-3 mb-2" id="theme-toggle-wrapper">
 <div class="form-check form-switch d-flex align-items-center justify-content-between">
 <label class="form-check-label text-white-50 small" for="themeToggle">
@@ -68,40 +73,77 @@
 </div>
 <p class="text-center text-white-50 small" id="user-name-sidebar"></p>
 <p class="text-center text-white-50" id="version-sidebar" style="font-size: 0.7rem;"></p>
-<ul class="nav flex-column">
+<ul class="nav flex-column sidebar-nav">
 <li class="nav-item"><a class="nav-link active" data-target="home" href="#"><i class="fas fa-home"></i> Home</a></li>
 <li class="nav-item"><a class="nav-link" data-target="statistiche" href="#"><i class="fas fa-chart-line"></i> Statistiche</a></li>
-<li class="nav-item"><h6 class="nav-section-title">Anagrafiche</h6></li>
+<li class="nav-group is-open" data-group="anagrafiche">
+<button aria-controls="menu-group-anagrafiche" aria-expanded="true" class="nav-group-toggle" type="button">
+<span>Anagrafiche</span>
+<i class="fas fa-chevron-down group-chevron"></i>
+</button>
+<ul class="nav flex-column nav-group-menu" id="menu-group-anagrafiche">
 <li class="nav-item menu-item" id="menu-anagrafica-clienti"><a class="nav-link" data-target="anagrafica-clienti" href="#"><i class="fas fa-users"></i> Anagrafica Clienti</a></li>
 <li class="nav-item menu-item" id="menu-anagrafica-fornitori"><a class="nav-link" data-target="anagrafica-fornitori" href="#"><i class="fas fa-truck"></i> Anagrafica Fornitori</a></li>
 <li class="nav-item menu-item" id="menu-anagrafica-prodotti"><a class="nav-link" data-target="anagrafica-prodotti" href="#"><i class="fas fa-box"></i> Anagrafica Prodotti</a></li>
-<li class="nav-item"><h6 class="nav-section-title">Magazzino</h6></li>
+</ul>
+</li>
+<li class="nav-group is-open" data-group="magazzino">
+<button aria-controls="menu-group-magazzino" aria-expanded="true" class="nav-group-toggle" type="button">
+<span>Magazzino</span>
+<i class="fas fa-chevron-down group-chevron"></i>
+</button>
+<ul class="nav flex-column nav-group-menu" id="menu-group-magazzino">
 <li class="nav-item menu-item" id="menu-carico-manuale"><a class="nav-link" data-target="carico-manuale" href="#"><i class="fas fa-plus-circle"></i> Carico Manuale</a></li>
 <li class="nav-item menu-item" id="menu-scarico-manuale"><a class="nav-link" data-target="scarico-manuale" href="#"><i class="fas fa-minus-circle"></i> Scarico Manuale</a></li>
 <li class="nav-item menu-item" id="menu-giacenze"><a class="nav-link" data-target="consultazione-giacenze" href="#"><i class="fas fa-search"></i> Giacenza Prodotto</a></li>
 <li class="nav-item menu-item" id="menu-elenco-giacenze"><a class="nav-link" data-target="elenco-giacenze" href="#"><i class="fas fa-clipboard-list"></i> Elenco Giacenze</a></li>
 <li class="nav-item menu-item" id="menu-inventario-fisico"><a class="nav-link" data-target="inventario-fisico" href="#"><i class="fas fa-clipboard-check"></i> Inventario</a></li>
-<li class="nav-item"><h6 class="nav-section-title">Clienti</h6></li>
+</ul>
+</li>
+<li class="nav-group is-open" data-group="clienti">
+<button aria-controls="menu-group-clienti" aria-expanded="true" class="nav-group-toggle" type="button">
+<span>Clienti</span>
+<i class="fas fa-chevron-down group-chevron"></i>
+</button>
+<ul class="nav flex-column nav-group-menu" id="menu-group-clienti">
 <li class="nav-item menu-item" id="menu-nuovo-ordine-cliente"><a class="nav-link" data-target="nuovo-ordine-cliente" href="#"><i class="fas fa-plus"></i> Nuovo Ordine Cliente</a></li>
 <li class="nav-item menu-item" id="menu-elenco-ordini-cliente"><a class="nav-link" data-target="elenco-ordini-cliente" href="#"><i class="fas fa-list"></i> Elenco Ordini Cliente</a></li>
 <li class="nav-item menu-item" id="menu-nuovo-ddt-cliente"><a class="nav-link" data-target="nuovo-ddt-cliente" href="#"><i class="fas fa-file-alt"></i> Nuovo DDT Cliente</a></li>
 <li class="nav-item menu-item" id="menu-elenco-ddt-cliente"><a class="nav-link" data-target="elenco-ddt-cliente" href="#"><i class="fas fa-list-alt"></i> Elenco DDT Cliente</a></li>
 <li class="nav-item menu-item" id="menu-fatturazione"><a class="nav-link" data-target="fatturazione" href="#"><i class="fas fa-file-invoice-dollar"></i> Fatturazione</a></li>
 <li class="nav-item menu-item" id="menu-elenco-fatture"><a class="nav-link" data-target="elenco-fatture" href="#"><i class="fas fa-list-ol"></i> Elenco Fatture</a></li>
-<li class="nav-item"><h6 class="nav-section-title">Fornitori</h6></li>
+</ul>
+</li>
+<li class="nav-group is-open" data-group="fornitori">
+<button aria-controls="menu-group-fornitori" aria-expanded="true" class="nav-group-toggle" type="button">
+<span>Fornitori</span>
+<i class="fas fa-chevron-down group-chevron"></i>
+</button>
+<ul class="nav flex-column nav-group-menu" id="menu-group-fornitori">
 <li class="nav-item menu-item" id="menu-nuovo-ordine-fornitore"><a class="nav-link" data-target="nuovo-ordine-fornitore" href="#"><i class="fas fa-plus-square"></i> Nuovo Ordine Fornitore</a></li>
 <li class="nav-item menu-item" id="menu-elenco-ordini-fornitore"><a class="nav-link" data-target="elenco-ordini-fornitore" href="#"><i class="fas fa-list-ul"></i> Elenco Ordini Fornitore</a></li>
 <li class="nav-item menu-item" id="menu-nuovo-ddt-fornitore"><a class="nav-link" data-target="nuovo-ddt-fornitore" href="#"><i class="fas fa-file-invoice"></i> Nuovo DDT Fornitore</a></li>
 <li class="nav-item menu-item" id="menu-elenco-ddt-fornitore"><a class="nav-link" data-target="elenco-ddt-fornitore" href="#"><i class="fas fa-clipboard-list"></i> Elenco DDT Fornitore</a></li>
-<li class="nav-item"><h6 class="nav-section-title">Impostazioni</h6></li>
+</ul>
+</li>
+<li class="nav-group is-open" data-group="impostazioni">
+<button aria-controls="menu-group-impostazioni" aria-expanded="true" class="nav-group-toggle" type="button">
+<span>Impostazioni</span>
+<i class="fas fa-chevron-down group-chevron"></i>
+</button>
+<ul class="nav flex-column nav-group-menu" id="menu-group-impostazioni">
 <li class="nav-item menu-item" id="menu-anagrafica-azienda"><a class="nav-link" data-target="anagrafica-azienda" href="#"><i class="fas fa-building"></i> Anagrafica Azienda</a></li>
 <li class="nav-item menu-item" id="menu-anagrafica-utenti"><a class="nav-link" data-target="anagrafica-utenti" href="#"><i class="fas fa-user-shield"></i> Anagrafica Utenti</a></li>
 <li class="nav-item menu-item" id="menu-avanzate"><a class="nav-link" data-target="avanzate" href="#"><i class="fas fa-cogs"></i> Avanzate</a></li>
+</ul>
+</li>
 <li class="nav-item mt-auto"><a class="nav-link" href="#" id="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
 </ul>
 </div>
+<div class="sidebar-overlay mobile-only" id="sidebar-overlay"></div>
 <div class="main-content">
-<div class="d-flex justify-content-end align-items-center px-3 py-2 border-bottom position-sticky top-0 bg-body" style="z-index: 1020;">
+<div class="d-flex justify-content-between align-items-center gap-2 px-3 py-2 border-bottom position-sticky top-0 bg-body main-toolbar" style="z-index: 1020;">
+<button class="btn btn-outline-secondary mobile-only sidebar-open-btn" id="sidebar-open-btn" type="button"><i class="fas fa-bars me-2"></i>Menu</button>
 <span class="badge rounded-pill text-bg-secondary" id="data-source-badge">Sorgente dati attiva: Local</span>
 </div>
 <!-- Pagina Home -->

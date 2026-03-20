@@ -1,6 +1,7 @@
 import { App } from './core/app.js';
 import { initThemeToggle } from './core/theme.js';
 import { initDataSourceBadge } from './core/dataSourceBadge.js';
+import { initSidebar } from './core/sidebar.js';
 import { initLogin } from './features/login/index.js';
 import { initAnagraficheFeature } from './features/anagrafiche/index.js';
 import { initMagazzinoFeature } from './features/magazzino/index.js';
@@ -17,6 +18,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Badge sorgente dati (Firebase/Local)
   try { initDataSourceBadge(App); } catch {}
+
+  // Sidebar mobile/collassabile
+  try { App.sidebar = initSidebar(); } catch {}
 
   // inizializzazioni
   initLogin();

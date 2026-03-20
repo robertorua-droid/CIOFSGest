@@ -62,6 +62,7 @@ export const ui = {
       || document.querySelector(`.sidebar .nav-link[data-target="${id}"]`);
     if (current) current.classList.add('active');
 
+    try { window.App?.sidebar?.syncActiveSection?.(target.id); } catch {}
     try { window.App?.events?.emit?.('section:changed', target.id); } catch {}
   }
 };

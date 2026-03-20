@@ -18,6 +18,8 @@ function applyMenuForRole(user) {
     const hide = isUser && restrictedForUser.has(el.id);
     el.classList.toggle('d-none', hide);
   });
+
+  try { App.sidebar?.refresh?.(); } catch {}
 }
 
 

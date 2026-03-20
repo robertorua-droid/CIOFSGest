@@ -24,6 +24,7 @@ export const App = {
   ui,
   home,
   stats,
+  sidebar: null,
 
   /**
    * Bootstrap asincrono (caricamento DB locale o Firestore, ecc.).
