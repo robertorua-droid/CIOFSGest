@@ -237,11 +237,11 @@
       "code": "ASC-VIAG-1200",
       "iva": 22,
       "id": "PRD1762953935516",
-      "locCorsia": "B-04",
+      "locCorsia": "D-01",
       "salePrice": 21.9,
-      "locScaffale": "R2",
-      "locPiano": "S0",
-      "stockQty": 11,
+      "locScaffale": "R3",
+      "locPiano": "S2",
+      "stockQty": 12,
       "purchasePrice": 9.8,
       "description": "Asciugacapelli da viaggio 1200W"
     },
@@ -252,18 +252,18 @@
       "iva": 22,
       "code": "CUC-GAS-XL90",
       "id": "PRD1762953999373",
-      "locCorsia": "D-05",
+      "locCorsia": "F-01",
       "salePrice": 799.9,
-      "locScaffale": "R2",
-      "locPiano": "S0"
+      "locScaffale": "R1",
+      "locPiano": "S1"
     },
     {
       "description": "Telecomando universale smart",
       "stockQty": 19,
       "purchasePrice": 5.5,
       "locPiano": "S4",
-      "locScaffale": "R3",
-      "locCorsia": "A-01",
+      "locScaffale": "R2",
+      "locCorsia": "B-02",
       "salePrice": 12,
       "iva": 22,
       "code": "TEL-UNI-SMART",
@@ -272,14 +272,14 @@
     {
       "description": "Soundbar Pro 5.1",
       "purchasePrice": 117.8,
-      "stockQty": 1,
-      "locCorsia": "C-02",
+      "stockQty": 2,
+      "locCorsia": "B-03",
       "salePrice": 279,
       "iva": 22,
       "code": "SB-PRO-51",
       "id": "PRD1762954135228",
-      "locPiano": "S3",
-      "locScaffale": "R3"
+      "locPiano": "S2",
+      "locScaffale": "R4"
     }
   ],
   "customerOrders": [
@@ -295,110 +295,352 @@
           "description": "TV-S43-LED - Smart TV 43\" LED Full HD",
           "shippedQty": 0,
           "qty": 1,
-          "subtotal": 299,
+          "subtotal": 299.0,
           "productName": "TV-S43-LED - Smart TV 43\" LED Full HD",
-          "price": 299,
+          "price": 299.0,
           "productId": "PRD1762913243159"
         },
         {
-          "price": 13.99,
-          "productId": "PRD1762913320414",
-          "productName": "CAV-HDMI-15 - Cavo HDMI 2.1 1.5 metri",
-          "subtotal": 27.98,
           "description": "CAV-HDMI-15 - Cavo HDMI 2.1 1.5 metri",
+          "shippedQty": 0,
           "qty": 2,
-          "shippedQty": 0
+          "subtotal": 27.98,
+          "productName": "CAV-HDMI-15 - Cavo HDMI 2.1 1.5 metri",
+          "price": 13.99,
+          "productId": "PRD1762913320414"
         }
       ],
-      "date": "2025-11-12"
+      "date": "2024-07-02"
     },
     {
       "number": "ORD-C-2",
       "id": "2",
       "customerId": "4",
-      "date": "2025-11-12",
-      "total": 120.98,
-      "status": "In lavorazione",
+      "total": 360.45,
       "customerName": "Bianchi S.r.l.",
+      "status": "In lavorazione",
       "lines": [
         {
-          "subtotal": 116,
+          "description": "MIC-GRI-25 - Forno a microonde con grill 25L",
+          "shippedQty": 0,
+          "qty": 3,
+          "subtotal": 348.0,
+          "productName": "MIC-GRI-25 - Forno a microonde con grill 25L",
+          "price": 116.0,
+          "productId": "PRD1762913412858"
+        },
+        {
+          "description": "FIL-CAFF-PRO - Filtro anticalcare caffè PRO",
+          "shippedQty": 0,
+          "qty": 5,
+          "subtotal": 12.45,
+          "productName": "FIL-CAFF-PRO - Filtro anticalcare caffè PRO",
+          "price": 2.49,
+          "productId": "PRD1762913472758"
+        }
+      ],
+      "date": "2024-07-03"
+    },
+    {
+      "number": "OC-0014",
+      "id": "3",
+      "customerId": "6",
+      "total": 899.0,
+      "customerName": "Grand Hotel Bellavista",
+      "status": "In lavorazione",
+      "lines": [
+        {
+          "description": "FRI-COM-185 - Frigorifero combinato No-Frost",
+          "shippedQty": 0,
+          "qty": 1,
+          "subtotal": 899.0,
+          "productName": "FRI-COM-185 - Frigorifero combinato No-Frost",
+          "price": 899.0,
+          "productId": "PRD1762913556071"
+        }
+      ],
+      "date": "2024-07-04"
+    },
+    {
+      "number": "ORD-C-4",
+      "id": "4",
+      "customerId": "5",
+      "total": 1476.16,
+      "customerName": "Ristorante La Lanterna",
+      "status": "In lavorazione",
+      "lines": [
+        {
+          "description": "FRU-PRO-2L - Frullatore professionale 2 Litri",
+          "shippedQty": 0,
+          "qty": 2,
+          "subtotal": 899.26,
+          "productName": "FRU-PRO-2L - Frullatore professionale 2 Litri",
+          "price": 449.63,
+          "productId": "PRD1762913621865"
+        },
+        {
+          "description": "BIL-DIG-5KG - Bilancia digitale da cucina 5kg",
+          "shippedQty": 0,
+          "qty": 10,
+          "subtotal": 179.9,
+          "productName": "BIL-DIG-5KG - Bilancia digitale da cucina 5kg",
+          "price": 17.99,
+          "productId": "PRD1762913687092"
+        },
+        {
+          "description": "SET-COL-CHEF - Set coltelli da chef (3 pz)",
+          "shippedQty": 0,
+          "qty": 1,
+          "subtotal": 397.0,
+          "productName": "SET-COL-CHEF - Set coltelli da chef (3 pz)",
+          "price": 397.0,
+          "productId": "PRD1762913759709"
+        }
+      ],
+      "date": "2024-07-05"
+    },
+    {
+      "number": "OC-0008",
+      "id": "5",
+      "customerId": "1e41e026-b425-4f42-8b54-6e487866f159",
+      "total": 96.0,
+      "customerName": "Casa Design S.r.l.",
+      "status": "In lavorazione",
+      "lines": [
+        {
+          "description": "TEL-UNI-SMART - Telecomando universale smart",
+          "shippedQty": 0,
+          "qty": 8,
+          "subtotal": 96.0,
+          "productName": "TEL-UNI-SMART - Telecomando universale smart",
+          "price": 12.0,
+          "productId": "PRD1762954061893"
+        }
+      ],
+      "date": "2024-07-08"
+    },
+    {
+      "number": "OV-2024-9015",
+      "id": "6",
+      "customerId": "55b3034b-1379-4628-be73-92d7642de933",
+      "total": 430.68,
+      "customerName": "Ufficio Delta S.p.A.",
+      "status": "In lavorazione",
+      "lines": [
+        {
+          "description": "ASC-VIAG-1200 - Asciugacapelli da viaggio 1200W",
+          "shippedQty": 0,
+          "qty": 12,
+          "subtotal": 262.8,
+          "productName": "ASC-VIAG-1200 - Asciugacapelli da viaggio 1200W",
+          "price": 21.9,
+          "productId": "PRD1762953935516"
+        },
+        {
+          "description": "CAV-HDMI-15 - Cavo HDMI 2.1 1.5 metri",
+          "shippedQty": 0,
+          "qty": 12,
+          "subtotal": 167.88,
+          "productName": "CAV-HDMI-15 - Cavo HDMI 2.1 1.5 metri",
+          "price": 13.99,
+          "productId": "PRD1762913320414"
+        }
+      ],
+      "date": "2024-07-09"
+    },
+    {
+      "number": "OC-0016",
+      "id": "7",
+      "customerId": "38b2d1cd-9a7e-4222-99ad-d2fbc313c23f",
+      "total": 24.9,
+      "customerName": "Studio Beta",
+      "status": "In lavorazione",
+      "lines": [
+        {
+          "description": "FIL-CAFF-PRO - Filtro anticalcare caffè PRO",
+          "shippedQty": 0,
+          "qty": 10,
+          "subtotal": 24.9,
+          "productName": "FIL-CAFF-PRO - Filtro anticalcare caffè PRO",
+          "price": 2.49,
+          "productId": "PRD1762913472758"
+        }
+      ],
+      "date": "2024-07-10"
+    },
+    {
+      "number": "OC-0018",
+      "id": "8",
+      "customerId": "3",
+      "total": 428.99,
+      "customerName": "Mario Rossi",
+      "status": "In lavorazione",
+      "lines": [
+        {
+          "description": "TV-S43-LED - Smart TV 43\" LED Full HD",
+          "shippedQty": 0,
+          "qty": 1,
+          "subtotal": 299.0,
+          "productName": "TV-S43-LED - Smart TV 43\" LED Full HD",
+          "price": 299.0,
+          "productId": "PRD1762913243159"
+        },
+        {
+          "description": "CAV-HDMI-15 - Cavo HDMI 2.1 1.5 metri",
+          "shippedQty": 0,
+          "qty": 1,
+          "subtotal": 13.99,
+          "productName": "CAV-HDMI-15 - Cavo HDMI 2.1 1.5 metri",
+          "price": 13.99,
+          "productId": "PRD1762913320414"
+        },
+        {
           "description": "MIC-GRI-25 - Forno a microonde con grill 25L",
           "shippedQty": 0,
           "qty": 1,
-          "price": 116,
-          "productId": "PRD1762913412858",
-          "productName": "MIC-GRI-25 - Forno a microonde con grill 25L"
-        },
+          "subtotal": 116.0,
+          "productName": "MIC-GRI-25 - Forno a microonde con grill 25L",
+          "price": 116.0,
+          "productId": "PRD1762913412858"
+        }
+      ],
+      "date": "2024-07-11"
+    },
+    {
+      "number": "OC-0020",
+      "id": "9",
+      "customerId": "6",
+      "total": 613.96,
+      "customerName": "Grand Hotel Bellavista",
+      "status": "In lavorazione",
+      "lines": [
         {
-          "productName": "FIL-CAFF-PRO - Filtro anticalcare caffè PRO",
-          "productId": "PRD1762913472758",
-          "price": 2.49,
+          "description": "SB-PRO-51 - Soundbar Pro 5.1",
           "shippedQty": 0,
           "qty": 2,
-          "description": "FIL-CAFF-PRO - Filtro anticalcare caffè PRO",
-          "subtotal": 4.98
-        }
-      ]
-    },
-    {
-      "number": "ORD-C-3",
-      "id": "3",
-      "customerId": "6",
-      "total": 899,
-      "lines": [
+          "subtotal": 558.0,
+          "productName": "SB-PRO-51 - Soundbar Pro 5.1",
+          "price": 279.0,
+          "productId": "PRD1762954135228"
+        },
         {
-          "subtotal": 899,
-          "description": "FRI-COM-185 - Frigorifero combinato No-Frost",
-          "qtyEvasa": 1,
+          "description": "CAV-HDMI-15 - Cavo HDMI 2.1 1.5 metri",
           "shippedQty": 0,
-          "qty": 1,
-          "price": 899,
-          "productId": "PRD1762913556071",
-          "productName": "FRI-COM-185 - Frigorifero combinato No-Frost"
+          "qty": 4,
+          "subtotal": 55.96,
+          "productName": "CAV-HDMI-15 - Cavo HDMI 2.1 1.5 metri",
+          "price": 13.99,
+          "productId": "PRD1762913320414"
         }
       ],
-      "status": "Evaso",
-      "customerName": "Grand Hotel Bellavista",
-      "date": "2025-11-12"
+      "date": "2024-07-12"
     },
     {
+      "number": "OC-0022",
+      "id": "10",
+      "customerId": "4",
+      "total": 232.0,
+      "customerName": "Bianchi S.r.l.",
+      "status": "In lavorazione",
       "lines": [
         {
-          "price": 449.63,
-          "productId": "PRD1762913621865",
-          "productName": "FRU-PRO-2L - Frullatore professionale 2 Litri",
-          "subtotal": 899.26,
+          "description": "MIC-GRI-25 - Forno a microonde con grill 25L",
+          "shippedQty": 0,
+          "qty": 2,
+          "subtotal": 232.0,
+          "productName": "MIC-GRI-25 - Forno a microonde con grill 25L",
+          "price": 116.0,
+          "productId": "PRD1762913412858"
+        }
+      ],
+      "date": "2024-07-15"
+    },
+    {
+      "number": "OC-0024",
+      "id": "11",
+      "customerId": "5",
+      "total": 846.63,
+      "customerName": "Ristorante La Lanterna",
+      "status": "In lavorazione",
+      "lines": [
+        {
           "description": "FRU-PRO-2L - Frullatore professionale 2 Litri",
           "shippedQty": 0,
-          "qty": 2
-        },
-        {
-          "productName": "BIL-DIG-5KG - Bilancia digitale da cucina 5kg",
-          "productId": "PRD1762913687092",
-          "price": 17.99,
-          "shippedQty": 0,
-          "qty": 10,
-          "description": "BIL-DIG-5KG - Bilancia digitale da cucina 5kg",
-          "subtotal": 179.89999999999998
-        },
-        {
-          "subtotal": 397,
           "qty": 1,
-          "shippedQty": 0,
+          "subtotal": 449.63,
+          "productName": "FRU-PRO-2L - Frullatore professionale 2 Litri",
+          "price": 449.63,
+          "productId": "PRD1762913621865"
+        },
+        {
           "description": "SET-COL-CHEF - Set coltelli da chef (3 pz)",
-          "productId": "PRD1762913759709",
-          "price": 397,
-          "productName": "SET-COL-CHEF - Set coltelli da chef (3 pz)"
+          "shippedQty": 0,
+          "qty": 1,
+          "subtotal": 397.0,
+          "productName": "SET-COL-CHEF - Set coltelli da chef (3 pz)",
+          "price": 397.0,
+          "productId": "PRD1762913759709"
         }
       ],
+      "date": "2024-07-15"
+    },
+    {
+      "number": "OC-0026",
+      "id": "12",
+      "customerId": "1e41e026-b425-4f42-8b54-6e487866f159",
+      "total": 799.9,
+      "customerName": "Casa Design S.r.l.",
       "status": "In lavorazione",
-      "customerName": "Ristorante La Lanterna",
-      "total": 1476.1599999999999,
-      "date": "2025-11-12",
+      "lines": [
+        {
+          "description": "CUC-GAS-XL90 - Cucina a gas 5 fuochi 90cm",
+          "shippedQty": 0,
+          "qty": 1,
+          "subtotal": 799.9,
+          "productName": "CUC-GAS-XL90 - Cucina a gas 5 fuochi 90cm",
+          "price": 799.9,
+          "productId": "PRD1762953999373"
+        }
+      ],
+      "date": "2024-07-16"
+    },
+    {
+      "number": "OC-0028",
+      "id": "13",
       "customerId": "5",
-      "id": "4",
-      "number": "ORD-C-4"
+      "total": 1440.18,
+      "customerName": "Ristorante La Lanterna",
+      "status": "In lavorazione",
+      "lines": [
+        {
+          "description": "FRU-PRO-2L - Frullatore professionale 2 Litri",
+          "shippedQty": 0,
+          "qty": 2,
+          "subtotal": 899.26,
+          "productName": "FRU-PRO-2L - Frullatore professionale 2 Litri",
+          "price": 449.63,
+          "productId": "PRD1762913621865"
+        },
+        {
+          "description": "BIL-DIG-5KG - Bilancia digitale da cucina 5kg",
+          "shippedQty": 0,
+          "qty": 8,
+          "subtotal": 143.92,
+          "productName": "BIL-DIG-5KG - Bilancia digitale da cucina 5kg",
+          "price": 17.99,
+          "productId": "PRD1762913687092"
+        },
+        {
+          "description": "SET-COL-CHEF - Set coltelli da chef (3 pz)",
+          "shippedQty": 0,
+          "qty": 1,
+          "subtotal": 397.0,
+          "productName": "SET-COL-CHEF - Set coltelli da chef (3 pz)",
+          "price": 397.0,
+          "productId": "PRD1762913759709"
+        }
+      ],
+      "date": "2024-07-17"
     }
   ],
   "supplierOrders": [
@@ -499,60 +741,9 @@
       "supplierName": "Hi-Fi Distribution"
     }
   ],
-  "customerDDTs": [
-    {
-      "orderNumber": "ORD-C-3",
-      "customerId": "6",
-      "id": "1",
-      "number": "DDT-1",
-      "lines": [
-        {
-          "productName": "FRI-COM-185 - Frigorifero combinato No-Frost",
-          "productId": "PRD1762913556071",
-          "price": 899,
-          "qty": 1,
-          "description": "FRI-COM-185 - Frigorifero combinato No-Frost",
-          "subtotal": 899
-        }
-      ],
-      "status": "Fatturato",
-      "customerName": "Grand Hotel Bellavista",
-      "date": "2025-11-13"
-    }
-  ],
+  "customerDDTs": [],
   "supplierDDTs": [],
-  "invoices": [
-    {
-      "summary": {
-        "22": {
-          "imposta": 197.78,
-          "imponibile": 899
-        }
-      },
-      "ddts": [
-        "1"
-      ],
-      "id": "1",
-      "ddtNumbers": [
-        "1"
-      ],
-      "customerId": "6",
-      "date": "2025-11-13",
-      "total": 1096.78,
-      "lines": [
-        {
-          "productName": "FRI-COM-185 - Frigorifero combinato No-Frost",
-          "price": 899,
-          "qty": 1,
-          "description": "FRI-COM-185 - Frigorifero combinato No-Frost",
-          "imponibile": 899,
-          "iva": 22
-        }
-      ],
-      "customerName": "Grand Hotel Bellavista",
-      "number": "FATT-1"
-    }
-  ],
+  "invoices": [],
   "notes": {
     "1": ""
   },
@@ -564,10 +755,10 @@
     "updatedAt": 1774186403327
   },
   "counters": {
-    "orderCustomer": 29,
-    "ddtCustomer": 1,
+    "orderCustomer": 13,
+    "ddtCustomer": 0,
     "ddtSupplier": 0,
-    "invoice": 1,
+    "invoice": 0,
     "orderSupplier": 4
   }
 }
