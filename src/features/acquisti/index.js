@@ -104,7 +104,7 @@ import { adjustStockBatch } from '../../domain/inventory.service.js';
         if (!p || qty <= 0) return App.ui.showToast('Seleziona un prodotto e una quantità > 0', 'warning');
         tmp.push({ productId: pid, productName: `${p.code} - ${p.description}`, qty, price, receivedQty: 0 });
         recalc();
-        qtyEl.value = '0';
+        qtyEl.value = '1';
       });
       linesTbody.addEventListener('click', (e) => {
         const i = e.target.closest('button')?.getAttribute('data-i');
@@ -130,6 +130,8 @@ import { adjustStockBatch } from '../../domain/inventory.service.js';
         // precompila il prossimo numero e ripulisce i campi
         numEl.value = App.utils.nextSupplierOrderNumber(db);
         dateEl.value = App.utils.todayISO();
+        if (qtyEl) qtyEl.value = '1';
+        try { if (prodSel?.options?.length) prodSel.dispatchEvent(new Event('change')); } catch {}
         App.db.save(db);
         Fornitori.renderOrders();
         App.ui.showSection('elenco-ordini-fornitore');

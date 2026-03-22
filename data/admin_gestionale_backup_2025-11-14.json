@@ -1,508 +1,573 @@
 {
-  "companyInfo": {
+  "company": {
     "name": "ElectroStock Italia",
-    "address": " Via Roma, 42",
-    "city": "Cafasse",
+    "province": "TO",
+    "address": "Via Roma, 42",
     "zip": "10070",
-    "province": "TO"
+    "city": "Cafasse"
   },
-  "products": [
+  "users": [
     {
-      "id": "PRD1762913243159",
-      "code": "TV-S43-LED",
-      "description": "Smart TV 43\" LED Full HD",
-      "purchasePrice": 175,
-      "salePrice": 299,
-      "iva": 22,
-      "corsia": "B-04",
-      "scaffale": "R1",
-      "piano": "S2",
-      "giacenza": 2
+      "id": "1",
+      "name": "Amministratore",
+      "surname": "admin",
+      "password": "gestionale",
+      "role": "Admin"
     },
     {
-      "id": "PRD1762913320414",
-      "code": "CAV-HDMI-15",
-      "description": "Cavo HDMI 2.1 1.5 metri",
-      "purchasePrice": 6.78,
-      "salePrice": 13.99,
-      "iva": 22,
-      "corsia": "A-01",
-      "scaffale": "R3",
-      "piano": "S5",
-      "giacenza": 12
+      "id": "2",
+      "name": "Roberto",
+      "surname": "Rua",
+      "password": "admin",
+      "role": "Supervisor"
     },
     {
-      "id": "PRD1762913412858",
-      "code": "MIC-GRI-25",
-      "description": "Forno a microonde con grill 25L",
-      "purchasePrice": 71.18,
-      "salePrice": 116,
-      "iva": 22,
-      "corsia": "C-02",
-      "scaffale": "R2",
-      "piano": "S3",
-      "giacenza": 4
+      "role": "User",
+      "password": "user",
+      "name": "Rinaldo",
+      "surname": "Massa",
+      "id": "3"
     },
     {
-      "id": "PRD1762913472758",
-      "code": "FIL-CAFF-PRO",
-      "description": "Filtro anticalcare caffè PRO",
-      "purchasePrice": 0.8,
-      "salePrice": 2.49,
-      "iva": 22,
-      "corsia": "E-01",
-      "scaffale": "R5",
-      "piano": "S1",
-      "giacenza": 27
-    },
-    {
-      "id": "PRD1762913556071",
-      "code": "FRI-COM-185",
-      "description": "Frigorifero combinato No-Frost",
-      "purchasePrice": 670,
-      "salePrice": 899,
-      "iva": 22,
-      "corsia": "D-05",
-      "scaffale": "R1",
-      "piano": "S1",
-      "giacenza": 0
-    },
-    {
-      "id": "PRD1762913621865",
-      "code": "FRU-PRO-2L",
-      "description": "Frullatore professionale 2 Litri",
-      "purchasePrice": 247.9,
-      "salePrice": 449.63,
-      "iva": 22,
-      "corsia": "C-05",
-      "scaffale": "R1",
-      "piano": "S2",
-      "giacenza": 3
-    },
-    {
-      "id": "PRD1762913687092",
-      "code": "BIL-DIG-5KG",
-      "description": "Bilancia digitale da cucina 5kg",
-      "purchasePrice": 8.2,
-      "salePrice": 17.99,
-      "iva": 22,
-      "corsia": "A-02",
-      "scaffale": "R4",
-      "piano": "S1",
-      "giacenza": 6
-    },
-    {
-      "id": "PRD1762913759709",
-      "code": "SET-COL-CHEF",
-      "description": "Set coltelli da chef (3 pz)",
-      "purchasePrice": 263,
-      "salePrice": 397,
-      "iva": 22,
-      "corsia": "A-03",
-      "scaffale": "R1",
-      "piano": "S4",
-      "giacenza": 2
-    },
-    {
-      "id": "PRD1762953910948",
-      "code": "LAV-SLIM-7",
-      "description": "Lavatrice Slim 7kg profondità 45cm",
-      "purchasePrice": 265.5,
-      "salePrice": 319.9,
-      "iva": 22,
-      "corsia": "B-04",
-      "scaffale": "R1",
-      "piano": "S0",
-      "giacenza": 3
-    },
-    {
-      "id": "PRD1762953935516",
-      "code": "ASC-VIAG-1200",
-      "description": "Asciugacapelli da viaggio 1200W",
-      "purchasePrice": 9.8,
-      "salePrice": 21.9,
-      "iva": 22,
-      "corsia": "B-04",
-      "scaffale": "R2",
-      "piano": "S0",
-      "giacenza": 11
-    },
-    {
-      "id": "PRD1762953999373",
-      "code": "CUC-GAS-XL90",
-      "description": "Cucina a gas 5 fuochi 90cm",
-      "purchasePrice": 487.7,
-      "salePrice": 799.9,
-      "iva": 22,
-      "corsia": "D-05",
-      "scaffale": "R2",
-      "piano": "S0",
-      "giacenza": 1
-    },
-    {
-      "id": "PRD1762954061893",
-      "code": "TEL-UNI-SMART",
-      "description": "Telecomando universale smart",
-      "purchasePrice": 5.5,
-      "salePrice": 12,
-      "iva": 22,
-      "corsia": "A-01",
-      "scaffale": "R3",
-      "piano": "S4",
-      "giacenza": 19
-    },
-    {
-      "id": "PRD1762954135228",
-      "code": "SB-PRO-51",
-      "description": "Soundbar Pro 5.1",
-      "purchasePrice": 117.8,
-      "salePrice": 279,
-      "iva": 22,
-      "corsia": "C-02",
-      "scaffale": "R3",
-      "piano": "S3",
-      "giacenza": 1
+      "surname": "",
+      "name": "gdr.carta",
+      "id": "pm8IYaqlCEVRn7tpsevti8FdU2i1",
+      "role": "User",
+      "email": "gdr.carta@gmail.com"
     }
   ],
   "customers": [
     {
-      "id": 1,
+      "id": "1",
       "name": "Lavorazioni Meccaniche SAS",
       "piva": "01122334455",
       "address": "Via Cagliari 32, 10100 Torino (TO)"
     },
     {
-      "id": 2,
-      "name": "Rossi S.p.A.",
+      "id": "1e41e026-b425-4f42-8b54-6e487866f159",
+      "address": "Via Alfieri, 8 Asti (AT)",
+      "piva": "10034677966",
+      "name": "Casa Design S.r.l."
+    },
+    {
       "piva": "09988776655",
+      "id": "2",
+      "name": "Rossi S.p.A.",
       "address": "Via Roma 1, 10123 Torino (TO)"
     },
     {
-      "id": 3,
-      "name": "Mario Rossi",
       "piva": "privato",
+      "id": "3",
+      "name": "Mario Rossi",
       "address": "Via Garibaldi 10, 20121 Milano (MI)"
     },
     {
-      "id": 4,
-      "name": "Bianchi S.r.l.",
-      "piva": "12357894813",
-      "address": " Via Magenta, 71 13100 Vercelli (VC)"
+      "piva": "02899671849",
+      "name": "Studio Beta",
+      "id": "38b2d1cd-9a7e-4222-99ad-d2fbc313c23f",
+      "address": "Via Verdi, Torino"
     },
     {
-      "id": 5,
-      "name": "Ristorante La Lanterna",
+      "id": "4",
+      "name": "Bianchi S.r.l.",
+      "piva": "12357894813",
+      "address": "Via Magenta, 71 13100 Vercelli (VC)"
+    },
+    {
       "piva": "97084201473",
+      "name": "Ristorante La Lanterna",
+      "id": "5",
       "address": "Piazza del Gusto, 5 00186 Roma (RM)"
     },
     {
-      "id": 6,
-      "name": "Grand Hotel Bellavista",
+      "id": "55b3034b-1379-4628-be73-92d7642de933",
+      "address": "Via Cherasco, 39 Bra (CN)",
+      "piva": "03468966841",
+      "name": "Ufficio Delta S.p.A."
+    },
+    {
+      "address": "Via Roma, 21 10070 Usseglio Torino (TO)(",
       "piva": "134875677",
-      "address": "Via Roma, 21 10070 Usseglio Torino (TO)("
+      "name": "Grand Hotel Bellavista",
+      "id": "6"
     }
   ],
   "suppliers": [
     {
-      "id": 1,
+      "address": "Via Garibaldi, 76, 06024 Gubbio (PG)",
       "name": "Euroliquidi 2000",
-      "piva": "06382641006",
-      "address": "Via Garibaldi, 76, 06024 Gubbio (PG)"
+      "id": "1",
+      "piva": "06382641006"
     },
     {
-      "id": 2,
-      "name": "Multitech SNC",
+      "address": "Via Po, 2, 10099 San Mauro Torinese (TO)",
       "piva": "00488410010",
-      "address": "Via Po, 2, 10099 San Mauro Torinese (TO)"
+      "id": "2",
+      "name": "Multitech SNC"
     },
     {
-      "id": 3,
-      "name": "ElectroTech S.p.A.",
       "piva": "1697489977",
+      "id": "3",
+      "name": "ElectroTech S.p.A.",
       "address": "Via delle Industrie, 27 10095 Grugliasco (TO)"
     },
     {
-      "id": 4,
-      "name": "Global Imports S.r.l.",
+      "address": "Corso Piemonte, 142 12100 Cuneo (CN)",
       "piva": "21447895571",
-      "address": "Corso Piemonte, 142 12100 Cuneo (CN)"
+      "name": "Global Imports S.r.l.",
+      "id": "4"
     },
     {
-      "id": 5,
       "name": "Hi-Fi Distribution",
+      "id": "5",
       "piva": "24770018943",
       "address": "Via del Commercio, 58 28100 Novara (NO)"
     }
   ],
+  "products": [
+    {
+      "purchasePrice": 175,
+      "stockQty": 2,
+      "description": "Smart TV 43\" LED Full HD",
+      "code": "TV-S43-LED",
+      "iva": 22,
+      "id": "PRD1762913243159",
+      "locCorsia": "B-04",
+      "salePrice": 299,
+      "locScaffale": "R1",
+      "locPiano": "S2"
+    },
+    {
+      "purchasePrice": 6.78,
+      "stockQty": 12,
+      "description": "Cavo HDMI 2.1 1.5 metri",
+      "iva": 22,
+      "code": "CAV-HDMI-15",
+      "id": "PRD1762913320414",
+      "salePrice": 13.99,
+      "locCorsia": "A-01",
+      "locScaffale": "R3",
+      "locPiano": "S5"
+    },
+    {
+      "locPiano": "S3",
+      "locScaffale": "R2",
+      "locCorsia": "C-02",
+      "salePrice": 116,
+      "id": "PRD1762913412858",
+      "code": "MIC-GRI-25",
+      "iva": 22,
+      "description": "Forno a microonde con grill 25L",
+      "purchasePrice": 71.18,
+      "stockQty": 4
+    },
+    {
+      "locPiano": "S1",
+      "locScaffale": "R5",
+      "locCorsia": "E-01",
+      "salePrice": 2.49,
+      "id": "PRD1762913472758",
+      "code": "FIL-CAFF-PRO",
+      "iva": 22,
+      "description": "Filtro anticalcare caffè PRO",
+      "purchasePrice": 0.8,
+      "stockQty": 27
+    },
+    {
+      "locScaffale": "R1",
+      "description": "Frigorifero combinato No-Frost",
+      "stockQty": 1,
+      "iva": 22,
+      "id": "PRD1762913556071",
+      "code": "FRI-COM-185",
+      "salePrice": 899,
+      "purchasePrice": 670,
+      "locCorsia": "D-05",
+      "locPiano": "S1"
+    },
+    {
+      "description": "Frullatore professionale 2 Litri",
+      "purchasePrice": 247.9,
+      "stockQty": 3,
+      "locPiano": "S2",
+      "locScaffale": "R1",
+      "locCorsia": "C-05",
+      "salePrice": 449.63,
+      "id": "PRD1762913621865",
+      "iva": 22,
+      "code": "FRU-PRO-2L"
+    },
+    {
+      "purchasePrice": 8.2,
+      "stockQty": 6,
+      "description": "Bilancia digitale da cucina 5kg",
+      "locScaffale": "R4",
+      "locPiano": "S1",
+      "iva": 22,
+      "code": "BIL-DIG-5KG",
+      "id": "PRD1762913687092",
+      "locCorsia": "A-02",
+      "salePrice": 17.99
+    },
+    {
+      "locScaffale": "R1",
+      "locPiano": "S4",
+      "id": "PRD1762913759709",
+      "code": "SET-COL-CHEF",
+      "iva": 22,
+      "locCorsia": "A-03",
+      "salePrice": 397,
+      "purchasePrice": 263,
+      "stockQty": 2,
+      "description": "Set coltelli da chef (3 pz)"
+    },
+    {
+      "locCorsia": "B-04",
+      "salePrice": 319.9,
+      "iva": 22,
+      "code": "LAV-SLIM-7",
+      "id": "PRD1762953910948",
+      "locPiano": "S0",
+      "locScaffale": "R1",
+      "description": "Lavatrice Slim 7kg profondità 45cm",
+      "stockQty": 3,
+      "purchasePrice": 265.5
+    },
+    {
+      "code": "ASC-VIAG-1200",
+      "iva": 22,
+      "id": "PRD1762953935516",
+      "locCorsia": "B-04",
+      "salePrice": 21.9,
+      "locScaffale": "R2",
+      "locPiano": "S0",
+      "stockQty": 11,
+      "purchasePrice": 9.8,
+      "description": "Asciugacapelli da viaggio 1200W"
+    },
+    {
+      "purchasePrice": 487.7,
+      "stockQty": 1,
+      "description": "Cucina a gas 5 fuochi 90cm",
+      "iva": 22,
+      "code": "CUC-GAS-XL90",
+      "id": "PRD1762953999373",
+      "locCorsia": "D-05",
+      "salePrice": 799.9,
+      "locScaffale": "R2",
+      "locPiano": "S0"
+    },
+    {
+      "description": "Telecomando universale smart",
+      "stockQty": 19,
+      "purchasePrice": 5.5,
+      "locPiano": "S4",
+      "locScaffale": "R3",
+      "locCorsia": "A-01",
+      "salePrice": 12,
+      "iva": 22,
+      "code": "TEL-UNI-SMART",
+      "id": "PRD1762954061893"
+    },
+    {
+      "description": "Soundbar Pro 5.1",
+      "purchasePrice": 117.8,
+      "stockQty": 1,
+      "locCorsia": "C-02",
+      "salePrice": 279,
+      "iva": 22,
+      "code": "SB-PRO-51",
+      "id": "PRD1762954135228",
+      "locPiano": "S3",
+      "locScaffale": "R3"
+    }
+  ],
   "customerOrders": [
     {
-      "id": 1,
       "number": "ORD-C-1",
-      "date": "2025-11-12",
+      "id": "1",
       "customerId": "3",
+      "total": 326.98,
+      "customerName": "Mario Rossi",
+      "status": "In lavorazione",
       "lines": [
         {
-          "productId": "PRD1762913243159",
-          "productName": "TV-S43-LED - Smart TV 43\" LED Full HD",
-          "qty": 1,
+          "description": "TV-S43-LED - Smart TV 43\" LED Full HD",
           "shippedQty": 0,
+          "qty": 1,
+          "subtotal": 299,
+          "productName": "TV-S43-LED - Smart TV 43\" LED Full HD",
           "price": 299,
-          "subtotal": 299
+          "productId": "PRD1762913243159"
         },
         {
+          "price": 13.99,
           "productId": "PRD1762913320414",
           "productName": "CAV-HDMI-15 - Cavo HDMI 2.1 1.5 metri",
+          "subtotal": 27.98,
+          "description": "CAV-HDMI-15 - Cavo HDMI 2.1 1.5 metri",
           "qty": 2,
-          "shippedQty": 0,
-          "price": 13.99,
-          "subtotal": 27.98
+          "shippedQty": 0
         }
       ],
-      "status": "In lavorazione",
-      "total": 326.98
+      "date": "2025-11-12"
     },
     {
-      "id": 2,
       "number": "ORD-C-2",
-      "date": "2025-11-12",
+      "id": "2",
       "customerId": "4",
+      "date": "2025-11-12",
+      "total": 120.98,
+      "status": "In lavorazione",
+      "customerName": "Bianchi S.r.l.",
       "lines": [
         {
-          "productId": "PRD1762913412858",
-          "productName": "MIC-GRI-25 - Forno a microonde con grill 25L",
-          "qty": 1,
+          "subtotal": 116,
+          "description": "MIC-GRI-25 - Forno a microonde con grill 25L",
           "shippedQty": 0,
+          "qty": 1,
           "price": 116,
-          "subtotal": 116
+          "productId": "PRD1762913412858",
+          "productName": "MIC-GRI-25 - Forno a microonde con grill 25L"
         },
         {
-          "productId": "PRD1762913472758",
           "productName": "FIL-CAFF-PRO - Filtro anticalcare caffè PRO",
-          "qty": 2,
-          "shippedQty": 0,
+          "productId": "PRD1762913472758",
           "price": 2.49,
+          "shippedQty": 0,
+          "qty": 2,
+          "description": "FIL-CAFF-PRO - Filtro anticalcare caffè PRO",
           "subtotal": 4.98
         }
-      ],
-      "status": "In lavorazione",
-      "total": 120.98
+      ]
     },
     {
-      "id": 3,
       "number": "ORD-C-3",
-      "date": "2025-11-12",
+      "id": "3",
       "customerId": "6",
+      "total": 899,
       "lines": [
         {
-          "productId": "PRD1762913556071",
-          "productName": "FRI-COM-185 - Frigorifero combinato No-Frost",
-          "qty": 1,
-          "shippedQty": 0,
-          "price": 899,
           "subtotal": 899,
-          "qtyEvasa": 1
+          "description": "FRI-COM-185 - Frigorifero combinato No-Frost",
+          "qtyEvasa": 1,
+          "shippedQty": 0,
+          "qty": 1,
+          "price": 899,
+          "productId": "PRD1762913556071",
+          "productName": "FRI-COM-185 - Frigorifero combinato No-Frost"
         }
       ],
       "status": "Evaso",
-      "total": 899
+      "customerName": "Grand Hotel Bellavista",
+      "date": "2025-11-12"
     },
     {
-      "id": 4,
-      "number": "ORD-C-4",
-      "date": "2025-11-12",
-      "customerId": "5",
       "lines": [
         {
+          "price": 449.63,
           "productId": "PRD1762913621865",
           "productName": "FRU-PRO-2L - Frullatore professionale 2 Litri",
-          "qty": 2,
+          "subtotal": 899.26,
+          "description": "FRU-PRO-2L - Frullatore professionale 2 Litri",
           "shippedQty": 0,
-          "price": 449.63,
-          "subtotal": 899.26
+          "qty": 2
         },
         {
-          "productId": "PRD1762913687092",
           "productName": "BIL-DIG-5KG - Bilancia digitale da cucina 5kg",
-          "qty": 10,
-          "shippedQty": 0,
+          "productId": "PRD1762913687092",
           "price": 17.99,
+          "shippedQty": 0,
+          "qty": 10,
+          "description": "BIL-DIG-5KG - Bilancia digitale da cucina 5kg",
           "subtotal": 179.89999999999998
         },
         {
-          "productId": "PRD1762913759709",
-          "productName": "SET-COL-CHEF - Set coltelli da chef (3 pz)",
+          "subtotal": 397,
           "qty": 1,
           "shippedQty": 0,
+          "description": "SET-COL-CHEF - Set coltelli da chef (3 pz)",
+          "productId": "PRD1762913759709",
           "price": 397,
-          "subtotal": 397
+          "productName": "SET-COL-CHEF - Set coltelli da chef (3 pz)"
         }
       ],
       "status": "In lavorazione",
-      "total": 1476.1599999999999
-    }
-  ],
-  "customerDdts": [
-    {
-      "id": 1,
-      "number": "DDT-1",
-      "date": "2025-11-13",
-      "customerId": "6",
-      "orderNumber": "ORD-C-3",
-      "lines": [
-        {
-          "productId": "PRD1762913556071",
-          "productName": "FRI-COM-185 - Frigorifero combinato No-Frost",
-          "qty": 1,
-          "price": 899,
-          "subtotal": 899
-        }
-      ],
-      "status": "Fatturato"
+      "customerName": "Ristorante La Lanterna",
+      "total": 1476.1599999999999,
+      "date": "2025-11-12",
+      "customerId": "5",
+      "id": "4",
+      "number": "ORD-C-4"
     }
   ],
   "supplierOrders": [
     {
-      "id": 1,
-      "number": "ORD-F-1",
-      "date": "2025-11-12",
       "supplierId": "3",
+      "supplierName": "ElectroTech S.p.A.",
+      "number": "ORD-F-1",
+      "id": "1",
+      "total": 1586.8000000000002,
+      "status": "Inviato",
       "lines": [
         {
           "productId": "PRD1762913412858",
-          "productName": "MIC-GRI-25 - Forno a microonde con grill 25L",
-          "qty": 10,
-          "receivedQty": 0,
           "price": 71.18,
-          "subtotal": 711.8000000000001
+          "receivedQty": 0,
+          "productName": "MIC-GRI-25 - Forno a microonde con grill 25L",
+          "subtotal": 711.8000000000001,
+          "qty": 10,
+          "description": "MIC-GRI-25 - Forno a microonde con grill 25L"
         },
         {
-          "productId": "PRD1762913243159",
-          "productName": "TV-S43-LED - Smart TV 43\" LED Full HD",
+          "subtotal": 875,
           "qty": 5,
-          "receivedQty": 0,
+          "description": "TV-S43-LED - Smart TV 43\" LED Full HD",
+          "productId": "PRD1762913243159",
           "price": 175,
-          "subtotal": 875
+          "receivedQty": 0,
+          "productName": "TV-S43-LED - Smart TV 43\" LED Full HD"
         }
       ],
-      "status": "Inviato",
-      "total": 1586.8000000000002
+      "date": "2025-11-12"
     },
     {
-      "id": 2,
-      "number": "ORD-F-2",
-      "date": "2025-11-12",
+      "supplierName": "Global Imports S.r.l.",
       "supplierId": "4",
+      "number": "ORD-F-2",
+      "id": "2",
+      "total": 1552,
       "lines": [
         {
-          "productId": "PRD1762953910948",
-          "productName": "LAV-SLIM-7 - Lavatrice Slim 7kg profondità 45cm",
+          "subtotal": 1062,
           "qty": 4,
-          "receivedQty": 0,
+          "description": "LAV-SLIM-7 - Lavatrice Slim 7kg profondità 45cm",
+          "productId": "PRD1762953910948",
           "price": 265.5,
-          "subtotal": 1062
+          "receivedQty": 0,
+          "productName": "LAV-SLIM-7 - Lavatrice Slim 7kg profondità 45cm"
         },
         {
+          "subtotal": 490.00000000000006,
+          "description": "ASC-VIAG-1200 - Asciugacapelli da viaggio 1200W",
+          "qty": 50,
+          "price": 9.8,
           "productId": "PRD1762953935516",
           "productName": "ASC-VIAG-1200 - Asciugacapelli da viaggio 1200W",
-          "qty": 50,
-          "receivedQty": 0,
-          "price": 9.8,
-          "subtotal": 490.00000000000006
+          "receivedQty": 0
         }
       ],
       "status": "Inviato",
-      "total": 1552
+      "date": "2025-11-12"
     },
     {
-      "id": 3,
-      "number": "ORD-F-3",
       "date": "2025-11-12",
-      "supplierId": "5",
+      "total": 705.8,
+      "status": "Inviato",
       "lines": [
         {
-          "productId": "PRD1762953999373",
-          "productName": "CUC-GAS-XL90 - Cucina a gas 5 fuochi 90cm",
+          "subtotal": 487.7,
           "qty": 1,
-          "receivedQty": 0,
+          "description": "CUC-GAS-XL90 - Cucina a gas 5 fuochi 90cm",
+          "productId": "PRD1762953999373",
           "price": 487.7,
-          "subtotal": 487.7
+          "receivedQty": 0,
+          "productName": "CUC-GAS-XL90 - Cucina a gas 5 fuochi 90cm"
         },
         {
+          "price": 6.78,
           "productId": "PRD1762913320414",
           "productName": "CAV-HDMI-15 - Cavo HDMI 2.1 1.5 metri",
-          "qty": 20,
           "receivedQty": 0,
-          "price": 6.78,
-          "subtotal": 135.6
+          "subtotal": 135.6,
+          "description": "CAV-HDMI-15 - Cavo HDMI 2.1 1.5 metri",
+          "qty": 20
         },
         {
-          "productId": "PRD1762954061893",
-          "productName": "TEL-UNI-SMART - Telecomando universale smart",
           "qty": 15,
+          "description": "TEL-UNI-SMART - Telecomando universale smart",
+          "subtotal": 82.5,
           "receivedQty": 0,
-          "price": 5.5,
-          "subtotal": 82.5
+          "productName": "TEL-UNI-SMART - Telecomando universale smart",
+          "productId": "PRD1762954061893",
+          "price": 5.5
         }
       ],
-      "status": "Inviato",
-      "total": 705.8
+      "number": "ORD-F-3",
+      "id": "3",
+      "supplierId": "5",
+      "supplierName": "Hi-Fi Distribution"
     }
   ],
-  "supplierDdts": [],
-  "users": [
+  "customerDDTs": [
     {
-      "id": 1,
-      "surname": "admin",
-      "name": "Amministratore",
-      "password": "gestionale",
-      "role": "Admin"
-    },
-    {
-      "id": 2,
-      "surname": "Rua",
-      "name": "Roberto",
-      "password": "admin",
-      "role": "Supervisor"
-    },
-    {
-      "id": 3,
-      "surname": "Massa",
-      "name": "Rinaldo",
-      "password": "user",
-      "role": "User"
+      "orderNumber": "ORD-C-3",
+      "customerId": "6",
+      "id": "1",
+      "number": "DDT-1",
+      "lines": [
+        {
+          "productName": "FRI-COM-185 - Frigorifero combinato No-Frost",
+          "productId": "PRD1762913556071",
+          "price": 899,
+          "qty": 1,
+          "description": "FRI-COM-185 - Frigorifero combinato No-Frost",
+          "subtotal": 899
+        }
+      ],
+      "status": "Fatturato",
+      "customerName": "Grand Hotel Bellavista",
+      "date": "2025-11-13"
     }
   ],
+  "supplierDDTs": [],
   "invoices": [
     {
-      "id": 1,
-      "number": "FATT-1",
-      "date": "2025-11-13",
-      "customerId": "6",
+      "summary": {
+        "22": {
+          "imposta": 197.78,
+          "imponibile": 899
+        }
+      },
       "ddts": [
         "1"
       ],
+      "id": "1",
+      "ddtNumbers": [
+        "1"
+      ],
+      "customerId": "6",
+      "date": "2025-11-13",
+      "total": 1096.78,
       "lines": [
         {
-          "description": "FRI-COM-185 - Frigorifero combinato No-Frost",
-          "qty": 1,
+          "productName": "FRI-COM-185 - Frigorifero combinato No-Frost",
           "price": 899,
-          "iva": 22,
-          "imponibile": 899
+          "qty": 1,
+          "description": "FRI-COM-185 - Frigorifero combinato No-Frost",
+          "imponibile": 899,
+          "iva": 22
         }
       ],
-      "summary": {
-        "22": {
-          "imponibile": 899,
-          "imposta": 197.78
-        }
-      },
-      "total": 1096.78
+      "customerName": "Grand Hotel Bellavista",
+      "number": "FATT-1"
     }
   ],
-  "notes": [
-    {
-      "userId": 1,
-      "text": ""
-    }
-  ]
+  "notes": {
+    "1": ""
+  },
+  "settings": {
+    "allowNegativeStock": true,
+    "physicalCounts": {}
+  },
+  "meta": {
+    "updatedAt": 1774186403327
+  },
+  "counters": {
+    "orderCustomer": 29,
+    "ddtCustomer": 1,
+    "ddtSupplier": 0,
+    "invoice": 1,
+    "orderSupplier": 4
+  }
 }

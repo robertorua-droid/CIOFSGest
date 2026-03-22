@@ -134,7 +134,9 @@ fillSelects();
   renderElencoGiacenze();
   renderInventarioFisico();
 
-loadForm?.addEventListener('submit', (e) => {
+  if (loadForm && loadForm.dataset.bound !== '1') {
+    loadForm.dataset.bound = '1';
+    loadForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const id = loadSel?.value;
     const qty = parseFloat(document.getElementById('load-product-qty').value || '0');
@@ -148,9 +150,15 @@ loadForm?.addEventListener('submit', (e) => {
     } catch (err) {
       App.ui.showToast(err.message || 'Errore durante il carico', 'danger');
     }
-  });
+      const qtyInput = document.getElementById('load-product-qty');
+      if (qtyInput) qtyInput.value = '1';
+      if (loadSel) loadSel.value = '';
+    });
+  }
 
-  unloadForm?.addEventListener('submit', (e) => {
+  if (unloadForm && unloadForm.dataset.bound !== '1') {
+    unloadForm.dataset.bound = '1';
+    unloadForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const id = unloadSel?.value;
     const qty = parseFloat(document.getElementById('unload-product-qty').value || '0');
@@ -164,9 +172,15 @@ loadForm?.addEventListener('submit', (e) => {
     } catch (err) {
       App.ui.showToast(err.message || 'Errore durante lo scarico', 'danger');
     }
-  });
+      const qtyInput = document.getElementById('unload-product-qty');
+      if (qtyInput) qtyInput.value = '1';
+      if (unloadSel) unloadSel.value = '';
+    });
+  }
 
-  stockSel?.addEventListener('change', () => {
+  if (stockSel && stockSel.dataset.bound !== '1') {
+    stockSel.dataset.bound = '1';
+    stockSel.addEventListener('change', () => {
     const id = stockSel.value;
     const db = App.db.ensure();
     const p = (db.products || []).find(x => x.id === id);
@@ -175,7 +189,8 @@ loadForm?.addEventListener('submit', (e) => {
     document.getElementById('stock-query-product-name').textContent = `${p.code} - ${p.description}`;
     document.getElementById('stock-query-qty').textContent = p.stockQty || 0;
     document.getElementById('stock-query-location').textContent = [p.locCorsia,p.locScaffale,p.locPiano].filter(Boolean).join('-');
-  });
+    });
+  }
 
   const refreshAll = () => { fillSelects(); renderElencoGiacenze();
   renderInventarioFisico(); };
@@ -186,10 +201,14 @@ loadForm?.addEventListener('submit', (e) => {
     if (sid === 'carico-manuale') {
       loadForm?.reset();
       if (loadSel) loadSel.value = '';
+      const qtyInput = document.getElementById('load-product-qty');
+      if (qtyInput) qtyInput.value = '1';
     }
     if (sid === 'scarico-manuale') {
       unloadForm?.reset();
       if (unloadSel) unloadSel.value = '';
+      const qtyInput = document.getElementById('unload-product-qty');
+      if (qtyInput) qtyInput.value = '1';
     }
     if (sid === 'consultazione-giacenze') {
       if (stockSel) stockSel.value = '';
@@ -206,6 +225,12 @@ loadForm?.addEventListener('submit', (e) => {
     }
   };
   App.events.on('section:changed', (sid) => { resetSection(sid); });
+
+  // default più sicuro per gli input quantità
+  const loadQtyInput = document.getElementById('load-product-qty');
+  const unloadQtyInput = document.getElementById('unload-product-qty');
+  if (loadQtyInput && !loadQtyInput.value) loadQtyInput.value = '1';
+  if (unloadQtyInput && !unloadQtyInput.value) unloadQtyInput.value = '1';
 
 
   App.events.on('logged-in', refreshAll);
