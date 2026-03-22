@@ -18,6 +18,7 @@ export function createDb(events) {
     _syncState: null,
     _syncQueued: null,
     _syncRunning: false,
+    _syncWaiters: [],
 
     load() {
       try {
@@ -173,19 +174,35 @@ export function createDb(events) {
     },
 
     async syncNow() {
-      if (this.getMode() !== 'firebase') return;
+      if (this.getMode() !== 'firebase') return true;
       return this._enqueueSync(this._cache || this.ensure(), true);
     },
 
     _enqueueSync(db, force = false) {
       // Mantieni sempre l'ultima versione da sincronizzare
       this._syncQueued = { snapshot: JSON.parse(JSON.stringify(db)), force };
-      if (this._syncRunning) return;
-      this._syncRunning = true;
-      void this._runSyncLoop();
+      const waiter = new Promise((resolve, reject) => {
+        this._syncWaiters.push({ resolve, reject });
+      });
+      if (!this._syncRunning) {
+        this._syncRunning = true;
+        void this._runSyncLoop();
+      }
+      return waiter;
+    },
+
+    _flushSyncWaiters(error = null) {
+      const waiters = this._syncWaiters.splice(0, this._syncWaiters.length);
+      for (const w of waiters) {
+        try {
+          if (error) w.reject(error);
+          else w.resolve(true);
+        } catch {}
+      }
     },
 
     async _runSyncLoop() {
+      let lastError = null;
       while (this._syncQueued) {
         const { snapshot, force } = this._syncQueued;
         this._syncQueued = null;
@@ -208,12 +225,15 @@ export function createDb(events) {
           this._syncStatus = { state: 'idle', lastError: null, lastSyncedAt: Date.now() };
           try { localStorage.setItem(this._syncTsKey, String(this._syncStatus.lastSyncedAt)); } catch {}
           events?.emit?.('sync:status', this._syncStatus);
+          lastError = null;
         } catch (e) {
-          this._syncStatus = { ...this._syncStatus, state: 'error', lastError: String(e?.message || e) };
+          lastError = e instanceof Error ? e : new Error(String(e?.message || e));
+          this._syncStatus = { ...this._syncStatus, state: 'error', lastError: String(lastError?.message || lastError) };
           events?.emit?.('sync:status', this._syncStatus);
         }
       }
       this._syncRunning = false;
+      this._flushSyncWaiters(lastError);
     }
   };
 }

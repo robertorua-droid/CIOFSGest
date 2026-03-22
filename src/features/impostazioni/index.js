@@ -685,7 +685,7 @@ import { firestoreRepo } from '../../core/firestoreRepo.js';
         try {
           await App.db.syncNow();
           renderSync();
-          App.ui.showToast('Sync avviata.', 'info');
+          App.ui.showToast('Sincronizzazione completata.', 'success');
         } catch (e) {
           App.ui.showToast('Sync fallita: ' + (e?.message || e), 'danger');
         }
@@ -719,17 +719,30 @@ import { firestoreRepo } from '../../core/firestoreRepo.js';
         downloadJson(db, filename);
       });
 
-      // Backup export (da Firebase) - NON modifica i dati locali
+      // Backup export (da Firebase) - forza la sync prima di scaricare
       btnExportFirebase?.addEventListener('click', async () => {
         try {
+          if (App.db.getMode() !== 'firebase') {
+            throw new Error('Attiva prima la modalità Firebase per esportare il backup remoto coerente.');
+          }
+          App.ui.showToast('Sincronizzazione Firebase in corso prima dell'export…', 'info');
+          await App.db.syncNow();
           await App.firebase.init();
           if (!App.firebase.uid) throw new Error('Firebase Auth non disponibile.');
           const repo = (await import('../../core/firestoreRepo.js')).firestoreRepo(App.firebase.fs, App.firebase.getRootPath());
           const remote = await repo.loadAll();
           const norm = normalizeDb(remote);
+          const localNorm = normalizeDb(App.db.ensure());
+          const remoteSummary = summarizeDb(norm);
+          const localSummary = summarizeDb(localNorm);
+          const fields = ['products','customers','suppliers','customerOrders','customerDDTs','invoices','supplierOrders','supplierDDTs','users'];
+          const mismatches = fields.filter((k) => Number(remoteSummary[k] || 0) !== Number(localSummary[k] || 0));
+          if (mismatches.length) {
+            throw new Error('Firebase non allineato ai dati correnti. Differenze in: ' + mismatches.join(', '));
+          }
           const filename = `backup_firebase_${new Date().toISOString().slice(0,10)}.json`;
           downloadJson(norm, filename);
-          App.ui.showToast('Backup esportato da Firebase.', 'success');
+          App.ui.showToast('Backup esportato da Firebase dopo sincronizzazione completata.', 'success');
         } catch (e) {
           App.ui.showToast('Export Firebase fallito: ' + (e?.message || e), 'danger');
         }
