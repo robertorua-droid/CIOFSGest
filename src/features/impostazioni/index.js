@@ -725,7 +725,7 @@ import { firestoreRepo } from '../../core/firestoreRepo.js';
           if (App.db.getMode() !== 'firebase') {
             throw new Error('Attiva prima la modalità Firebase per esportare il backup remoto coerente.');
           }
-          App.ui.showToast('Sincronizzazione Firebase in corso prima dell'export…', 'info');
+          App.ui.showToast("Sincronizzazione Firebase in corso prima dell'export…", "info");
           await App.db.syncNow();
           await App.firebase.init();
           if (!App.firebase.uid) throw new Error('Firebase Auth non disponibile.');
