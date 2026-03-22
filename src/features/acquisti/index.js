@@ -2,11 +2,24 @@
 import { App } from '../../core/app.js';
 import { adjustStockBatch } from '../../domain/inventory.service.js';
 
-  const Fornitori = {
+  const canDeleteDocs = () => {
+  const role = App.currentUser?.role || 'User';
+  return role === 'Supervisor' || role === 'Admin';
+};
+
+const recomputeSupplierOrderStatus = (order) => {
+  const lines = order?.lines || [];
+  const allReceived = lines.length > 0 && lines.every(l => Number(l.receivedQty || 0) >= Number(l.qty || 0));
+  const anyReceived = lines.some(l => Number(l.receivedQty || 0) > 0);
+  order.status = allReceived ? 'Completato' : (anyReceived ? 'Parzialmente Ricevuto' : 'Inviato');
+};
+
+const Fornitori = {
     renderOrders() {
       const db = App.db.ensure();
       const tbody = document.getElementById('supplier-orders-table-body');
       if (!tbody) return;
+      const canDelete = canDeleteDocs();
       tbody.innerHTML = (db.supplierOrders || []).map(o => `
         <tr>
           <td>${o.number}</td>
@@ -16,6 +29,7 @@ import { adjustStockBatch } from '../../domain/inventory.service.js';
           <td>${o.status || 'Inviato'}</td>
           <td class="text-end">
             <button class="btn btn-sm btn-outline-primary" data-action="view" data-num="${o.number}">Visualizza</button>
+            ${canDelete ? `<button class="btn btn-sm btn-outline-danger ms-1" data-action="delete-order" data-num="${o.number}"><i class="fas fa-trash-alt"></i></button>` : ''}
           </td>
         </tr>
       `).join('');
@@ -147,15 +161,35 @@ import { adjustStockBatch } from '../../domain/inventory.service.js';
       if (tbody.dataset.wiredView === '1') return;
       tbody.dataset.wiredView = '1';
 
+      const deleteOrder = (orderNumber) => {
+        if (!canDeleteDocs()) return App.ui.showToast('Permesso negato: serve ruolo Supervisor.', 'warning');
+        const order = (db.supplierOrders || []).find(x => x.number === orderNumber);
+        if (!order) return;
+        const hasDDT = (db.supplierDDTs || []).some(d => d.orderNumber === order.number);
+        if (hasDDT) {
+          return App.ui.showToast('Impossibile eliminare: esistono DDT collegati a questo ordine.', 'warning');
+        }
+        if (!confirm(`Eliminare l'ordine ${order.number}?`)) return;
+        const idx = (db.supplierOrders || []).findIndex(x => x.number === order.number);
+        if (idx >= 0) db.supplierOrders.splice(idx, 1);
+        App.db.save(db);
+        Fornitori.renderOrders();
+        App.ui.showToast('Ordine eliminato', 'success');
+        try { bootstrap.Modal.getOrCreateInstance(document.getElementById('supplierOrderDetailModal')).hide(); } catch {}
+      };
+
       tbody.addEventListener('click', (e) => {
         const btn = e.target.closest('button[data-action]'); if (!btn) return;
-        if (btn.getAttribute('data-action') !== 'view') return;
+        const action = btn.getAttribute('data-action');
         const num = btn.getAttribute('data-num');
+        if (action === 'delete-order') return deleteOrder(num);
+        if (action !== 'view') return;
         const o = (db.supplierOrders || []).find(x => x.number === num);
         if (!o) return;
 
         const title = document.getElementById('supplierOrderDetailModalTitle');
         const body = document.getElementById('supplierOrderDetailModalBody');
+        const delBtn = document.getElementById('delete-supplier-order-btn');
         if (title) title.textContent = `Dettaglio Ordine Fornitore ${o.number}`;
 
         let html = `<div class="mb-2"><strong>Fornitore:</strong> ${o.supplierName || ''}</div>`;
@@ -189,6 +223,12 @@ import { adjustStockBatch } from '../../domain/inventory.service.js';
         html += `</tbody></table>`;
 
         if (body) body.innerHTML = html;
+        if (delBtn) {
+          const hasDDT = (db.supplierDDTs || []).some(d => d.orderNumber === o.number);
+          delBtn.classList.toggle('d-none', !canDeleteDocs());
+          delBtn.disabled = hasDDT;
+          delBtn.onclick = () => deleteOrder(o.number);
+        }
 
         try { bootstrap.Modal.getOrCreateInstance(document.getElementById('supplierOrderDetailModal')).show(); } catch {}
       });
@@ -203,15 +243,56 @@ import { adjustStockBatch } from '../../domain/inventory.service.js';
       if (tbody.dataset.wiredDetail === '1') return;
       tbody.dataset.wiredDetail = '1';
 
+      const deleteSupplierDDT = (num) => {
+        if (!canDeleteDocs()) return App.ui.showToast('Permesso negato: serve ruolo Supervisor.', 'warning');
+        const ddt = (db.supplierDDTs || []).find(x => x.number === num);
+        if (!ddt) return;
+        if (!confirm(`Eliminare il DDT fornitore ${ddt.number}?`)) return;
+
+        const order = (db.supplierOrders || []).find(o => o.number === ddt.orderNumber);
+        if (order) {
+          (ddt.lines || []).forEach(dl => {
+            const line = (order.lines || []).find(l => String(l.productId || '') === String(dl.productId || ''))
+              || (order.lines || []).find(l => String(l.productName || l.description || '') === String(dl.description || ''));
+            if (line) line.receivedQty = Math.max(0, Number(line.receivedQty || 0) - Number(dl.qty || 0));
+          });
+          recomputeSupplierOrderStatus(order);
+        }
+
+        try {
+          const restoreChanges = (ddt.lines || []).map(dl => {
+            const pid = dl.productId || (db.products || []).find(pp => String(pp.description || '') === String(dl.description || ''))?.id;
+            const q = Number(dl.qty || 0);
+            return pid && q ? { productId: pid, delta: -q } : null;
+          }).filter(Boolean);
+          if (restoreChanges.length) {
+            adjustStockBatch(restoreChanges, { reason: 'CANCELLA_DDT_FORNITORE', ref: ddt.number });
+          }
+        } catch (err) {
+          return App.ui.showToast((err && err.message) ? err.message : 'Ripristino magazzino non completato', 'warning');
+        }
+
+        const idx = (db.supplierDDTs || []).findIndex(x => x.number === num);
+        if (idx >= 0) db.supplierDDTs.splice(idx, 1);
+        App.db.save(db);
+        Fornitori.renderOrders();
+        Fornitori.renderDDTs();
+        App.ui.showToast('DDT fornitore eliminato', 'success');
+        try { bootstrap.Modal.getOrCreateInstance(document.getElementById('supplierDdtDetailModal')).hide(); } catch {}
+      };
+
       tbody.addEventListener('click', (e) => {
         const btn = e.target.closest('button[data-action]'); if (!btn) return;
-        if (btn.getAttribute('data-action') !== 'view-supplier-ddt') return;
+        const action = btn.getAttribute('data-action');
         const num = btn.getAttribute('data-num');
+        if (action === 'del-supplier-ddt') return deleteSupplierDDT(num);
+        if (action !== 'view-supplier-ddt') return;
         const d = (db.supplierDDTs || []).find(x => x.number === num);
         if (!d) return;
 
         const title = document.getElementById('supplierDdtDetailModalTitle');
         const body = document.getElementById('supplierDdtDetailModalBody');
+        const delBtn = document.getElementById('delete-supplier-ddt-btn');
         if (title) title.textContent = `Dettaglio DDT Fornitore ${d.number}`;
 
         const dest = d.customerName || (db.company?.name || 'Nostra Sede');
@@ -227,6 +308,11 @@ import { adjustStockBatch } from '../../domain/inventory.service.js';
         html += `</tbody></table>`;
 
         if (body) body.innerHTML = html;
+        if (delBtn) {
+          delBtn.classList.toggle('d-none', !canDeleteDocs());
+          delBtn.disabled = false;
+          delBtn.onclick = () => deleteSupplierDDT(d.number);
+        }
 
         try { bootstrap.Modal.getOrCreateInstance(document.getElementById('supplierDdtDetailModal')).show(); } catch {}
       });
@@ -236,6 +322,7 @@ import { adjustStockBatch } from '../../domain/inventory.service.js';
       const db = App.db.ensure();
       const tbody = document.getElementById('supplier-ddts-table-body');
       if (!tbody) return;
+      const canDelete = canDeleteDocs();
       tbody.innerHTML = (db.supplierDDTs || []).map(d => `
         <tr>
           <td>${d.number}</td>
@@ -245,6 +332,7 @@ import { adjustStockBatch } from '../../domain/inventory.service.js';
           <td>${d.orderNumber}</td>
           <td class="text-end">
             <button class="btn btn-sm btn-outline-primary" data-action="view-supplier-ddt" data-num="${d.number}">Dettaglio</button>
+            ${canDelete ? `<button class="btn btn-sm btn-outline-danger ms-1" data-action="del-supplier-ddt" data-num="${d.number}"><i class="fas fa-trash-alt"></i></button>` : ''}
           </td>
         </tr>
       `).join('');
@@ -338,9 +426,7 @@ import { adjustStockBatch } from '../../domain/inventory.service.js';
           const line = order.lines[s.i];
           line.receivedQty = (line.receivedQty || 0) + s.qty;
         });
-        const allReceived = order.lines.every(l => (l.receivedQty||0) >= (l.qty||0));
-        const anyReceived = order.lines.some(l => (l.receivedQty||0) > 0 && (l.receivedQty||0) < (l.qty||0));
-        order.status = allReceived ? 'Completato' : (anyReceived ? 'Parzialmente Ricevuto' : 'Inviato');
+        recomputeSupplierOrderStatus(order);
 
         // Create inbound DDT
         const newDDT = {

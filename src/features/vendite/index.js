@@ -2,11 +2,32 @@
 import { App } from '../../core/app.js';
 import { adjustStockBatch } from '../../domain/inventory.service.js';
 
-  const Clienti = {
+  const canDeleteDocs = () => {
+  const role = App.currentUser?.role || 'User';
+  return role === 'Supervisor' || role === 'Admin';
+};
+
+const recomputeCustomerOrderStatus = (order) => {
+  const lines = order?.lines || [];
+  const allShipped = lines.length > 0 && lines.every(l => Number(l.shippedQty || 0) >= Number(l.qty || 0));
+  const anyShipped = lines.some(l => Number(l.shippedQty || 0) > 0);
+  order.status = allShipped ? 'Evaso' : (anyShipped ? 'Parzialmente Evaso' : 'In lavorazione');
+};
+
+
+const findLinkedInvoiceForDDT = (db, ddtNumber) => {
+  return (db?.invoices || []).find(inv => {
+    const linked = inv?.ddtNumbers || inv?.ddts || [];
+    return Array.isArray(linked) && linked.includes(ddtNumber);
+  }) || null;
+};
+
+const Clienti = {
     renderOrders() {
       const db = App.db.ensure();
       const tbody = document.getElementById('customer-orders-table-body');
       if (!tbody) return;
+      const canDelete = canDeleteDocs();
       tbody.innerHTML = (db.customerOrders || []).map(o => `
         <tr>
           <td>${o.number}</td>
@@ -16,6 +37,7 @@ import { adjustStockBatch } from '../../domain/inventory.service.js';
           <td>${o.status || 'In lavorazione'}</td>
           <td class="text-end">
             <button class="btn btn-sm btn-outline-primary" data-action="view" data-num="${o.number}">Visualizza</button>
+            ${canDelete ? `<button class="btn btn-sm btn-outline-danger ms-1" data-action="delete-order" data-num="${o.number}"><i class="fas fa-trash-alt"></i></button>` : ''}
           </td>
         </tr>
       `).join('');
@@ -146,10 +168,29 @@ dateEl.value = App.utils.todayISO();
       if (tbody.dataset.wiredView === '1') return;
       tbody.dataset.wiredView = '1';
 
+      const deleteOrder = (orderNumber) => {
+        if (!canDeleteDocs()) return App.ui.showToast('Permesso negato: serve ruolo Supervisor.', 'warning');
+        const order = (db.customerOrders || []).find(x => x.number === orderNumber);
+        if (!order) return;
+        const hasDDT = (db.customerDDTs || []).some(d => d.orderNumber === order.number);
+        if (hasDDT) {
+          return App.ui.showToast('Impossibile eliminare: esistono DDT collegati a questo ordine.', 'warning');
+        }
+        if (!confirm(`Eliminare l'ordine ${order.number}?`)) return;
+        const idx = (db.customerOrders || []).findIndex(x => x.number === order.number);
+        if (idx >= 0) db.customerOrders.splice(idx, 1);
+        App.db.save(db);
+        Clienti.renderOrders();
+        App.ui.showToast('Ordine eliminato', 'success');
+        try { bootstrap.Modal.getOrCreateInstance(document.getElementById('customerOrderDetailModal')).hide(); } catch {}
+      };
+
       tbody.addEventListener('click', (e) => {
         const btn = e.target.closest('button[data-action]'); if (!btn) return;
-        if (btn.getAttribute('data-action') !== 'view') return;
+        const action = btn.getAttribute('data-action');
         const num = btn.getAttribute('data-num');
+        if (action === 'delete-order') return deleteOrder(num);
+        if (action !== 'view') return;
         const o = (db.customerOrders || []).find(x => x.number === num);
         if (!o) return;
 
@@ -192,24 +233,11 @@ dateEl.value = App.utils.todayISO();
 
         if (body) body.innerHTML = html;
 
-        // Delete order (only if no DDT exists for it)
         if (delBtn) {
-          delBtn.disabled = false;
-          delBtn.onclick = () => {
-            const hasDDT = (db.customerDDTs || []).some(d => d.orderNumber === o.number);
-            if (hasDDT) {
-              return App.ui.showToast('Impossibile eliminare: esistono DDT collegati a questo ordine.', 'warning');
-            }
-            if (!confirm(`Eliminare l'ordine ${o.number}?`)) return;
-
-            const idx = (db.customerOrders || []).findIndex(x => x.number === o.number);
-            if (idx >= 0) db.customerOrders.splice(idx, 1);
-            App.db.save(db);
-            Clienti.renderOrders();
-            App.ui.showToast('Ordine eliminato', 'success');
-
-            try { bootstrap.Modal.getOrCreateInstance(document.getElementById('customerOrderDetailModal')).hide(); } catch {}
-          };
+          const hasDDT = (db.customerDDTs || []).some(d => d.orderNumber === o.number);
+          delBtn.classList.toggle('d-none', !canDeleteDocs());
+          delBtn.disabled = hasDDT;
+          delBtn.onclick = () => deleteOrder(o.number);
         }
 
         try { bootstrap.Modal.getOrCreateInstance(document.getElementById('customerOrderDetailModal')).show(); } catch {}
@@ -220,7 +248,11 @@ dateEl.value = App.utils.todayISO();
       const db = App.db.ensure();
       const tbody = document.getElementById('customer-ddts-table-body');
       if (!tbody) return;
-      tbody.innerHTML = (db.customerDDTs || []).map(d => `
+      const canDelete = canDeleteDocs();
+      tbody.innerHTML = (db.customerDDTs || []).map(d => {
+        const linkedInvoice = findLinkedInvoiceForDDT(db, d.number);
+        const canDeleteThis = canDelete && !linkedInvoice && d.status !== 'Fatturato';
+        return `
         <tr>
           <td>${d.number}</td>
           <td>${d.date}</td>
@@ -229,10 +261,10 @@ dateEl.value = App.utils.todayISO();
           <td>${d.status || 'Da Fatturare'}</td>
           <td class="text-end">
             <button class="btn btn-sm btn-outline-primary" data-action="view-ddt" data-num="${d.number}">Dettaglio</button>
-            ${d.status === 'Fatturato' ? '' : '<button class="btn btn-sm btn-outline-danger ms-1" data-action="del-ddt" data-num="'+d.number+'"><i class="fas fa-trash-alt"></i></button>'}
+            ${canDeleteThis ? '<button class="btn btn-sm btn-outline-danger ms-1" data-action="del-ddt" data-num="'+d.number+'"><i class="fas fa-trash-alt"></i></button>' : ''}
           </td>
         </tr>
-      `).join('');
+      `;}).join('');
     },
 
     initNewDDT() {
@@ -398,6 +430,17 @@ dateEl.value = App.utils.todayISO();
           d.lines.forEach(l => { html += `<tr><td>${l.description}</td><td class="text-end">${l.qty}</td></tr>`; });
           html += `</tbody></table>`;
           body.innerHTML = html;
+          const delBtn = document.getElementById('delete-customer-ddt-btn');
+          if (delBtn) {
+            const linkedInvoice = findLinkedInvoiceForDDT(db, d.number);
+            delBtn.classList.toggle('d-none', !canDeleteDocs());
+            delBtn.disabled = !!linkedInvoice || d.status === 'Fatturato';
+            delBtn.onclick = () => {
+              if (delBtn.disabled) return;
+              const actionBtn = tbody.querySelector(`button[data-action="del-ddt"][data-num="${d.number}"]`);
+              if (actionBtn) actionBtn.click();
+            };
+          }
           try { bootstrap.Modal.getOrCreateInstance(document.getElementById('ddtDetailModal')).show(); } catch {}
           // Print
           document.getElementById('print-ddt-btn')?.addEventListener('click', () => {
@@ -416,7 +459,9 @@ dateEl.value = App.utils.todayISO();
           }, { once: true });
         } else if (btn.getAttribute('data-action') === 'del-ddt') {
           const ddt = (db.customerDDTs||[]).find(x=>x.number===num); if (!ddt) return;
-          if (ddt.status === 'Fatturato') return App.ui.showToast('DDT già fatturato: non eliminabile.', 'warning');
+          if (!canDeleteDocs()) return App.ui.showToast('Permesso negato: serve ruolo Supervisor.', 'warning');
+          const linkedInvoice = findLinkedInvoiceForDDT(db, ddt.number);
+          if (linkedInvoice || ddt.status === 'Fatturato') return App.ui.showToast(`DDT collegato alla fattura ${linkedInvoice?.number || ddt.invoiceNumber || ''}: non eliminabile.`, 'warning');
           if (!confirm(`Eliminare il DDT ${ddt.number}?`)) return;
           // rollback stock and order shippedQty
           const order = (db.customerOrders||[]).find(o=>o.number===ddt.orderNumber);
@@ -441,9 +486,7 @@ dateEl.value = App.utils.todayISO();
             } catch (err) {
               App.ui.showToast((err && err.message) ? err.message : 'Ripristino stock non completato', 'warning');
             }
-            const allShipped = order.lines.every(l => (l.shippedQty||0) >= (l.qty||0));
-            const anyShipped = order.lines.some(l => (l.shippedQty||0) > 0 && (l.shippedQty||0) < (l.qty||0));
-            order.status = allShipped ? 'Evaso' : (anyShipped ? 'Parzialmente Evaso' : 'In lavorazione');
+            recomputeCustomerOrderStatus(order);
           }
           // delete ddt
           const idx = (db.customerDDTs||[]).findIndex(x=>x.number===num);
@@ -674,6 +717,7 @@ dateEl.value = App.utils.todayISO();
       const db = App.db.ensure();
       const tbody = document.getElementById('invoices-table-body');
       if (!tbody) return;
+      const canDelete = canDeleteDocs();
       tbody.innerHTML = (db.invoices || []).map(f => `
         <tr>
           <td>${f.number}</td>
@@ -682,7 +726,7 @@ dateEl.value = App.utils.todayISO();
           <td class="text-end">${App.utils.fmtMoney(f.total || 0)}</td>
           <td class="text-end">
             <button class="btn btn-sm btn-outline-primary" data-action="view-invoice" data-num="${f.number}">Dettaglio</button>
-            <button class="btn btn-sm btn-outline-danger ms-1" data-action="del-invoice" data-num="${f.number}"><i class="fas fa-trash-alt"></i></button>
+            ${canDelete ? `<button class="btn btn-sm btn-outline-danger ms-1" data-action="del-invoice" data-num="${f.number}"><i class="fas fa-trash-alt"></i></button>` : ''}
           </td>
         </tr>
       `).join('');
@@ -722,13 +766,20 @@ dateEl.value = App.utils.todayISO();
             }, { once: true });
           } else if (btn.getAttribute('data-action') === 'del-invoice') {
             const inv = (db.invoices||[]).find(x=>x.number===num); if (!inv) return;
+            if (!canDeleteDocs()) return App.ui.showToast('Permesso negato: serve ruolo Supervisor.', 'warning');
             if (!confirm(`Eliminare la fattura ${inv.number}?`)) return;
             // rollback ddt state
-            (db.customerDDTs||[]).forEach(d => { if ((inv.ddtNumbers || inv.ddts || []).includes(d.number)) d.status = 'Da Fatturare'; });
+            (db.customerDDTs||[]).forEach(d => {
+              if ((inv.ddtNumbers || inv.ddts || []).includes(d.number)) {
+                d.status = 'Da Fatturare';
+                delete d.invoiceNumber;
+              }
+            });
             const idx = (db.invoices||[]).findIndex(x=>x.number===num);
             if (idx >= 0) db.invoices.splice(idx,1);
             App.db.save(db);
             Clienti.renderInvoices();
+            Clienti.renderDDTs();
             App.ui.showToast('Fattura eliminata', 'success');
           }
         });
