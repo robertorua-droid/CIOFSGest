@@ -1,5 +1,6 @@
 import { firebase } from './firebase.js';
 import { config } from './config.js';
+import { firestoreRepo } from './firestoreRepo.js';
 
 import {
   collection,
@@ -8,6 +9,7 @@ import {
   getDocs,
   setDoc,
   updateDoc,
+  deleteDoc,
   writeBatch,
   serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js';
@@ -103,5 +105,24 @@ export const userDirectory = {
     const ref = doc(firebase.fs, `appUsers/${uid}`);
     const safe = { ...(patch || {}), updatedAt: serverTimestamp() };
     await updateDoc(ref, safe);
-  }
+  },
+
+
+  async deleteProfile(uid) {
+    await firebase.init();
+    if (!uid) throw new Error('uid mancante');
+    await deleteDoc(doc(firebase.fs, `appUsers/${uid}`));
+  },
+
+  async wipeUserData(uid) {
+    await firebase.init();
+    if (!uid) throw new Error('uid mancante');
+    const repo = firestoreRepo(firebase.fs, `users/${uid}`);
+    await repo.wipeAll();
+  },
+
+  async wipeUserDataAndProfile(uid) {
+    await this.wipeUserData(uid);
+    await this.deleteProfile(uid);
+  },
 };

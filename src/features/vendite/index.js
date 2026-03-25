@@ -281,6 +281,7 @@ dateEl.value = App.utils.todayISO();
       const ddtNum = document.getElementById('ddt-number');
       const ddtDate = document.getElementById('ddt-date');
       const tbody = document.getElementById('ddt-products-tbody');
+      const notesEl = document.getElementById('ddt-notes');
 
             const fillOpenOrders = () => {
         const curDb = App.db.ensure();
@@ -295,7 +296,7 @@ dateEl.value = App.utils.todayISO();
         form.reset();
         if (details) details.classList.add('d-none');
         if (tbody) tbody.innerHTML = '';
-        try { custName.value = ''; ddtNum.value = ''; ddtDate.value = ''; } catch {}
+        try { custName.value = ''; ddtNum.value = ''; ddtDate.value = ''; if (notesEl) notesEl.value = ''; } catch {}
         fillOpenOrders();
       };
       App.events.on('section:changed', (sid) => {
@@ -395,6 +396,7 @@ dateEl.value = App.utils.todayISO();
           customerId: order.customerId,
           customerName: order.customerName,
           orderNumber: order.number,
+          notes: (notesEl?.value || '').trim(),
           lines: shipLines.map(s => {
             const l = order.lines[s.i];
             return { productId: l.productId, description: l.productName, qty: s.qty, price: l.price, iva: 22 };
@@ -428,6 +430,7 @@ dateEl.value = App.utils.todayISO();
           let html = `<div class="mb-2"><strong>Cliente:</strong> ${d.customerName}</div>`;
           html += `<div class="mb-2"><strong>Data:</strong> ${d.date}</div>`;
           html += `<div class="mb-2"><strong>Riferimento Ordine:</strong> ${d.orderNumber}</div>`;
+          if (d.notes) html += `<div class="mb-3"><strong>Note:</strong><br>${String(d.notes).replace(/\n/g,'<br>')}</div>`;
           html += `<table class="table table-sm"><thead><tr><th>Descrizione</th><th class="text-end">Qtà</th></tr></thead><tbody>`;
           d.lines.forEach(l => { html += `<tr><td>${l.description}</td><td class="text-end">${l.qty}</td></tr>`; });
           html += `</tbody></table>`;

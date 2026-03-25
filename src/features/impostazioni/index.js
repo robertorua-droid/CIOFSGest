@@ -65,7 +65,11 @@ import { firestoreRepo } from '../../core/firestoreRepo.js';
 
       const isFirebaseMode = (App.db.getMode?.() === 'firebase');
       const currentRole = App.currentUser?.role || 'User';
+      const currentEmailLc = String(App.currentUser?.email || '').toLowerCase();
+      const primarySupervisorEmails = (App.config?.SUPERVISOR_EMAILS || []).map(e => String(e).toLowerCase());
+      const isPrimarySupervisor = (currentRole === 'Supervisor' || currentRole === 'Admin') && primarySupervisorEmails.includes(currentEmailLc);
       const canManageFirebaseUsers = (currentRole === 'Supervisor' || currentRole === 'Admin');
+      const canWipeFirebaseUsers = isPrimarySupervisor;
 
       const setModalMode = (mode) => {
         form.dataset.mode = mode;
@@ -187,8 +191,29 @@ import { firestoreRepo } from '../../core/firestoreRepo.js';
               document.getElementById('user-fb-surname').value = u.surname || '';
               document.getElementById('user-role').value = u.role || 'User';
               try { bootstrap.Modal.getOrCreateInstance(modal).show(); } catch {}
-            } else if (action === 'del') {
-              App.ui.showToast('Per sicurezza: la cancellazione utenti Firebase non è abilitata dall’app.', 'warning');
+            } else if (action === 'wipe-data' || action === 'wipe-all') {
+              if (!canWipeFirebaseUsers) return App.ui.showToast('Operazione riservata al docente principale configurato.', 'warning');
+              const uid = id;
+              const u = firebaseUsersCache.find(x => x.uid === uid || x.id === uid);
+              if (!u) return;
+              const meUid = App.firebase?.uid;
+              const emailLc = String(u.email || '').toLowerCase();
+              if (meUid && uid === meUid) return App.ui.showToast('Non puoi cancellare i tuoi dati da questa schermata.', 'warning');
+              if (primarySupervisorEmails.includes(emailLc)) return App.ui.showToast('Il docente principale è protetto e non può essere eliminato da questa schermata.', 'warning');
+              const what = (action === 'wipe-all') ? 'eliminare profilo e dati Firebase' : 'eliminare tutti i dati Firebase dell’utente';
+              if (!confirm(`Confermi di ${what} per ${u.email || uid}? Operazione irreversibile.`)) return;
+              const typed = String(window.prompt('Per confermare l’operazione irreversibile, scrivi CONFERMA', '') || '').trim();
+              if (typed !== 'CONFERMA') {
+                return App.ui.showToast('Operazione annullata: conferma non valida.', 'info');
+              }
+              try {
+                if (action === 'wipe-all') await App.userDirectory.wipeUserDataAndProfile(uid);
+                else await App.userDirectory.wipeUserData(uid);
+                App.ui.showToast(action === 'wipe-all' ? 'Profilo e dati utente eliminati su Firebase.' : 'Dati utente eliminati su Firebase.', 'success');
+                await renderFirebaseUsers();
+              } catch (e) {
+                App.ui.showToast('Operazione fallita: ' + (e?.message || e), 'danger');
+              }
             }
             return;
           }
@@ -240,7 +265,7 @@ import { firestoreRepo } from '../../core/firestoreRepo.js';
 
       const renderFirebaseUsers = async () => {
         if (theadRow) theadRow.innerHTML = '<th class="text-center" style="width:36px"><input class="form-check-input" type="checkbox" id="users-select-all"></th><th>UID</th><th>Email</th><th>Nome</th><th>Cognome</th><th>Ruolo</th><th class="text-end">Azioni</th>';
-        if (infoP) infoP.innerHTML = 'Gli account vengono creati dalla schermata <strong>Registrati</strong>. In elenco compaiono gli utenti che hanno effettuato almeno un accesso (profilo <code>appUsers</code>). Qui puoi gestire i <strong>ruoli</strong> (solo Supervisor).';
+        if (infoP) infoP.innerHTML = 'Gli account vengono creati dalla schermata <strong>Registrati</strong>. In elenco compaiono gli utenti che hanno effettuato almeno un accesso (profilo <code>appUsers</code>). Qui puoi gestire i <strong>ruoli</strong>. Le azioni di <strong>drop dati</strong> ed <strong>eliminazione profilo</strong> su Firebase sono riservate al solo docente principale configurato.';
         // Bulk actions toolbar (multi-select)
         let bulkBar = document.getElementById('users-bulk-actions');
         if (!bulkBar && section) {
@@ -307,6 +332,8 @@ import { firestoreRepo } from '../../core/firestoreRepo.js';
                   return `<button class=\"btn btn-outline-warning\" data-action=\"demote\" data-id=\"${u.uid || u.id}\">Riporta a User</button>`;
                 })()}
                 <button class="btn btn-outline-primary" data-action="edit" data-id="${u.uid || u.id}">Modifica</button>
+                ${canWipeFirebaseUsers ? `<button class="btn btn-outline-danger" data-action="wipe-data" data-id="${u.uid || u.id}" ${App.firebase?.uid && String(u.uid || u.id) === String(App.firebase.uid) ? 'disabled title="Non puoi cancellare i tuoi dati da qui"' : ''} ${primarySupervisorEmails.includes(String(u.email || '').toLowerCase()) ? 'disabled title="Il docente principale è protetto"' : ''}>Drop dati</button>
+                <button class="btn btn-outline-dark" data-action="wipe-all" data-id="${u.uid || u.id}" ${App.firebase?.uid && String(u.uid || u.id) === String(App.firebase.uid) ? 'disabled title="Non puoi eliminare il tuo profilo da qui"' : ''} ${primarySupervisorEmails.includes(String(u.email || '').toLowerCase()) ? 'disabled title="Il docente principale è protetto"' : ''}>Elimina profilo</button>` : ''}
               </div>
             </td>
           </tr>`).join('');

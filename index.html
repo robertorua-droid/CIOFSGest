@@ -351,6 +351,10 @@
 <thead><tr><th>Prodotto</th><th>Qtà Ordinata</th><th>Qtà Residua</th><th><strong>Qtà da Spedire</strong></th></tr></thead>
 <tbody id="ddt-products-tbody"></tbody>
 </table>
+<div class="mb-3">
+<label class="form-label" for="ddt-notes">Note / Annotazioni</label>
+<textarea class="form-control" id="ddt-notes" rows="3" placeholder="Inserisci eventuali annotazioni didattiche o note di spedizione..."></textarea>
+</div>
 <button class="btn btn-primary" type="submit">Genera DDT</button>
 </div>
 </form>
@@ -460,6 +464,24 @@
 <thead><tr><th>Prodotto</th><th>Qtà Ordinata</th><th>Qtà Residua</th><th><strong>Qtà Ricevuta</strong></th></tr></thead>
 <tbody id="ddt-supplier-products-tbody"></tbody>
 </table>
+<div class="row">
+  <div class="col-md-4 mb-3">
+    <div class="form-check mt-2">
+      <input class="form-check-input" id="ddt-supplier-with-reserve" type="checkbox"/>
+      <label class="form-check-label" for="ddt-supplier-with-reserve">Ricezione merce con riserva</label>
+    </div>
+  </div>
+  <div class="col-md-4 mb-3">
+    <div class="form-check mt-2">
+      <input class="form-check-input" id="ddt-supplier-refused" type="checkbox"/>
+      <label class="form-check-label" for="ddt-supplier-refused">Merce rifiutata</label>
+    </div>
+  </div>
+</div>
+<div class="mb-3">
+  <label class="form-label" for="ddt-supplier-notes">Annotazioni</label>
+  <textarea class="form-control" id="ddt-supplier-notes" rows="3" placeholder="Annotazioni su riserva, rifiuto o non conformità..."></textarea>
+</div>
 <button class="btn btn-primary" type="submit">Registra Merce in Entrata</button>
 </div>
 </form>
