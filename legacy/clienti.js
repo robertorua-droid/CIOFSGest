@@ -186,7 +186,7 @@
         });
         // recompute status
         const allShipped = order.lines.every(l => (l.shippedQty||0) >= (l.qty||0));
-        const anyShipped = order.lines.some(l => (l.shippedQty||0) > 0 && (l.shippedQty||0) < (l.qty||0));
+        const anyShipped = order.lines.some(l => (l.shippedQty||0) > 0);
         order.status = allShipped ? 'Evaso' : (anyShipped ? 'Parzialmente Evaso' : 'In lavorazione');
 
         // Create DDT
