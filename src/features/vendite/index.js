@@ -136,6 +136,7 @@ dateEl.value = App.utils.todayISO();
         const cust = (db.customers||[]).find(x=>x.id===custSel.value);
         if (!cust || tmp.length===0) return App.ui.showToast('Seleziona cliente e aggiungi almeno una riga.', 'warning');
         const order = {
+          id: App.utils.uuid(),
           number: numEl.value,
           date: dateEl.value,
           customerId: cust.id,
@@ -249,25 +250,22 @@ dateEl.value = App.utils.todayISO();
       const tbody = document.getElementById('customer-ddts-table-body');
       if (!tbody) return;
       const canDelete = canDeleteDocs();
-      const rows = (db.customerDDTs || []).map(raw => {
-        const d = raw || {};
-        const number = String(d.number || '');
-        const linkedInvoice = number ? findLinkedInvoiceForDDT(db, number) : null;
-        const canDeleteThis = !!(canDelete && number && !linkedInvoice && d.status !== 'Fatturato');
+      tbody.innerHTML = (db.customerDDTs || []).map(d => {
+        const linkedInvoice = findLinkedInvoiceForDDT(db, d.number);
+        const canDeleteThis = canDelete && !linkedInvoice && d.status !== 'Fatturato';
         return `
         <tr>
-          <td>${number}</td>
-          <td>${d.date || ''}</td>
-          <td>${d.customerName || ''}</td>
-          <td>${d.orderNumber || ''}</td>
+          <td>${d.number}</td>
+          <td>${d.date}</td>
+          <td>${d.customerName}</td>
+          <td>${d.orderNumber}</td>
           <td>${d.status || 'Da Fatturare'}</td>
           <td class="text-end">
-            <button class="btn btn-sm btn-outline-primary" data-action="view-ddt" data-num="${number}">Dettaglio</button>
-            ${canDeleteThis ? `<button class="btn btn-sm btn-outline-danger ms-1" data-action="del-ddt" data-num="${number}"><i class="fas fa-trash-alt"></i></button>` : ''}
+            <button class="btn btn-sm btn-outline-primary" data-action="view-ddt" data-num="${d.number}">Dettaglio</button>
+            ${canDeleteThis ? '<button class="btn btn-sm btn-outline-danger ms-1" data-action="del-ddt" data-num="'+d.number+'"><i class="fas fa-trash-alt"></i></button>' : ''}
           </td>
-        </tr>`;
-      });
-      tbody.innerHTML = rows.join('');
+        </tr>
+      `;}).join('');
     },
 
     initNewDDT() {
@@ -385,10 +383,13 @@ dateEl.value = App.utils.todayISO();
         });
 
         // recompute status
-        recomputeCustomerOrderStatus(order);
+        const allShipped = order.lines.every(l => (l.shippedQty||0) >= (l.qty||0));
+        const anyShipped = order.lines.some(l => (l.shippedQty||0) > 0 && (l.shippedQty||0) < (l.qty||0));
+        order.status = allShipped ? 'Evaso' : (anyShipped ? 'Parzialmente Evaso' : 'In lavorazione');
 
         // Create DDT
         const newDDT = {
+          id: App.utils.uuid(),
           number: ddtNum.value,
           date: ddtDate.value,
           customerId: order.customerId,
@@ -688,6 +689,7 @@ dateEl.value = App.utils.todayISO();
         const total = subtotal + ivaTotal;
 
         const invoice = {
+          id: App.utils.uuid(),
           number: invoiceNumber,
           date: invDate,
           customerId: cust.id,

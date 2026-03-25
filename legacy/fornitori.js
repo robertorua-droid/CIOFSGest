@@ -78,6 +78,7 @@
         const sup = (db.suppliers||[]).find(x=>x.id===supSel.value);
         if (!sup || tmp.length===0) return App.ui.showToast('Seleziona fornitore e aggiungi almeno una riga.', 'warning');
         const order = {
+          id: App.utils.uuid(),
           number: numEl.value,
           date: dateEl.value,
           supplierId: sup.id,
@@ -180,6 +181,7 @@
 
         // Create inbound DDT
         const newDDT = {
+          id: App.utils.uuid(),
           number: ddtNum.value,
           date: ddtDate.value,
           supplierId: order.supplierId,

@@ -82,6 +82,7 @@
         const cust = (db.customers||[]).find(x=>x.id===custSel.value);
         if (!cust || tmp.length===0) return App.ui.showToast('Seleziona cliente e aggiungi almeno una riga.', 'warning');
         const order = {
+          id: App.utils.uuid(),
           number: numEl.value,
           date: dateEl.value,
           customerId: cust.id,
@@ -186,11 +187,12 @@
         });
         // recompute status
         const allShipped = order.lines.every(l => (l.shippedQty||0) >= (l.qty||0));
-        const anyShipped = order.lines.some(l => (l.shippedQty||0) > 0);
+        const anyShipped = order.lines.some(l => (l.shippedQty||0) > 0 && (l.shippedQty||0) < (l.qty||0));
         order.status = allShipped ? 'Evaso' : (anyShipped ? 'Parzialmente Evaso' : 'In lavorazione');
 
         // Create DDT
         const newDDT = {
+          id: App.utils.uuid(),
           number: ddtNum.value,
           date: ddtDate.value,
           customerId: order.customerId,
@@ -382,6 +384,7 @@
         }));
         const total = rows.reduce((a,r)=>a+r.qty*r.price,0);
         const invoice = {
+          id: App.utils.uuid(),
           number: num,
           date,
           customerId: cust.id,

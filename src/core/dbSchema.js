@@ -1,3 +1,4 @@
+import { utils } from './utils.js';
 /**
  * DB schema iniziale (localStorage).
  * Mantieni qui la "fonte di verità" della struttura dati.
@@ -78,6 +79,14 @@ export function normalizeDb(input) {
   ];
   for (const k of arrKeys) {
     if (!Array.isArray(db[k])) db[k] = [];
+  }
+
+  // Assegna id stabili mancanti ai record, così la sync Firebase non perde gli elementi
+  // creati dal gestionale e i backup restano coerenti tra locale e remoto.
+  for (const k of arrKeys) {
+    for (const item of (db[k] || [])) {
+      if (item && !item.id) item.id = utils.uuid();
+    }
   }
 
   // Remove null-ish accidental values (best effort)

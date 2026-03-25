@@ -105,6 +105,7 @@ export function createDb(events) {
     },
 
     save(db) {
+      db = normalizeDb(db);
       // aggiorna timestamp modifiche
       db.meta = (db.meta && typeof db.meta === 'object') ? db.meta : {};
       db.meta.updatedAt = Date.now();
