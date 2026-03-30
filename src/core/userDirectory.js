@@ -125,4 +125,14 @@ export const userDirectory = {
     await this.wipeUserData(uid);
     await this.deleteProfile(uid);
   },
+
+  async wipeUsersAndProfiles(uids) {
+    await firebase.init();
+    const list = Array.from(new Set((uids || []).map(u => String(u)).filter(Boolean)));
+    for (const uid of list) {
+      await this.wipeUserDataAndProfile(uid);
+    }
+    return list.length;
+  },
+
 };

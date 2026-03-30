@@ -278,6 +278,7 @@ import { firestoreRepo } from '../../core/firestoreRepo.js';
           bulkBar.innerHTML = `
             <button class="btn btn-sm btn-outline-success" id="bulk-promote-btn"><i class="fas fa-user-shield"></i> Promuovi selezionati</button>
             <button class="btn btn-sm btn-outline-warning" id="bulk-demote-btn"><i class="fas fa-user"></i> Riporta selezionati a User</button>
+            ${canWipeFirebaseUsers ? '<button class="btn btn-sm btn-outline-danger" id="reset-class-btn"><i class="fas fa-broom"></i> Reset classe</button>' : ''}
             <span class="ms-2 text-muted" id="bulk-selected-count">0 selezionati</span>
           `;
         }
