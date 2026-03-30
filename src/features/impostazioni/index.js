@@ -57,13 +57,13 @@ import { firestoreRepo } from '../../core/firestoreRepo.js';
       const fbFields = document.getElementById('firebaseUserFields');
 
       if (!tbody || !saveBtn || !form) return;
+      const isFirebaseMode = (App.db.getMode?.() === 'firebase');
       if (section?.dataset.bound === '1') {
         if (isFirebaseMode) renderFirebaseUsers(); else renderLocalUsers();
         return;
       }
       if (section) section.dataset.bound = '1';
 
-      const isFirebaseMode = (App.db.getMode?.() === 'firebase');
       const currentRole = App.currentUser?.role || 'User';
       const currentEmailLc = String(App.currentUser?.email || '').toLowerCase();
       const primarySupervisorEmails = (App.config?.SUPERVISOR_EMAILS || []).map(e => String(e).toLowerCase());
@@ -455,6 +455,43 @@ import { firestoreRepo } from '../../core/firestoreRepo.js';
               await renderFirebaseUsers();
             } catch (e) {
               App.ui.showToast('Declassamento fallito: ' + (e?.message || e), 'danger');
+            }
+          });
+        }
+
+        const resetClassBtn = document.getElementById('reset-class-btn');
+        if (resetClassBtn && resetClassBtn.dataset.bound !== '1') {
+          resetClassBtn.dataset.bound = '1';
+          resetClassBtn.addEventListener('click', async () => {
+            if (!canWipeFirebaseUsers) return App.ui.showToast('Operazione riservata al docente principale configurato.', 'warning');
+            const meUid = String(App.firebase?.uid || '');
+            const bootstrap = (App.config?.SUPERVISOR_EMAILS || []).map(e => String(e).toLowerCase());
+            const targets = firebaseUsersCache.filter(u => {
+              const uid = String(u.uid || u.id || '');
+              const role = String(u.role || 'User');
+              const emailLc = String(u.email || '').toLowerCase();
+              if (!uid) return false;
+              if (uid === meUid) return false;
+              if (bootstrap.includes(emailLc)) return false;
+              return role === 'User';
+            });
+            if (!targets.length) return App.ui.showToast('Nessun utente User da ripulire.', 'info');
+            const msg = `Il reset classe eliminerà i dati Firestore e il profilo applicativo di ${targets.length} utenti con ruolo User. Gli account di accesso in Firebase Authentication NON verranno eliminati da qui.`;
+            if (!confirm(msg)) return;
+            const typed = String(window.prompt('Per confermare il reset irreversibile della classe, scrivi CONFERMA RESET CLASSE', '') || '').trim();
+            if (typed !== 'CONFERMA RESET CLASSE') return App.ui.showToast('Operazione annullata: conferma non valida.', 'info');
+            try {
+              const ids = targets.map(u => String(u.uid || u.id || '')).filter(Boolean);
+              if (App.userDirectory.wipeUsersAndProfiles) {
+                await App.userDirectory.wipeUsersAndProfiles(ids);
+              } else {
+                for (const uid of ids) await App.userDirectory.wipeUserDataAndProfile(uid);
+              }
+              selectedFirebaseUids.clear();
+              App.ui.showToast(`Reset classe completato: ${ids.length} utenti ripuliti.`, 'success');
+              await renderFirebaseUsers();
+            } catch (e) {
+              App.ui.showToast('Reset classe fallito: ' + (e?.message || e), 'danger');
             }
           });
         }
