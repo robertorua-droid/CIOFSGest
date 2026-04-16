@@ -1,96 +1,87 @@
-# Gestionale Magazzino Didattico – Versione OL
+# Gestionale Magazzino Didattico OL
 
-Questa &egrave; la versione **OL** del Gestionale Magazzino Didattico pensata per l'uso in laboratorio
-e come esercitazione per gli allievi (anche tramite QR code).
+Gestionale web didattico per simulare processi di magazzino, acquisto e vendita in un contesto WMS semplificato ma realistico.
 
-## Tecnologie utilizzate
+## Funzioni principali
 
-- HTML5 + CSS3
-- JavaScript (jQuery)
-- Bootstrap 5
-- Chart.js
-- Local Storage del browser (nessun server richiesto)
+- anagrafiche clienti, fornitori, prodotti, azienda e utenti
+- magazzino: carico manuale, scarico manuale, giacenze, inventario
+- vendite: ordini cliente, DDT cliente, fatturazione
+- acquisti: ordini fornitore, DDT fornitore
+- statistiche differenziate per ruolo
+- backup/ripristino locale e Firebase
+- dataset didattico di esempio incluso
+- esportazione PDF per DDT cliente e fatture cliente
+- reset classe e pulizia dati Firestore a fine corso
 
-## Funzionalit&agrave; principali
+## Modalità dati
 
-- Gestione anagrafiche:
-  - Clienti, Fornitori, Prodotti
-  - Utenti e Azienda
-- Magazzino:
-  - Carico e scarico manuale
-  - Consultazione giacenze
-  - Inventario completo
-- Ciclo attivo:
-  - Ordini cliente
-  - DDT cliente
-  - Fatturazione da DDT
-- Ciclo passivo:
-  - Ordini fornitore
-  - DDT fornitore (merce in entrata)
-- Statistiche:
-  - Per ruolo **User**: focus sulle giacenze
-  - Per **Supervisor/Admin**: focus sulle vendite
-- Funzioni avanzate:
-  - Esporta / Importa dati (.json)
-  - Cancella tutti i dati
-  - Invia i dati al docente tramite Formspree
+Il progetto può lavorare in due modalità:
 
-## Primo accesso
+- **Firebase**: modalità consigliata per attività in classe
+- **Locale**: utile per test, debug o uso offline
 
-Al primo avvio, se non esistono utenti nel Local Storage, il gestionale crea automaticamente un utente di setup:
+Nel corso si consiglia di usare Firebase come sorgente dati attiva.
 
-- **Username**: `admin`
-- **Password**: `gestionale`
-- **Ruolo**: Admin
+## Ruoli
 
-Con queste credenziali si attiva una **modalit&agrave; guidata di prima configurazione**:
+- **User**: uso operativo standard
+- **Supervisor**: funzioni avanzate e gestione documenti riservati
+- **Docente principale** (`roberto.rua@gmail.com`): manutenzione utenti e reset classe
 
-- Nel men&ugrave; sono visibili solo:
-  - Impostazioni &gt; Anagrafica azienda
-  - Impostazioni &gt; Anagrafica utenti
-  - Impostazioni &gt; Avanzate
-- L'obiettivo &egrave; permettere allo studente di:
-  - Inserire i dati dell'azienda (classe/gruppo)
-  - Creare il proprio utente personale con ruolo appropriato
+## Novità introdotte nelle ultime revisioni
 
-Appena esiste almeno un altro utente con ruolo **Admin**, le credenziali `admin/gestionale` vengono disabilitate
-e non saranno pi&ugrave; utilizzabili per accedere.
+- correzione numerazione ordini cliente e fornitore per evitare duplicati
+- persistenza Firebase resa più robusta con identificativi stabili sui documenti
+- fix esportazione da Firebase con sincronizzazione preventiva
+- eliminazione ordini e DDT con rollback coerente degli stati
+- blocco eliminazione DDT cliente se collegato a fattura
+- note su DDT cliente
+- DDT fornitore con:
+  - ricezione con riserva
+  - merce rifiutata
+  - note obbligatorie nei casi anomali
+- statistiche dedicate agli utenti **User** sulla movimentazione di magazzino
+- ripristino generazione PDF DDT cliente e fatture cliente
+- funzione **Reset classe** riservata al docente principale
 
-## Invio dei dati al docente
+## Dataset di esempio
 
-Nella sezione **Impostazioni &gt; Avanzate** &egrave; presente il pulsante:
+Il menu:
 
-> **Invia dati per verifica**
+`Impostazioni -> Avanzate -> Backup & Ripristino -> Carica esempio incluso`
 
-Questo pulsante:
+carica il dataset ufficiale del corso.
 
-1. Raccoglie tutti i dati del gestionale (anagrafiche, documenti, note).
-2. Prepara un payload JSON con:
-   - Cognome e nome dell'utente loggato
-   - Ruolo
-   - Timestamp ISO
-   - Contenuto del database locale
-3. Invia il tutto all'indirizzo configurato su Formspree (`https://formspree.io/f/xwpagyqy`).
+## Reset classe
 
-## Help integrato
+La funzione **Reset classe**:
 
-Il pulsante **Help (F1)** apre in una **nuova scheda** il manuale utente, con contenuti che variano in base al ruolo:
+- è disponibile solo al docente principale
+- cancella i dati Firestore e i profili applicativi degli utenti con ruolo `User`
+- non elimina gli account da Firebase Authentication
 
-- Ruolo **User**: guida semplificata
-- Ruoli **Supervisor/Admin**: guida completa con flusso documentale
+Dopo il reset, gli account degli allievi vanno rimossi manualmente dal pannello Firebase Authentication.
 
-## Struttura dei file
+## Deploy
 
-- `index.html` – Struttura principale dell'applicazione
-- `style.css` – Stili grafici
-- `script.js` – Logica applicativa (gestione dati, flussi documentali, grafici, login, invio dati)
-- `Manuale Utente.txt` – Manuale utente in formato testuale
-- `admin_gestionale_backup_2025-11-14.json` – Esempio di file di backup dati
+Il progetto è pensato per pubblicazione statica su GitHub Pages.
 
-Carica tutti questi file in una cartella (ad esempio in un repository GitHub),
-apri `index.html` con un browser moderno e il gestionale &egrave; pronto per l'uso.
+Per evitare comportamenti incoerenti dopo un aggiornamento:
 
+1. pubblicare la nuova versione
+2. fare refresh forzato del browser
+3. fare logout/login
+4. verificare la sorgente dati attiva
+5. testare 2-3 funzioni chiave
 
-### Novità
-- Badge di stato con tooltip (ordini, DDT, fatture)
-- Benvenuto in home con Nome Cognome sincronizzato
+## Struttura documentazione
+
+- `README.md` -> panoramica progetto
+- `docs/MANUALE_UTENTE.md` -> uso operativo
+- `docs/MANUALE_TECNICO.md` -> architettura e manutenzione
+- `docs/HELP.md` -> guida rapida
+
+## Note
+
+Questo progetto è destinato a formazione, laboratori ed esercitazioni guidate.
