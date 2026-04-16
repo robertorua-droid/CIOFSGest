@@ -79,7 +79,7 @@ const Clienti = {
         tmp.splice(0);
         recalc();
         dateEl.value = App.utils.todayISO();
-        numEl.value = App.utils.peekCustomerOrderNumber(App.db.ensure());
+        if (!numEl.value) numEl.value = App.utils.nextCustomerOrderNumber(db);
         if (qtyEl) qtyEl.value = '1';
         try { if (prodSel?.options?.length) prodSel.dispatchEvent(new Event('change')); } catch {}
       };
@@ -92,7 +92,8 @@ const Clienti = {
       });
 
 dateEl.value = App.utils.todayISO();
-      numEl.value = App.utils.peekCustomerOrderNumber(db);
+      numEl.value = App.utils.nextCustomerOrderNumber(db);
+      App.db.save(db);
 
       const tmp = [];
       const recalc = () => {
@@ -134,20 +135,9 @@ dateEl.value = App.utils.todayISO();
         e.preventDefault();
         const cust = (db.customers||[]).find(x=>x.id===custSel.value);
         if (!cust || tmp.length===0) return App.ui.showToast('Seleziona cliente e aggiungi almeno una riga.', 'warning');
-        const curDb = App.db.ensure();
-        const requestedNumber = String(numEl.value || '').trim();
-        const duplicate = (curDb.customerOrders || []).some(o => String(o.number || '').trim() === requestedNumber);
-        const orderNumber = (!requestedNumber || duplicate) ? App.utils.nextCustomerOrderNumber(curDb) : requestedNumber;
-        if (!duplicate && requestedNumber) {
-          const m = requestedNumber.match(/^OC-(\d+)$/i);
-          if (m) {
-            const counters = App.utils._ensureCounters(curDb);
-            counters.orderCustomer = Math.max(Number(counters.orderCustomer || 0), Number(m[1] || 0));
-          }
-        }
         const order = {
           id: App.utils.uuid(),
-          number: orderNumber,
+          number: numEl.value,
           date: dateEl.value,
           customerId: cust.id,
           customerName: cust.name,
@@ -155,15 +145,16 @@ dateEl.value = App.utils.todayISO();
           total: tmp.reduce((a,r)=>a+r.qty*r.price,0),
           status: 'In lavorazione'
         };
-        curDb.customerOrders.push(order);
-        App.db.save(curDb);
+        db.customerOrders.push(order);
+        App.db.save(db);
         App.ui.showToast('Ordine cliente salvato', 'success');
         tmp.splice(0); recalc();
         // precompila prossimo numero e ripulisce campi
-        numEl.value = App.utils.peekCustomerOrderNumber(App.db.ensure());
+        numEl.value = App.utils.nextCustomerOrderNumber(db);
         dateEl.value = App.utils.todayISO();
         if (qtyEl) qtyEl.value = '1';
         try { if (prodSel?.options?.length) prodSel.dispatchEvent(new Event('change')); } catch {}
+        App.db.save(db);
         Clienti.renderOrders();
         App.ui.showSection('elenco-ordini-cliente');
       });
@@ -189,6 +180,7 @@ dateEl.value = App.utils.todayISO();
         if (!confirm(`Eliminare l'ordine ${order.number}?`)) return;
         const idx = (db.customerOrders || []).findIndex(x => x.number === order.number);
         if (idx >= 0) db.customerOrders.splice(idx, 1);
+        App.db.save(db);
         Clienti.renderOrders();
         App.ui.showToast('Ordine eliminato', 'success');
         try { bootstrap.Modal.getOrCreateInstance(document.getElementById('customerOrderDetailModal')).hide(); } catch {}

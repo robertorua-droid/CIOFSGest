@@ -4,9 +4,9 @@ import { createInitialDb } from '../../core/dbSchema.js';
 function applyMenuForRole(user) {
   const isUser = (user?.role === 'User');
 
-  // Statistiche: nascoste per gli studenti
+  // Statistiche: disponibili anche agli studenti, ma con contenuti dedicati
   const statLink = document.querySelector('.nav-link[data-target="statistiche"]');
-  if (statLink) statLink.closest('.nav-item')?.classList.toggle('d-none', isUser);
+  if (statLink) statLink.closest('.nav-item')?.classList.remove('d-none');
 
   // Per il ruolo User nascondiamo solo le voci “amministrative”
   const restrictedForUser = new Set([
