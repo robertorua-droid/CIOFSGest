@@ -66,8 +66,7 @@ const Fornitori = {
       App.events.on('db:changed', fillSelects);
 
       dateEl.value = App.utils.todayISO();
-      numEl.value = App.utils.nextSupplierOrderNumber(db);
-      App.db.save(db);
+      numEl.value = App.utils.peekSupplierOrderNumber(db);
 
       const tmp = [];
       const resetForm = () => {
@@ -78,7 +77,7 @@ const Fornitori = {
         if (totEl) totEl.textContent = App.utils.fmtMoney(0);
         dateEl.value = App.utils.todayISO();
         // non forziamo un nuovo numero qui per evitare incrementi inutili: verrà aggiornato dopo il salvataggio
-        if (!numEl.value) numEl.value = App.utils.nextSupplierOrderNumber(db);
+        numEl.value = App.utils.peekSupplierOrderNumber(App.db.ensure());
         // default quantità
         if (qtyEl) qtyEl.value = '1';
         // price da prodotto selezionato
@@ -128,9 +127,20 @@ const Fornitori = {
         e.preventDefault();
         const sup = (db.suppliers||[]).find(x=>x.id===supSel.value);
         if (!sup || tmp.length===0) return App.ui.showToast('Seleziona fornitore e aggiungi almeno una riga.', 'warning');
+        const curDb = App.db.ensure();
+        const requestedNumber = String(numEl.value || '').trim();
+        const duplicate = (curDb.supplierOrders || []).some(o => String(o.number || '').trim() === requestedNumber);
+        const orderNumber = (!requestedNumber || duplicate) ? App.utils.nextSupplierOrderNumber(curDb) : requestedNumber;
+        if (!duplicate && requestedNumber) {
+          const m = requestedNumber.match(/^OF-(\d+)$/i);
+          if (m) {
+            const counters = App.utils._ensureCounters(curDb);
+            counters.orderSupplier = Math.max(Number(counters.orderSupplier || 0), Number(m[1] || 0));
+          }
+        }
         const order = {
           id: App.utils.uuid(),
-          number: numEl.value,
+          number: orderNumber,
           date: dateEl.value,
           supplierId: sup.id,
           supplierName: sup.name,
@@ -138,16 +148,15 @@ const Fornitori = {
           total: tmp.reduce((a,r)=>a+r.qty*r.price,0),
           status: 'Inviato'
         };
-        db.supplierOrders.push(order);
-        App.db.save(db);
+        curDb.supplierOrders.push(order);
+        App.db.save(curDb);
         App.ui.showToast('Ordine fornitore salvato', 'success');
         tmp.splice(0); recalc();
         // precompila il prossimo numero e ripulisce i campi
-        numEl.value = App.utils.nextSupplierOrderNumber(db);
+        numEl.value = App.utils.peekSupplierOrderNumber(App.db.ensure());
         dateEl.value = App.utils.todayISO();
         if (qtyEl) qtyEl.value = '1';
         try { if (prodSel?.options?.length) prodSel.dispatchEvent(new Event('change')); } catch {}
-        App.db.save(db);
         Fornitori.renderOrders();
         App.ui.showSection('elenco-ordini-fornitore');
       });
@@ -173,7 +182,6 @@ const Fornitori = {
         if (!confirm(`Eliminare l'ordine ${order.number}?`)) return;
         const idx = (db.supplierOrders || []).findIndex(x => x.number === order.number);
         if (idx >= 0) db.supplierOrders.splice(idx, 1);
-        App.db.save(db);
         Fornitori.renderOrders();
         App.ui.showToast('Ordine eliminato', 'success');
         try { bootstrap.Modal.getOrCreateInstance(document.getElementById('supplierOrderDetailModal')).hide(); } catch {}
@@ -275,7 +283,6 @@ const Fornitori = {
 
         const idx = (db.supplierDDTs || []).findIndex(x => x.number === num);
         if (idx >= 0) db.supplierDDTs.splice(idx, 1);
-        App.db.save(db);
         Fornitori.renderOrders();
         Fornitori.renderDDTs();
         App.ui.showToast('DDT fornitore eliminato', 'success');

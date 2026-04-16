@@ -24,15 +24,82 @@ export const utils = {
 
 
   // === Numeratori ===
-  nextCustomerOrderNumber(db) {
+  _maxByPatterns(items, preferredPatterns = [], fallbackPatterns = []) {
+    const read = (patterns) => {
+      let max = 0;
+      for (const it of (items || [])) {
+        const value = String(it?.number || '').trim();
+        for (const rx of patterns) {
+          const m = value.match(rx);
+          if (m) {
+            max = Math.max(max, Number(m[1] || 0));
+            break;
+          }
+        }
+      }
+      return max;
+    };
+    const preferred = read(preferredPatterns);
+    if (preferred > 0) return preferred;
+    return read(fallbackPatterns);
+  },
+
+  _nextDocNumber(db, counterKey, items, preferredPatterns, fallbackPatterns, prefix) {
     const c = this._ensureCounters(db);
-    c.orderCustomer = (c.orderCustomer || 0) + 1;
-    return 'OC-' + String(c.orderCustomer).padStart(4, '0');
+    const currentCounter = Number(c[counterKey] || 0);
+    const maxExisting = this._maxByPatterns(items, preferredPatterns, fallbackPatterns);
+    const next = Math.max(currentCounter, maxExisting) + 1;
+    c[counterKey] = next;
+    return prefix + String(next).padStart(4, '0');
+  },
+
+  _peekDocNumber(db, counterKey, items, preferredPatterns, fallbackPatterns, prefix) {
+    const c = this._ensureCounters(db);
+    const currentCounter = Number(c[counterKey] || 0);
+    const maxExisting = this._maxByPatterns(items, preferredPatterns, fallbackPatterns);
+    const next = Math.max(currentCounter, maxExisting) + 1;
+    return prefix + String(next).padStart(4, '0');
+  },
+
+  peekCustomerOrderNumber(db) {
+    return this._peekDocNumber(
+      db,
+      'orderCustomer',
+      db?.customerOrders || [],
+      [/^OC-(\d+)$/i],
+      [/^ORD-C-(\d+)$/i],
+      'OC-'
+    );
+  },
+  nextCustomerOrderNumber(db) {
+    return this._nextDocNumber(
+      db,
+      'orderCustomer',
+      db?.customerOrders || [],
+      [/^OC-(\d+)$/i],
+      [/^ORD-C-(\d+)$/i],
+      'OC-'
+    );
+  },
+  peekSupplierOrderNumber(db) {
+    return this._peekDocNumber(
+      db,
+      'orderSupplier',
+      db?.supplierOrders || [],
+      [/^OF-(\d+)$/i],
+      [/^ORD-F-(\d+)$/i],
+      'OF-'
+    );
   },
   nextSupplierOrderNumber(db) {
-    const c = this._ensureCounters(db);
-    c.orderSupplier = (c.orderSupplier || 0) + 1;
-    return 'OF-' + String(c.orderSupplier).padStart(4, '0');
+    return this._nextDocNumber(
+      db,
+      'orderSupplier',
+      db?.supplierOrders || [],
+      [/^OF-(\d+)$/i],
+      [/^ORD-F-(\d+)$/i],
+      'OF-'
+    );
   },
   nextCustomerDDTNumber(db) {
     const c = this._ensureCounters(db);
