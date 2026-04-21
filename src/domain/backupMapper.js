@@ -154,16 +154,26 @@ export function mapBackupToDb(backup) {
     db.notes = {};
   }
 
+  // Quarantena fornitore legacy
+  const legacySupplierQuarantine = backup.supplierQuarantine || [];
+  db.supplierQuarantine = legacySupplierQuarantine.map((q, idx) => ({
+    id: toStr(q.id || `SQ-${idx + 1}`),
+    ...q
+  }));
+
   // Counters: se non presenti, stima dai documenti
   if (backup.counters && typeof backup.counters === 'object') {
-    db.counters = backup.counters;
+    db.counters = {
+      ...backup.counters,
+      quarantineSupplier: Number(backup.counters.quarantineSupplier || db.supplierQuarantine.length || 0)
+    };
   } else {
     db.counters = {
       orderCustomer: db.customerOrders.length,
       orderSupplier: db.supplierOrders.length,
       ddtCustomer: db.customerDDTs.length,
       ddtSupplier: db.supplierDDTs.length,
-      quarantineSupplier: (db.supplierQuarantine || []).length,
+      quarantineSupplier: db.supplierQuarantine.length,
       invoice: db.invoices.length
     };
   }
@@ -185,9 +195,4 @@ export function summarizeDb(db) {
     invoices: (db.invoices || []).length
   };
 }
-  const legacySupplierQuarantine = backup.supplierQuarantine || [];
-  db.supplierQuarantine = legacySupplierQuarantine.map(q => ({
-    id: q.id || utils.uuid(),
-    ...q
-  }));
 
