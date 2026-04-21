@@ -79,7 +79,7 @@ const Clienti = {
         tmp.splice(0);
         recalc();
         dateEl.value = App.utils.todayISO();
-        if (!numEl.value) numEl.value = App.utils.nextCustomerOrderNumber(db);
+        if (!numEl.value) numEl.value = App.utils.previewCustomerOrderNumber(db);
         if (qtyEl) qtyEl.value = '1';
         try { if (prodSel?.options?.length) prodSel.dispatchEvent(new Event('change')); } catch {}
       };
@@ -92,8 +92,7 @@ const Clienti = {
       });
 
 dateEl.value = App.utils.todayISO();
-      numEl.value = App.utils.nextCustomerOrderNumber(db);
-      App.db.save(db);
+      numEl.value = App.utils.previewCustomerOrderNumber(db);
 
       const tmp = [];
       const recalc = () => {
@@ -135,9 +134,10 @@ dateEl.value = App.utils.todayISO();
         e.preventDefault();
         const cust = (db.customers||[]).find(x=>x.id===custSel.value);
         if (!cust || tmp.length===0) return App.ui.showToast('Seleziona cliente e aggiungi almeno una riga.', 'warning');
+        const finalOrderNumber = App.utils.finalizeCustomerOrderNumber(db, numEl.value);
         const order = {
           id: App.utils.uuid(),
-          number: numEl.value,
+          number: finalOrderNumber,
           date: dateEl.value,
           customerId: cust.id,
           customerName: cust.name,
@@ -146,15 +146,15 @@ dateEl.value = App.utils.todayISO();
           status: 'In lavorazione'
         };
         db.customerOrders.push(order);
+        numEl.value = finalOrderNumber;
         App.db.save(db);
         App.ui.showToast('Ordine cliente salvato', 'success');
         tmp.splice(0); recalc();
         // precompila prossimo numero e ripulisce campi
-        numEl.value = App.utils.nextCustomerOrderNumber(db);
+        numEl.value = App.utils.previewCustomerOrderNumber(db);
         dateEl.value = App.utils.todayISO();
         if (qtyEl) qtyEl.value = '1';
         try { if (prodSel?.options?.length) prodSel.dispatchEvent(new Event('change')); } catch {}
-        App.db.save(db);
         Clienti.renderOrders();
         App.ui.showSection('elenco-ordini-cliente');
       });
@@ -173,7 +173,7 @@ dateEl.value = App.utils.todayISO();
         if (!canDeleteDocs()) return App.ui.showToast('Permesso negato: serve ruolo Supervisor.', 'warning');
         const order = (db.customerOrders || []).find(x => x.number === orderNumber);
         if (!order) return;
-        const hasDDT = (db.customerDDTs || []).some(d => d.orderNumber === order.number);
+        const hasDDT = (db.customerDDTs || []).some(d => (Array.isArray(d.orderNumbers) ? d.orderNumbers.includes(order.number) : d.orderNumber === order.number));
         if (hasDDT) {
           return App.ui.showToast('Impossibile eliminare: esistono DDT collegati a questo ordine.', 'warning');
         }
@@ -235,7 +235,7 @@ dateEl.value = App.utils.todayISO();
         if (body) body.innerHTML = html;
 
         if (delBtn) {
-          const hasDDT = (db.customerDDTs || []).some(d => d.orderNumber === o.number);
+          const hasDDT = (db.customerDDTs || []).some(d => (Array.isArray(d.orderNumbers) ? d.orderNumbers.includes(o.number) : d.orderNumber === o.number));
           delBtn.classList.toggle('d-none', !canDeleteDocs());
           delBtn.disabled = hasDDT;
           delBtn.onclick = () => deleteOrder(o.number);
@@ -258,7 +258,7 @@ dateEl.value = App.utils.todayISO();
           <td>${d.number}</td>
           <td>${d.date}</td>
           <td>${d.customerName}</td>
-          <td>${d.orderNumber}</td>
+          <td>${Array.isArray(d.orderNumbers) ? d.orderNumbers.join(', ') : (d.orderNumber || '-')}</td>
           <td>${d.status || 'Da Fatturare'}</td>
           <td class="text-end">
             <button class="btn btn-sm btn-outline-primary" data-action="view-ddt" data-num="${d.number}">Dettaglio</button>
@@ -275,132 +275,199 @@ dateEl.value = App.utils.todayISO();
       if (!form) return;
       if (form.dataset.bound === '1') return;
       form.dataset.bound = '1';
-      const selOrder = document.getElementById('ddt-order-select');
       const details = document.getElementById('ddt-details-section');
       const custName = document.getElementById('ddt-customer-name');
       const ddtNum = document.getElementById('ddt-number');
       const ddtDate = document.getElementById('ddt-date');
       const tbody = document.getElementById('ddt-products-tbody');
-      const notesEl = document.getElementById('ddt-notes');
+      const ordersTbody = document.getElementById('ddt-open-orders-tbody');
+      const buildBtn = document.getElementById('build-ddt-from-orders-btn');
+      const selectedOrders = new Set();
+      let activeOrderNumbers = [];
 
-            const fillOpenOrders = () => {
+      const getOpenOrders = () => {
         const curDb = App.db.ensure();
-        const prev = selOrder.value;
-        const openOrders = (curDb.customerOrders || []).filter(o => (o.lines||[]).some(l => (l.shippedQty||0) < (l.qty||0)));
-        selOrder.innerHTML = '<option selected disabled value="">Seleziona un ordine...</option>'
-          + openOrders.map(o => `<option value="${o.number}">${o.number} - ${o.customerName}</option>`).join('');
-        if (prev) selOrder.value = prev;
+        return (curDb.customerOrders || []).filter(o => (o.lines||[]).some(l => Number(l.shippedQty||0) < Number(l.qty||0)));
       };
-      fillOpenOrders();
+
+      const orderResidualInfo = (order) => {
+        const residualLines = (order.lines || []).filter(l => Number(l.shippedQty || 0) < Number(l.qty || 0));
+        const totalResidual = residualLines.reduce((acc, l) => acc + ((Number(l.qty || 0) - Number(l.shippedQty || 0)) * Number(l.price || 0)), 0);
+        return { residualLines: residualLines.length, totalResidual };
+      };
+
+      const fillOpenOrders = () => {
+        if (!ordersTbody) return;
+        const openOrders = getOpenOrders();
+        const selected = Array.from(selectedOrders);
+        const lockedCustomerId = (() => {
+          const first = selected[0];
+          const order = openOrders.find(o => o.number === first);
+          return order?.customerId || null;
+        })();
+        ordersTbody.innerHTML = openOrders.map(o => {
+          const info = orderResidualInfo(o);
+          const checked = selectedOrders.has(o.number);
+          const disabled = !!lockedCustomerId && String(o.customerId) !== String(lockedCustomerId) && !checked;
+          return `<tr>
+            <td><input type="checkbox" class="form-check-input ddt-order-check" data-order="${o.number}" ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''}></td>
+            <td>${o.number}</td>
+            <td>${o.date || ''}</td>
+            <td>${o.customerName || ''}</td>
+            <td>${o.status || 'In lavorazione'}</td>
+            <td class="text-end">${info.residualLines}</td>
+            <td class="text-end">${App.utils.fmtMoney(info.totalResidual)}</td>
+          </tr>`;
+        }).join('') || '<tr><td colspan="7" class="text-muted">Nessun ordine aperto o parzialmente evaso.</td></tr>';
+      };
+
       const resetDDTForm = () => {
         form.reset();
+        selectedOrders.clear();
+        activeOrderNumbers = [];
         if (details) details.classList.add('d-none');
         if (tbody) tbody.innerHTML = '';
-        try { custName.value = ''; ddtNum.value = ''; ddtDate.value = ''; if (notesEl) notesEl.value = ''; } catch {}
+        try { custName.value = ''; ddtNum.value = ''; ddtDate.value = ''; } catch {}
         fillOpenOrders();
       };
+
+      const buildDDTRows = () => {
+        const orders = activeOrderNumbers.map(num => (db.customerOrders||[]).find(o => o.number === num)).filter(Boolean);
+        if (!orders.length) {
+          if (details) details.classList.add('d-none');
+          if (tbody) tbody.innerHTML = '';
+          return;
+        }
+        const firstCustomerId = orders[0].customerId;
+        if (orders.some(o => String(o.customerId) !== String(firstCustomerId))) {
+          return App.ui.showToast('Puoi generare un DDT solo per ordini dello stesso cliente.', 'warning');
+        }
+        custName.value = orders[0].customerName || '';
+        ddtNum.value = App.utils.nextCustomerDDTNumber(db);
+        ddtDate.value = App.utils.todayISO();
+        const rows = orders.map(order => {
+          return (order.lines || []).map((l, i) => {
+            const shipped = Number(l.shippedQty || 0);
+            const residual = Number(l.qty || 0) - shipped;
+            if (residual <= 0) return '';
+            return `<tr data-order="${order.number}" data-i="${i}">
+              <td><strong>${order.number}</strong></td>
+              <td>${l.productName}</td>
+              <td class="text-end">${l.qty}</td>
+              <td class="text-end">${shipped}</td>
+              <td class="text-end">${residual}</td>
+              <td class="text-end"><input type="number" min="0" max="${residual}" value="${residual}" class="form-control form-control-sm text-end ddt-ship-qty"></td>
+            </tr>`;
+          }).join('');
+        }).join('');
+        tbody.innerHTML = rows;
+        details.classList.remove('d-none');
+      };
+
+      fillOpenOrders();
       App.events.on('section:changed', (sid) => {
         if (sid === 'nuovo-ddt-cliente') resetDDTForm();
         if (sid === 'elenco-ddt-cliente') Clienti.renderDDTs();
       });
-
       App.events.on('customerOrders:changed', fillOpenOrders);
       App.events.on('customers:changed', fillOpenOrders);
       App.events.on('db:changed', fillOpenOrders);
 
-      selOrder.addEventListener('change', () => {
-        const number = selOrder.value;
-        const order = (db.customerOrders||[]).find(o => o.number === number);
-        if (!order) return;
-        custName.value = order.customerName;
-        ddtNum.value = App.utils.nextCustomerDDTNumber(db);
-        ddtDate.value = App.utils.todayISO();
-        App.db.save(db);
+      ordersTbody?.addEventListener('change', (e) => {
+        const chk = e.target.closest('.ddt-order-check');
+        if (!chk) return;
+        const ord = chk.getAttribute('data-order');
+        if (!ord) return;
+        if (chk.checked) selectedOrders.add(ord); else selectedOrders.delete(ord);
+        fillOpenOrders();
+      });
 
-        const rows = order.lines.map((l,i) => {
-          const residual = (l.qty || 0) - (l.shippedQty || 0);
-          if (residual <= 0) return '';
-          return `<tr data-i="${i}">
-            <td>${l.productName}</td>
-            <td class="text-end">${l.qty}</td>
-            <td class="text-end">${residual}</td>
-            <td class="text-end"><input type="number" min="0" max="${residual}" value="${residual}" class="form-control form-control-sm text-end ddt-ship-qty"></td>
-          </tr>`;
-        }).join('');
-        tbody.innerHTML = rows;
-        details.classList.remove('d-none');
+      buildBtn?.addEventListener('click', () => {
+        activeOrderNumbers = Array.from(selectedOrders);
+        if (!activeOrderNumbers.length) return App.ui.showToast('Seleziona almeno un ordine.', 'warning');
+        buildDDTRows();
       });
 
       form.addEventListener('submit', (e) => {
         e.preventDefault();
-        const number = selOrder.value;
-        const order = (db.customerOrders||[]).find(o => o.number === number);
-        if (!order) return App.ui.showToast('Seleziona un ordine valido', 'warning');
-        // collect ship qty
+        const orders = activeOrderNumbers.map(num => (db.customerOrders||[]).find(o => o.number === num)).filter(Boolean);
+        if (!orders.length) return App.ui.showToast('Seleziona almeno un ordine valido.', 'warning');
+        if (orders.some(o => String(o.customerId) !== String(orders[0].customerId))) {
+          return App.ui.showToast('Gli ordini selezionati devono appartenere allo stesso cliente.', 'warning');
+        }
+
         const shipLines = [];
-        tbody.querySelectorAll('tr').forEach(tr => {
+        let invalidQty = null;
+        tbody.querySelectorAll('tr[data-order][data-i]').forEach(tr => {
+          const orderNumber = tr.getAttribute('data-order');
           const i = parseInt(tr.getAttribute('data-i'), 10);
-          const l = order.lines[i];
+          const order = orders.find(o => o.number === orderNumber);
+          const line = order?.lines?.[i];
+          if (!line) return;
           const q = parseFloat(tr.querySelector('.ddt-ship-qty').value || '0');
-          if (q > 0) shipLines.push({ i, qty: q });
-        })
-        // Avviso didattico: quantità da spedire oltre giacenza disponibile
+          const residual = Number(line.qty || 0) - Number(line.shippedQty || 0);
+          if (q > residual) invalidQty = line.productName;
+          if (q > 0) shipLines.push({ orderNumber, i, qty: q, line });
+        });
+        if (invalidQty) return App.ui.showToast(`Quantità da spedire superiore al residuo per ${invalidQty}.`, 'warning');
+        if (shipLines.length === 0) return App.ui.showToast('Nessuna quantità da spedire.', 'warning');
+
         const grouped = new Map();
         shipLines.forEach(s => {
-          const l = order.lines[s.i];
-          const pid = l.productId;
+          const pid = s.line.productId;
           grouped.set(pid, (grouped.get(pid) || 0) + s.qty);
         });
-
         const warnings = [];
         grouped.forEach((qty, pid) => {
           const p = (db.products||[]).find(pp => String(pp.id) === String(pid));
           const available = Number(p?.stockQty || 0);
           if (qty > available) warnings.push({ code: p?.code || pid, available, qty });
         });
-
         if (warnings.length) {
           const lines = warnings.map(w => `- ${w.code}: richiesti ${w.qty} / disponibili ${w.available}`).join('\n');
-          const ok = window.confirm(
-            `Attenzione: la quantità da spedire supera la giacenza per uno o più articoli.\n\n${lines}\n\nVuoi continuare?`
-          );
+          const ok = window.confirm(`Attenzione: la quantità da spedire supera la giacenza per uno o più articoli.
+
+${lines}
+
+Vuoi continuare?`);
           if (!ok) return;
         }
-;
-        if (shipLines.length === 0) return App.ui.showToast('Nessuna quantità da spedire.', 'warning');
 
-        // Validate & update stock (atomico)
         try {
-          const changes = shipLines.map(s => ({ productId: order.lines[s.i].productId, delta: -s.qty }));
+          const changes = shipLines.map(s => ({ productId: s.line.productId, delta: -s.qty }));
           adjustStockBatch(changes, { reason: 'DDT_CLIENTE', ref: ddtNum.value });
         } catch (err) {
           return App.ui.showToast(err.message || 'Giacenza insufficiente', 'danger');
         }
 
-        // Update order shippedQty
+        const affectedOrders = new Set();
         shipLines.forEach(s => {
-          const line = order.lines[s.i];
-          line.shippedQty = (line.shippedQty || 0) + s.qty;
+          const order = orders.find(o => o.number === s.orderNumber);
+          const line = order?.lines?.[s.i];
+          if (!line) return;
+          line.shippedQty = Number(line.shippedQty || 0) + s.qty;
+          affectedOrders.add(order.number);
         });
+        orders.filter(o => affectedOrders.has(o.number)).forEach(recomputeCustomerOrderStatus);
 
-        // recompute status
-        const allShipped = order.lines.every(l => (l.shippedQty||0) >= (l.qty||0));
-        const anyShipped = order.lines.some(l => (l.shippedQty||0) > 0 && (l.shippedQty||0) < (l.qty||0));
-        order.status = allShipped ? 'Evaso' : (anyShipped ? 'Parzialmente Evaso' : 'In lavorazione');
-
-        // Create DDT
+        const involvedOrderNumbers = Array.from(new Set(shipLines.map(s => s.orderNumber)));
         const newDDT = {
           id: App.utils.uuid(),
           number: ddtNum.value,
           date: ddtDate.value,
-          customerId: order.customerId,
-          customerName: order.customerName,
-          orderNumber: order.number,
-          notes: (notesEl?.value || '').trim(),
-          lines: shipLines.map(s => {
-            const l = order.lines[s.i];
-            return { productId: l.productId, description: l.productName, qty: s.qty, price: l.price, iva: 22 };
-          }),
+          customerId: orders[0].customerId,
+          customerName: orders[0].customerName,
+          orderNumber: involvedOrderNumbers.join(', '),
+          orderNumbers: involvedOrderNumbers,
+          lines: shipLines.map(s => ({
+            productId: s.line.productId,
+            description: s.line.productName,
+            qty: s.qty,
+            price: s.line.price,
+            iva: 22,
+            sourceOrderNumber: s.orderNumber,
+            sourceLineIndex: s.i
+          })),
           status: 'Da Fatturare'
         };
         db.customerDDTs.push(newDDT);
@@ -429,10 +496,10 @@ dateEl.value = App.utils.todayISO();
           title.textContent = `Dettaglio DDT ${d.number}`;
           let html = `<div class="mb-2"><strong>Cliente:</strong> ${d.customerName}</div>`;
           html += `<div class="mb-2"><strong>Data:</strong> ${d.date}</div>`;
-          html += `<div class="mb-2"><strong>Riferimento Ordine:</strong> ${d.orderNumber}</div>`;
-          if (d.notes) html += `<div class="mb-3"><strong>Note:</strong><br>${String(d.notes).replace(/\n/g,'<br>')}</div>`;
-          html += `<table class="table table-sm"><thead><tr><th>Descrizione</th><th class="text-end">Qtà</th></tr></thead><tbody>`;
-          d.lines.forEach(l => { html += `<tr><td>${l.description}</td><td class="text-end">${l.qty}</td></tr>`; });
+          const orderRefs = Array.isArray(d.orderNumbers) ? d.orderNumbers : [d.orderNumber].filter(Boolean);
+          html += `<div class="mb-2"><strong>Riferimento Ordine/i:</strong> ${orderRefs.join(', ')}</div>`;
+          html += `<table class="table table-sm"><thead><tr><th>Ordine</th><th>Descrizione</th><th class="text-end">Qtà</th></tr></thead><tbody>`;
+          d.lines.forEach(l => { html += `<tr><td>${l.sourceOrderNumber || d.orderNumber || '-'}</td><td>${l.description}</td><td class="text-end">${l.qty}</td></tr>`; });
           html += `</tbody></table>`;
           body.innerHTML = html;
           const delBtn = document.getElementById('delete-customer-ddt-btn');
@@ -457,8 +524,8 @@ dateEl.value = App.utils.todayISO();
               doc.setFontSize(11);
               doc.text(`Cliente: ${d.customerName}`, 14, 26);
               doc.text(`Data: ${d.date}`, 14, 34);
-              const rows = d.lines.map(l => [l.description, String(l.qty)]);
-              doc.autoTable({ head: [['Descrizione','Qtà']], body: rows, startY: 40 });
+              const rows = d.lines.map(l => [String(l.sourceOrderNumber || d.orderNumber || '-'), l.description, String(l.qty)]);
+              doc.autoTable({ head: [['Ordine','Descrizione','Qtà']], body: rows, startY: 40 });
               doc.save(`DDT_${d.number}.pdf`);
             } catch(e){ console.error(e); }
           }, { once: true });
@@ -469,30 +536,34 @@ dateEl.value = App.utils.todayISO();
           if (linkedInvoice || ddt.status === 'Fatturato') return App.ui.showToast(`DDT collegato alla fattura ${linkedInvoice?.number || ddt.invoiceNumber || ''}: non eliminabile.`, 'warning');
           if (!confirm(`Eliminare il DDT ${ddt.number}?`)) return;
           // rollback stock and order shippedQty
-          const order = (db.customerOrders||[]).find(o=>o.number===ddt.orderNumber);
-          if (order) {
-            ddt.lines.forEach(dl => {
-              const line = (order.lines||[]).find(l => (l.productName||'') === dl.description);
-              if (line) line.shippedQty = Math.max(0, (line.shippedQty||0) - (dl.qty||0));
-            });
-
-            // Ripristino stock (se possibile)
-            try {
-              const restoreChanges = (ddt.lines || []).map(dl => {
-                const pid = dl.productId
-                  || (db.products||[]).find(pp => pp.code === ((dl.description||'').split(' - ')[0]))?.id;
-                const q = Number(dl.qty || 0);
-                return pid && q ? { productId: pid, delta: q } : null;
-              }).filter(Boolean);
-
-              if (restoreChanges.length) {
-                adjustStockBatch(restoreChanges, { reason: 'CANCELLA_DDT_CLIENTE', ref: ddt.number });
-              }
-            } catch (err) {
-              App.ui.showToast((err && err.message) ? err.message : 'Ripristino stock non completato', 'warning');
+          const touchedOrders = new Set();
+          (ddt.lines || []).forEach(dl => {
+            const order = (db.customerOrders||[]).find(o=>o.number=== (dl.sourceOrderNumber || ddt.orderNumber));
+            if (!order) return;
+            const idx = Number.isInteger(dl.sourceLineIndex) ? dl.sourceLineIndex : -1;
+            const line = idx >= 0 ? order.lines?.[idx] : (order.lines||[]).find(l => (l.productName||'') === dl.description && String(l.productId||'') === String(dl.productId||''));
+            if (line) {
+              line.shippedQty = Math.max(0, Number(line.shippedQty||0) - Number(dl.qty||0));
+              touchedOrders.add(order.number);
             }
-            recomputeCustomerOrderStatus(order);
+          });
+
+          // Ripristino stock (se possibile)
+          try {
+            const restoreChanges = (ddt.lines || []).map(dl => {
+              const pid = dl.productId
+                || (db.products||[]).find(pp => pp.code === ((dl.description||'').split(' - ')[0]))?.id;
+              const q = Number(dl.qty || 0);
+              return pid && q ? { productId: pid, delta: q } : null;
+            }).filter(Boolean);
+
+            if (restoreChanges.length) {
+              adjustStockBatch(restoreChanges, { reason: 'CANCELLA_DDT_CLIENTE', ref: ddt.number });
+            }
+          } catch (err) {
+            App.ui.showToast((err && err.message) ? err.message : 'Ripristino stock non completato', 'warning');
           }
+          (db.customerOrders||[]).filter(o => touchedOrders.has(o.number)).forEach(recomputeCustomerOrderStatus);
           // delete ddt
           const idx = (db.customerDDTs||[]).findIndex(x=>x.number===num);
           if (idx >= 0) db.customerDDTs.splice(idx,1);

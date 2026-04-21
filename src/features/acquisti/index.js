@@ -14,6 +14,41 @@ const recomputeSupplierOrderStatus = (order) => {
   order.status = allReceived ? 'Completato' : (anyReceived ? 'Parzialmente Ricevuto' : 'Inviato');
 };
 
+const lineAcceptedQty = (line, ddt = null) => {
+  if (line && ('acceptedQty' in line || 'reserveQty' in line || 'refusedQty' in line)) return Number(line?.acceptedQty || 0);
+  return ddt?.refused ? 0 : (ddt?.withReserve ? 0 : Number(line?.qty || 0));
+};
+const lineReserveQty = (line, ddt = null) => {
+  if (line && ('acceptedQty' in line || 'reserveQty' in line || 'refusedQty' in line)) return Number(line?.reserveQty || 0);
+  return ddt?.withReserve ? Number(line?.qty || 0) : 0;
+};
+const lineRefusedQty = (line, ddt = null) => {
+  if (line && ('acceptedQty' in line || 'reserveQty' in line || 'refusedQty' in line)) return Number(line?.refusedQty || 0);
+  return ddt?.refused ? Number(line?.qty || 0) : 0;
+};
+const receivedLikeQty = (line, ddt = null) => lineAcceptedQty(line, ddt) + lineReserveQty(line, ddt);
+const computeSupplierDDTStatus = (ddt) => {
+  const lines = ddt?.lines || [];
+  const accepted = lines.reduce((a, l) => a + lineAcceptedQty(l, ddt), 0);
+  const reserved = lines.reduce((a, l) => a + lineReserveQty(l, ddt), 0);
+  const refused = lines.reduce((a, l) => a + lineRefusedQty(l, ddt), 0);
+  if (refused > 0 && accepted + reserved === 0) return 'Respinto totale';
+  if (refused > 0 && reserved > 0) return 'Parzialmente respinto con riserva';
+  if (refused > 0) return 'Parzialmente respinto';
+  if (reserved > 0) return 'Ricevuto con riserva';
+  return 'Ricevuto';
+};
+const lineOutcomeLabel = (line, ddt = null) => {
+  const a = lineAcceptedQty(line, ddt);
+  const r = lineReserveQty(line, ddt);
+  const x = lineRefusedQty(line, ddt);
+  if (x > 0 && a + r === 0) return 'Respinta';
+  if (x > 0 && r > 0) return 'Mista (riserva + respinta)';
+  if (x > 0) return 'Mista';
+  if (r > 0) return 'Con riserva';
+  return 'Accettata';
+};
+
 const Fornitori = {
     renderOrders() {
       const db = App.db.ensure();
@@ -66,8 +101,7 @@ const Fornitori = {
       App.events.on('db:changed', fillSelects);
 
       dateEl.value = App.utils.todayISO();
-      numEl.value = App.utils.nextSupplierOrderNumber(db);
-      App.db.save(db);
+      numEl.value = App.utils.previewSupplierOrderNumber(db);
 
       const tmp = [];
       const resetForm = () => {
@@ -78,7 +112,7 @@ const Fornitori = {
         if (totEl) totEl.textContent = App.utils.fmtMoney(0);
         dateEl.value = App.utils.todayISO();
         // non forziamo un nuovo numero qui per evitare incrementi inutili: verrà aggiornato dopo il salvataggio
-        if (!numEl.value) numEl.value = App.utils.nextSupplierOrderNumber(db);
+        if (!numEl.value) numEl.value = App.utils.previewSupplierOrderNumber(db);
         // default quantità
         if (qtyEl) qtyEl.value = '1';
         // price da prodotto selezionato
@@ -128,9 +162,10 @@ const Fornitori = {
         e.preventDefault();
         const sup = (db.suppliers||[]).find(x=>x.id===supSel.value);
         if (!sup || tmp.length===0) return App.ui.showToast('Seleziona fornitore e aggiungi almeno una riga.', 'warning');
+        const finalOrderNumber = App.utils.finalizeSupplierOrderNumber(db, numEl.value);
         const order = {
           id: App.utils.uuid(),
-          number: numEl.value,
+          number: finalOrderNumber,
           date: dateEl.value,
           supplierId: sup.id,
           supplierName: sup.name,
@@ -139,15 +174,15 @@ const Fornitori = {
           status: 'Inviato'
         };
         db.supplierOrders.push(order);
+        numEl.value = finalOrderNumber;
         App.db.save(db);
         App.ui.showToast('Ordine fornitore salvato', 'success');
         tmp.splice(0); recalc();
         // precompila il prossimo numero e ripulisce i campi
-        numEl.value = App.utils.nextSupplierOrderNumber(db);
+        numEl.value = App.utils.previewSupplierOrderNumber(db);
         dateEl.value = App.utils.todayISO();
         if (qtyEl) qtyEl.value = '1';
         try { if (prodSel?.options?.length) prodSel.dispatchEvent(new Event('change')); } catch {}
-        App.db.save(db);
         Fornitori.renderOrders();
         App.ui.showSection('elenco-ordini-fornitore');
       });
@@ -251,7 +286,7 @@ const Fornitori = {
         if (!confirm(`Eliminare il DDT fornitore ${ddt.number}?`)) return;
 
         const order = (db.supplierOrders || []).find(o => o.number === ddt.orderNumber);
-        if (order && !ddt.refused) {
+        if (order) {
           (ddt.lines || []).forEach(dl => {
             const line = (order.lines || []).find(l => String(l.productId || '') === String(dl.productId || ''))
               || (order.lines || []).find(l => String(l.productName || l.description || '') === String(dl.description || ''));
@@ -260,7 +295,7 @@ const Fornitori = {
           recomputeSupplierOrderStatus(order);
         }
 
-        if (!ddt.refused) try {
+        try {
           const restoreChanges = (ddt.lines || []).map(dl => {
             const pid = dl.productId || (db.products || []).find(pp => String(pp.description || '') === String(dl.description || ''))?.id;
             const q = Number(dl.qty || 0);
@@ -301,9 +336,7 @@ const Fornitori = {
         let html = `<div class="mb-2"><strong>Fornitore:</strong> ${d.supplierName || ''}</div>`;
         html += `<div class="mb-2"><strong>Data:</strong> ${d.date || ''}</div>`;
         html += `<div class="mb-2"><strong>Destinazione:</strong> ${dest}</div>`;
-        html += `<div class="mb-2"><strong>Riferimento Ordine:</strong> ${d.orderNumber || ''}</div>`;
-        html += `<div class="mb-2"><strong>Esito ricezione:</strong> ${d.status || (d.refused ? 'Merce rifiutata' : (d.withReserve ? 'Ricevuto con riserva' : 'Ricevuto'))}</div>`;
-        if (d.notes) html += `<div class="mb-3"><strong>Annotazioni:</strong><br>${String(d.notes).replace(/\n/g,'<br>')}</div>`;
+        html += `<div class="mb-3"><strong>Riferimento Ordine:</strong> ${d.orderNumber || ''}</div>`;
         html += `<table class="table table-sm"><thead><tr><th>Descrizione</th><th class="text-end">Qtà</th><th class="text-end">Prezzo</th></tr></thead><tbody>`;
         (d.lines || []).forEach(l => {
           html += `<tr><td>${l.description || ''}</td><td class="text-end">${l.qty || 0}</td><td class="text-end">${App.utils.fmtMoney(l.price || 0)}</td></tr>`;
@@ -332,7 +365,7 @@ const Fornitori = {
           <td>${d.date}</td>
           <td>${d.supplierName}</td>
           <td>${d.customerName || (db.company?.name || 'Nostra Sede')}</td>
-          <td>${d.orderNumber}<div class="small text-muted">${d.status || (d.refused ? 'Merce rifiutata' : (d.withReserve ? 'Ricevuto con riserva' : 'Ricevuto'))}</div></td>
+          <td>${d.orderNumber}</td>
           <td class="text-end">
             <button class="btn btn-sm btn-outline-primary" data-action="view-supplier-ddt" data-num="${d.number}">Dettaglio</button>
             ${canDelete ? `<button class="btn btn-sm btn-outline-danger ms-1" data-action="del-supplier-ddt" data-num="${d.number}"><i class="fas fa-trash-alt"></i></button>` : ''}
@@ -354,24 +387,22 @@ const Fornitori = {
       const ddtNum = document.getElementById('ddt-supplier-number');
       const ddtDate = document.getElementById('ddt-supplier-date');
       const tbody = document.getElementById('ddt-supplier-products-tbody');
-      const reserveEl = document.getElementById('ddt-supplier-with-reserve');
-      const refusedEl = document.getElementById('ddt-supplier-refused');
       const notesEl = document.getElementById('ddt-supplier-notes');
 
-            const fillOpenOrders = () => {
+      const fillOpenOrders = () => {
         const curDb = App.db.ensure();
         const prev = selOrder.value;
-        const openOrders = (curDb.supplierOrders || []).filter(o => (o.lines||[]).some(l => (l.receivedQty||0) < (l.qty||0)));
+        const openOrders = (curDb.supplierOrders || []).filter(o => (o.lines||[]).some(l => Number(l.receivedQty||0) < Number(l.qty||0)));
         selOrder.innerHTML = '<option selected disabled value="">Seleziona un ordine...</option>'
           + openOrders.map(o => `<option value="${o.number}">${o.number} - ${o.supplierName}</option>`).join('');
-        if (prev) selOrder.value = prev;
+        if (prev && openOrders.some(o => o.number === prev)) selOrder.value = prev;
       };
       fillOpenOrders();
       const resetDDTForm = () => {
         form.reset();
         if (details) details.classList.add('d-none');
         if (tbody) tbody.innerHTML = '';
-        try { if (reserveEl) reserveEl.checked = false; if (refusedEl) refusedEl.checked = false; if (notesEl) notesEl.value = ''; } catch {}
+        if (notesEl) notesEl.value = '';
         fillOpenOrders();
       };
       App.events.on('section:changed', (sid) => {
@@ -383,13 +414,6 @@ const Fornitori = {
       App.events.on('suppliers:changed', fillOpenOrders);
       App.events.on('db:changed', fillOpenOrders);
 
-      reserveEl?.addEventListener('change', () => {
-        if (reserveEl.checked && refusedEl) refusedEl.checked = false;
-      });
-      refusedEl?.addEventListener('change', () => {
-        if (refusedEl.checked && reserveEl) reserveEl.checked = false;
-      });
-
       selOrder.addEventListener('change', () => {
         const number = selOrder.value;
         const order = (db.supplierOrders||[]).find(o => o.number === number);
@@ -400,17 +424,36 @@ const Fornitori = {
         App.db.save(db);
 
         const rows = order.lines.map((l,i) => {
-          const residual = (l.qty || 0) - (l.receivedQty || 0);
+          const residual = Math.max(0, Number(l.qty || 0) - Number(l.receivedQty || 0));
           if (residual <= 0) return '';
           return `<tr data-i="${i}">
             <td>${l.productName}</td>
             <td class="text-end">${l.qty}</td>
             <td class="text-end">${residual}</td>
-            <td class="text-end"><input type="number" min="0" max="${residual}" value="${residual}" class="form-control form-control-sm text-end ddt-rec-qty"></td>
+            <td class="text-end"><input type="number" min="0" max="${residual}" value="${residual}" class="form-control form-control-sm text-end ddt-acc-qty"></td>
+            <td class="text-end"><input type="number" min="0" max="${residual}" value="0" class="form-control form-control-sm text-end ddt-res-qty"></td>
+            <td class="text-end"><input type="number" min="0" max="${residual}" value="0" class="form-control form-control-sm text-end ddt-ref-qty"></td>
+            <td><input type="text" class="form-control form-control-sm ddt-line-notes" placeholder="Motivazione per riserva/respingimento"></td>
           </tr>`;
         }).join('');
         tbody.innerHTML = rows;
         details.classList.remove('d-none');
+      });
+
+      tbody.addEventListener('input', (e) => {
+        const tr = e.target.closest('tr');
+        if (!tr) return;
+        const accEl = tr.querySelector('.ddt-acc-qty');
+        const resEl = tr.querySelector('.ddt-res-qty');
+        const refEl = tr.querySelector('.ddt-ref-qty');
+        const residual = Number(tr.children[2]?.textContent || 0);
+        const vals = [accEl, resEl, refEl].map(el => Math.max(0, Number(el.value || 0)));
+        let sum = vals[0] + vals[1] + vals[2];
+        if (sum > residual) {
+          // riduci il campo modificato per rispettare il massimo
+          const others = (e.target === accEl ? vals[1] + vals[2] : e.target === resEl ? vals[0] + vals[2] : vals[0] + vals[1]);
+          e.target.value = Math.max(0, residual - others);
+        }
       });
 
       form.addEventListener('submit', (e) => {
@@ -418,38 +461,54 @@ const Fornitori = {
         const number = selOrder.value;
         const order = (db.supplierOrders||[]).find(o => o.number === number);
         if (!order) return App.ui.showToast('Seleziona un ordine valido', 'warning');
-        const recLines = [];
+        const handledLines = [];
+        let validationError = null;
         tbody.querySelectorAll('tr').forEach(tr => {
+          if (validationError) return;
           const i = parseInt(tr.getAttribute('data-i'), 10);
           const l = order.lines[i];
-          const q = parseFloat(tr.querySelector('.ddt-rec-qty').value || '0');
-          if (q > 0) recLines.push({ i, qty: q });
-        });
-        if (recLines.length === 0) return App.ui.showToast('Nessuna quantità da registrare.', 'warning');
-
-        const isReserved = !!reserveEl?.checked;
-        const isRefused = !!refusedEl?.checked;
-        const notes = (notesEl?.value || '').trim();
-        if ((isReserved || isRefused) && !notes) return App.ui.showToast("Inserisci un'annotazione per riserva o rifiuto merce.", 'warning');
-
-        if (!isRefused) {
-          // Update stock (atomico)
-          try {
-            const changes = recLines.map(s => ({ productId: order.lines[s.i].productId, delta: s.qty }));
-            adjustStockBatch(changes, { reason: isReserved ? 'DDT_FORNITORE_CON_RISERVA' : 'DDT_FORNITORE', ref: ddtNum.value });
-          } catch (err) {
-            return App.ui.showToast(err.message || 'Errore aggiornamento magazzino', 'danger');
+          const residual = Math.max(0, Number(l.qty || 0) - Number(l.receivedQty || 0));
+          const acceptedQty = Math.max(0, Number(tr.querySelector('.ddt-acc-qty')?.value || 0));
+          const reserveQty = Math.max(0, Number(tr.querySelector('.ddt-res-qty')?.value || 0));
+          const refusedQty = Math.max(0, Number(tr.querySelector('.ddt-ref-qty')?.value || 0));
+          const lineNotes = (tr.querySelector('.ddt-line-notes')?.value || '').trim();
+          const handled = acceptedQty + reserveQty + refusedQty;
+          if (handled > residual) {
+            validationError = `La somma delle quantità per ${l.productName} supera il residuo.`;
+            return;
           }
+          if ((reserveQty > 0 || refusedQty > 0) && !lineNotes) {
+            validationError = `Inserisci una motivazione per la riga ${l.productName} con riserva o respingimento.`;
+            tr.querySelector('.ddt-line-notes')?.focus();
+            return;
+          }
+          if (handled > 0) {
+            handledLines.push({ i, acceptedQty, reserveQty, refusedQty, lineNotes, qty: handled });
+          }
+        });
+        if (validationError) return App.ui.showToast(validationError, 'warning');
+        if (handledLines.length === 0) return App.ui.showToast('Nessuna quantità da registrare.', 'warning');
 
-          // Update order receivedQty
-          recLines.forEach(s => {
-            const line = order.lines[s.i];
-            line.receivedQty = (line.receivedQty || 0) + s.qty;
-          });
-          recomputeSupplierOrderStatus(order);
+        try {
+          const changes = handledLines
+            .map(s => ({ productId: order.lines[s.i].productId, delta: Number(s.acceptedQty || 0) + Number(s.reserveQty || 0) }))
+            .filter(x => x.delta > 0);
+          if (changes.length) {
+            adjustStockBatch(changes, { reason: 'DDT_FORNITORE', ref: ddtNum.value });
+          }
+        } catch (err) {
+          return App.ui.showToast(err.message || 'Errore aggiornamento magazzino', 'danger');
         }
 
-        // Create inbound DDT
+        handledLines.forEach(s => {
+          const line = order.lines[s.i];
+          line.receivedQty = Number(line.receivedQty || 0) + Number(s.acceptedQty || 0) + Number(s.reserveQty || 0);
+        });
+        recomputeSupplierOrderStatus(order);
+
+        const generalNotes = (notesEl?.value || '').trim();
+        const totalReserved = handledLines.reduce((a, s) => a + Number(s.reserveQty || 0), 0);
+        const totalRefused = handledLines.reduce((a, s) => a + Number(s.refusedQty || 0), 0);
         const newDDT = {
           id: App.utils.uuid(),
           number: ddtNum.value,
@@ -457,18 +516,27 @@ const Fornitori = {
           supplierId: order.supplierId,
           supplierName: order.supplierName,
           orderNumber: order.number,
-          withReserve: isReserved,
-          refused: isRefused,
-          notes,
-          status: isRefused ? 'Merce rifiutata' : (isReserved ? 'Ricevuto con riserva' : 'Ricevuto'),
-          lines: recLines.map(s => {
+          withReserve: totalReserved > 0,
+          refused: totalRefused > 0 && handledLines.every(s => Number(s.acceptedQty || 0) + Number(s.reserveQty || 0) === 0),
+          notes: generalNotes,
+          lines: handledLines.map(s => {
             const l = order.lines[s.i];
-            return { productId: l.productId, description: l.productName, qty: s.qty, price: l.price };
+            return {
+              productId: l.productId,
+              description: l.productName,
+              qty: s.qty,
+              acceptedQty: s.acceptedQty,
+              reserveQty: s.reserveQty,
+              refusedQty: s.refusedQty,
+              lineNotes: s.lineNotes,
+              price: l.price
+            };
           })
         };
+        newDDT.status = computeSupplierDDTStatus(newDDT);
         db.supplierDDTs.push(newDDT);
         App.db.save(db);
-        App.ui.showToast(isRefused ? 'DDT registrato come merce rifiutata' : 'Merce in entrata registrata', 'success');
+        App.ui.showToast('DDT fornitore registrato', 'success');
         Fornitori.renderOrders();
         Fornitori.renderDDTs();
         App.ui.showSection('elenco-ddt-fornitore');

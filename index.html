@@ -332,11 +332,16 @@
 <h2>Nuovo DDT Cliente</h2>
 <form id="new-customer-ddt-form">
 <div class="row">
-<div class="col-md-6 mb-3">
-<label class="form-label"><strong>Seleziona Ordine da Evadere</strong></label>
-<select class="form-select" id="ddt-order-select" required="">
-<option disabled="" selected="" value="">Seleziona un ordine...</option>
-</select>
+<div class="col-12 mb-3">
+<label class="form-label"><strong>Seleziona uno o più ordini aperti / parzialmente evasi dello stesso cliente</strong></label>
+<div class="small text-muted mb-2">Puoi generare un unico DDT per più ordini dello stesso cliente. Gli ordini di clienti diversi non possono essere selezionati insieme.</div>
+<div class="table-responsive">
+<table class="table table-sm table-hover align-middle">
+<thead><tr><th></th><th>Ordine</th><th>Data</th><th>Cliente</th><th>Stato</th><th>Righe residue</th><th>Totale residuo</th></tr></thead>
+<tbody id="ddt-open-orders-tbody"></tbody>
+</table>
+</div>
+<button class="btn btn-outline-primary" id="build-ddt-from-orders-btn" type="button">Genera DDT da ordine/i selezionato/i</button>
 </div>
 </div>
 <div class="d-none" id="ddt-details-section">
@@ -348,13 +353,9 @@
 </div>
 <h5 class="mt-4">Prodotti da Spedire</h5>
 <table class="table">
-<thead><tr><th>Prodotto</th><th>Qtà Ordinata</th><th>Qtà Residua</th><th><strong>Qtà da Spedire</strong></th></tr></thead>
+<thead><tr><th>Rif. Ordine</th><th>Prodotto</th><th>Qtà Ordinata</th><th>Qtà Spedita</th><th>Qtà Residua</th><th><strong>Qtà da Spedire</strong></th></tr></thead>
 <tbody id="ddt-products-tbody"></tbody>
 </table>
-<div class="mb-3">
-<label class="form-label" for="ddt-notes">Note / Annotazioni</label>
-<textarea class="form-control" id="ddt-notes" rows="3" placeholder="Inserisci eventuali annotazioni didattiche o note di spedizione..."></textarea>
-</div>
 <button class="btn btn-primary" type="submit">Genera DDT</button>
 </div>
 </form>
@@ -460,27 +461,14 @@
 <div class="col-md-3 mb-3"><label>Data DDT Fornitore</label><input class="form-control" id="ddt-supplier-date" required="" type="date"/></div>
 </div>
 <h5>Prodotti da Ricevere</h5>
-<table class="table">
-<thead><tr><th>Prodotto</th><th>Qtà Ordinata</th><th>Qtà Residua</th><th><strong>Qtà Ricevuta</strong></th></tr></thead>
+<p class="text-muted small">Per ogni riga indica quanta merce viene accettata, quanta viene accettata con riserva e quanta viene respinta. Se usi riserva o respingimento, la motivazione della riga è obbligatoria.</p>
+<table class="table table-sm">
+<thead><tr><th>Prodotto</th><th>Qtà Ordinata</th><th>Qtà Residua</th><th><strong>Accettata</strong></th><th><strong>Con riserva</strong></th><th><strong>Respinta</strong></th><th>Motivazione riga</th></tr></thead>
 <tbody id="ddt-supplier-products-tbody"></tbody>
 </table>
-<div class="row">
-  <div class="col-md-4 mb-3">
-    <div class="form-check mt-2">
-      <input class="form-check-input" id="ddt-supplier-with-reserve" type="checkbox"/>
-      <label class="form-check-label" for="ddt-supplier-with-reserve">Ricezione merce con riserva</label>
-    </div>
-  </div>
-  <div class="col-md-4 mb-3">
-    <div class="form-check mt-2">
-      <input class="form-check-input" id="ddt-supplier-refused" type="checkbox"/>
-      <label class="form-check-label" for="ddt-supplier-refused">Merce rifiutata</label>
-    </div>
-  </div>
-</div>
 <div class="mb-3">
-  <label class="form-label" for="ddt-supplier-notes">Annotazioni</label>
-  <textarea class="form-control" id="ddt-supplier-notes" rows="3" placeholder="Annotazioni su riserva, rifiuto o non conformità..."></textarea>
+<label class="form-label">Annotazioni generali DDT</label>
+<textarea class="form-control" id="ddt-supplier-notes" rows="3" placeholder="Note generali sul ricevimento (facoltative)"></textarea>
 </div>
 <button class="btn btn-primary" type="submit">Registra Merce in Entrata</button>
 </div>
@@ -843,8 +831,6 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <!-- jsPDF per PDF (clienti) -->
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <!-- JS modulari (ordine consigliato) -->
 <script src="src/main.js" type="module"></script>
 <script src="script_badges_tooltips_patch.js"></script>
