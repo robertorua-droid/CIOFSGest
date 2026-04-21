@@ -1,16 +1,25 @@
 {
   "current": {
-    "version": "1.28.0",
+    "version": "1.29.0",
     "date": "2026-04-21",
-    "name": "Quarantena fornitori",
+    "name": "Allineamento inventario",
     "changes": [
-      "La merce ricevuta con riserva entra in quarantena e non nella giacenza disponibile.",
-      "Nuova voce menu Fornitori -> Quarantena Fornitori con azioni Svincola e Respingi.",
-      "Gli ordini fornitore restano aperti finché la merce in quarantena non viene gestita.",
-      "Elenco giacenze e anagrafica prodotti mostrano separatamente disponibile e quarantena."
+      "Nuovo pulsante in Inventario per allineare le giacenze disponibili ai conteggi fisici inseriti.",
+      "Conferma esplicita richiesta prima dell'allineamento inventariale.",
+      "Aggiornato changelog e versione del gestionale."
     ]
   },
   "history": [
+    {
+      "version": "1.29.0",
+      "date": "2026-04-21",
+      "name": "Allineamento inventario",
+      "changes": [
+        "Nuovo pulsante in Inventario per allineare le giacenze disponibili ai conteggi fisici inseriti.",
+        "Conferma esplicita richiesta prima dell'allineamento inventariale.",
+        "Aggiornato changelog e versione del gestionale."
+      ]
+    },
     {
       "version": "1.28.0",
       "date": "2026-04-21",

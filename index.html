@@ -262,7 +262,7 @@
 <div class="content-section d-none" id="elenco-giacenze">
 <h2>Elenco Giacenze</h2>
 <table class="table table-hover mt-4">
-<thead><tr><th>Codice</th><th>Descrizione</th><th>Collocazione (Corsia-Scaffale-Piano)</th><th>Giacenza</th></tr></thead>
+<thead><tr><th>Codice</th><th>Descrizione</th><th>Collocazione (Corsia-Scaffale-Piano)</th><th class="text-end">Giacenza</th></tr></thead>
 <tbody id="inventory-table-body"></tbody>
 </table>
 </div>
@@ -276,7 +276,8 @@
 <p class="text-muted mb-3">Inserisci la <strong>giacenza fisica</strong> (conteggio reale). Il sistema confronta automaticamente con la giacenza a gestionale e mostra la differenza.</p>
 <div class="d-flex flex-wrap gap-2 mb-3">
   <button class="btn btn-outline-danger btn-sm" id="reset-physical-counts-btn"><i class="fas fa-eraser"></i> Azzera conteggi fisici</button>
-  <span class="small text-muted align-self-center">Cancella tutti i valori inseriti nella colonna “Giacenza fisica”.</span>
+  <button class="btn btn-primary btn-sm" id="apply-physical-counts-btn"><i class="fas fa-balance-scale"></i> Allinea giacenze da inventario</button>
+  <span class="small text-muted align-self-center">Cancella tutti i valori inseriti nella colonna “Giacenza fisica” oppure allinea le giacenze disponibili ai conteggi fisici inseriti.</span>
 </div>
 <div class="table-responsive">
 <table class="table table-striped">

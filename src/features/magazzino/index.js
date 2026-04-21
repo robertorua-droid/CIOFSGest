@@ -10,6 +10,7 @@ export function initMagazzinoFeature() {
   const inventoryBody = document.getElementById('inventory-table-body');
   const inventoryPhysicalBody = document.getElementById('inventory-physical-body');
   const btnResetPhysical = document.getElementById('reset-physical-counts-btn');
+  const btnApplyPhysical = document.getElementById('apply-physical-counts-btn');
 
   const fillSelects = () => {
     const db = App.db.ensure();
@@ -36,7 +37,6 @@ export function initMagazzinoFeature() {
           <td>${p.description}</td>
           <td>${[p.locCorsia,p.locScaffale,p.locPiano].filter(Boolean).join('-')}</td>
           <td class="text-end">${p.stockQty || 0}</td>
-          <td class="text-end">${p.quarantineQty || 0}</td>
         </tr>`).join('');
     }
   };
@@ -114,6 +114,63 @@ export function initMagazzinoFeature() {
       if (v === '') delete dbx.settings.physicalCounts[pid];
       else dbx.settings.physicalCounts[pid] = Number(v);
       App.db.save(dbx);
+    });
+  }
+
+  // Applica riallineamento giacenze dai conteggi fisici
+  if (btnApplyPhysical && btnApplyPhysical.dataset.bound !== '1') {
+    btnApplyPhysical.dataset.bound = '1';
+    btnApplyPhysical.addEventListener('click', () => {
+      const dbx = App.db.ensure();
+      const counts = (dbx.settings && dbx.settings.physicalCounts) ? dbx.settings.physicalCounts : {};
+      const entries = Object.entries(counts || {}).filter(([pid, val]) => {
+        const p = (dbx.products || []).find(x => String(x.id) === String(pid));
+        if (!p) return false;
+        const phys = Number(val);
+        return Number.isFinite(phys) && phys !== Number(p.stockQty || 0);
+      });
+
+      if (!entries.length) {
+        App.ui.showToast('Nessuna differenza inventariale da allineare.', 'info');
+        return;
+      }
+
+      const preview = entries.slice(0, 8).map(([pid, val]) => {
+        const p = (dbx.products || []).find(x => String(x.id) === String(pid));
+        return `- ${p?.code || pid}: ${Number(p?.stockQty || 0)} → ${Number(val)}`;
+      }).join('\n');
+      const more = entries.length > 8 ? `\n... e altri ${entries.length - 8} prodotti` : '';
+
+      const ok = window.confirm(
+        `Stai per riallineare le giacenze disponibili in base ai conteggi fisici inseriti.\n\n` +
+        `Prodotti interessati: ${entries.length}\n\n${preview}${more}\n\n` +
+        `L'operazione aggiorna direttamente le giacenze disponibili senza usare movimenti manuali. Continuare?`
+      );
+      if (!ok) return;
+
+      const phrase = window.prompt('Per confermare digita ALLINEA INVENTARIO');
+      if (phrase !== 'ALLINEA INVENTARIO') {
+        App.ui.showToast('Allineamento inventario annullato.', 'warning');
+        return;
+      }
+
+      for (const [pid, val] of entries) {
+        const p = (dbx.products || []).find(x => String(x.id) === String(pid));
+        if (!p) continue;
+        p.stockQty = Number(val);
+      }
+
+      dbx.settings = dbx.settings || {};
+      dbx.settings.lastInventoryAlignment = {
+        at: Date.now(),
+        count: entries.length
+      };
+
+      App.db.save(dbx);
+      App.events.emit('inventory:changed', { reason: 'ALLINEAMENTO_INVENTARIO', count: entries.length });
+      renderElencoGiacenze();
+      renderInventarioFisico();
+      App.ui.showToast(`Giacenze allineate per ${entries.length} prodotto/i.`, 'success');
     });
   }
 
