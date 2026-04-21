@@ -124,6 +124,7 @@
 <li class="nav-item menu-item" id="menu-elenco-ordini-fornitore"><a class="nav-link" data-target="elenco-ordini-fornitore" href="#"><i class="fas fa-list-ul"></i> Elenco Ordini Fornitore</a></li>
 <li class="nav-item menu-item" id="menu-nuovo-ddt-fornitore"><a class="nav-link" data-target="nuovo-ddt-fornitore" href="#"><i class="fas fa-file-invoice"></i> Nuovo DDT Fornitore</a></li>
 <li class="nav-item menu-item" id="menu-elenco-ddt-fornitore"><a class="nav-link" data-target="elenco-ddt-fornitore" href="#"><i class="fas fa-clipboard-list"></i> Elenco DDT Fornitore</a></li>
+<li class="nav-item menu-item" id="menu-quarantena-fornitori"><a class="nav-link" data-target="quarantena-fornitori" href="#"><i class="fas fa-box-open"></i> Quarantena Fornitori</a></li>
 </ul>
 </li>
 <li class="nav-group is-open" data-group="impostazioni">
@@ -214,7 +215,7 @@
 </h2>
 <input class="form-control mb-3" id="product-search-input" placeholder="Cerca per codice o descrizione..." type="text"/>
 <table class="table table-hover">
-<thead><tr><th>Codice</th><th>Descrizione</th><th>Prezzo Acq.</th><th>Prezzo Ven.</th><th>Collocazione</th><th>Giacenza</th><th>Azioni</th></tr></thead>
+<thead><tr><th>Codice</th><th>Descrizione</th><th>Prezzo Acq.</th><th>Prezzo Ven.</th><th>Collocazione</th><th>Disponibile</th><th>In quarantena</th><th>Azioni</th></tr></thead>
 <tbody id="products-table-body"></tbody>
 </table>
 </div>
@@ -332,16 +333,11 @@
 <h2>Nuovo DDT Cliente</h2>
 <form id="new-customer-ddt-form">
 <div class="row">
-<div class="col-12 mb-3">
-<label class="form-label"><strong>Seleziona uno o più ordini aperti / parzialmente evasi dello stesso cliente</strong></label>
-<div class="small text-muted mb-2">Puoi generare un unico DDT per più ordini dello stesso cliente. Gli ordini di clienti diversi non possono essere selezionati insieme.</div>
-<div class="table-responsive">
-<table class="table table-sm table-hover align-middle">
-<thead><tr><th></th><th>Ordine</th><th>Data</th><th>Cliente</th><th>Stato</th><th>Righe residue</th><th>Totale residuo</th></tr></thead>
-<tbody id="ddt-open-orders-tbody"></tbody>
-</table>
-</div>
-<button class="btn btn-outline-primary" id="build-ddt-from-orders-btn" type="button">Genera DDT da ordine/i selezionato/i</button>
+<div class="col-md-6 mb-3">
+<label class="form-label"><strong>Seleziona Ordine da Evadere</strong></label>
+<select class="form-select" id="ddt-order-select" required="">
+<option disabled="" selected="" value="">Seleziona un ordine...</option>
+</select>
 </div>
 </div>
 <div class="d-none" id="ddt-details-section">
@@ -353,7 +349,7 @@
 </div>
 <h5 class="mt-4">Prodotti da Spedire</h5>
 <table class="table">
-<thead><tr><th>Rif. Ordine</th><th>Prodotto</th><th>Qtà Ordinata</th><th>Qtà Spedita</th><th>Qtà Residua</th><th><strong>Qtà da Spedire</strong></th></tr></thead>
+<thead><tr><th>Prodotto</th><th>Qtà Ordinata</th><th>Qtà Residua</th><th><strong>Qtà da Spedire</strong></th></tr></thead>
 <tbody id="ddt-products-tbody"></tbody>
 </table>
 <button class="btn btn-primary" type="submit">Genera DDT</button>
@@ -479,6 +475,15 @@
 <table class="table table-hover">
 <thead><tr><th>Numero DDT</th><th>Data DDT</th><th>Fornitore</th><th>Destinatario</th><th>Rif. Nostro Ordine</th><th>Azioni</th></tr></thead>
 <tbody id="supplier-ddts-table-body"></tbody>
+</table>
+</div>
+
+<div class="content-section d-none" id="quarantena-fornitori">
+<h2>Quarantena Fornitori</h2>
+<p class="text-muted">Le righe ricevute con riserva non entrano nella giacenza disponibile. Da qui è possibile svincolarle oppure respingerle definitivamente.</p>
+<table class="table table-hover">
+<thead><tr><th>Data</th><th>Fornitore</th><th>Ordine</th><th>DDT</th><th>Prodotto</th><th class="text-end">Q.tà in quarantena</th><th>Motivazione</th><th>Azioni</th></tr></thead>
+<tbody id="supplier-quarantine-table-body"></tbody>
 </table>
 </div>
 <!-- Impostazioni -->

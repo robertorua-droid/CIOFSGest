@@ -14,6 +14,7 @@ export function createInitialDb() {
     supplierOrders: [],
     customerDDTs: [],
     supplierDDTs: [],
+    supplierQuarantine: [],
     invoices: [],
     notes: {}, // { userId: "...": "testo" }
     settings: {
@@ -75,6 +76,7 @@ export function normalizeDb(input) {
     'supplierOrders',
     'customerDDTs',
     'supplierDDTs',
+    'supplierQuarantine',
     'invoices'
   ];
   for (const k of arrKeys) {
@@ -86,6 +88,16 @@ export function normalizeDb(input) {
   for (const k of arrKeys) {
     for (const item of (db[k] || [])) {
       if (item && !item.id) item.id = utils.uuid();
+    }
+  }
+
+  // Campi inventariali aggiuntivi
+  for (const p of (db.products || [])) {
+    if (p && p.quarantineQty === undefined) p.quarantineQty = 0;
+  }
+  for (const o of (db.supplierOrders || [])) {
+    for (const l of (o.lines || [])) {
+      if (l && l.quarantineQty === undefined) l.quarantineQty = 0;
     }
   }
 

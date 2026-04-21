@@ -60,6 +60,7 @@ export function initProductsUI() {
         <td class="text-end">${App.utils.fmtMoney(p.salePrice || 0)}</td>
         <td>${[p.locCorsia,p.locScaffale,p.locPiano].filter(Boolean).join('-')}</td>
         <td class="text-end">${p.stockQty || 0}</td>
+        <td class="text-end">${p.quarantineQty || 0}</td>
         <td class="text-end">
           <button type="button" class="btn btn-sm btn-outline-primary" data-action="edit" data-id="${String(p.id || '')}">Modifica</button>
           <button type="button" class="btn btn-sm btn-outline-danger" data-action="del" data-id="${String(p.id || '')}">Elimina</button>

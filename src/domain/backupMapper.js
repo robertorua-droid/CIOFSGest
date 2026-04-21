@@ -163,6 +163,7 @@ export function mapBackupToDb(backup) {
       orderSupplier: db.supplierOrders.length,
       ddtCustomer: db.customerDDTs.length,
       ddtSupplier: db.supplierDDTs.length,
+      quarantineSupplier: (db.supplierQuarantine || []).length,
       invoice: db.invoices.length
     };
   }
@@ -184,3 +185,9 @@ export function summarizeDb(db) {
     invoices: (db.invoices || []).length
   };
 }
+  const legacySupplierQuarantine = backup.supplierQuarantine || [];
+  db.supplierQuarantine = legacySupplierQuarantine.map(q => ({
+    id: q.id || utils.uuid(),
+    ...q
+  }));
+

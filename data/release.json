@@ -1,0 +1,33 @@
+{
+  "current": {
+    "version": "1.28.0",
+    "date": "2026-04-21",
+    "name": "Quarantena fornitori",
+    "changes": [
+      "La merce ricevuta con riserva entra in quarantena e non nella giacenza disponibile.",
+      "Nuova voce menu Fornitori -> Quarantena Fornitori con azioni Svincola e Respingi.",
+      "Gli ordini fornitore restano aperti finché la merce in quarantena non viene gestita.",
+      "Elenco giacenze e anagrafica prodotti mostrano separatamente disponibile e quarantena."
+    ]
+  },
+  "history": [
+    {
+      "version": "1.28.0",
+      "date": "2026-04-21",
+      "name": "Quarantena fornitori",
+      "changes": [
+        "Gestione della merce con riserva in quarantena.",
+        "Svincolo o respingimento successivo delle quantità in riserva.",
+        "Ordine fornitore mantenuto aperto fino alla gestione della quarantena."
+      ]
+    },
+    {
+      "version": "1.27.0",
+      "date": "2026-04-21",
+      "name": "Release e changelog",
+      "changes": [
+        "Introduzione della schermata release e changelog."
+      ]
+    }
+  ]
+}

@@ -73,7 +73,8 @@ export const masterdata = {
       locCorsia: product.locCorsia || '',
       locScaffale: product.locScaffale || '',
       locPiano: product.locPiano || '',
-      stockQty
+      stockQty,
+      quarantineQty: typeof product.quarantineQty === 'number' ? product.quarantineQty : (prev?.quarantineQty || 0)
     };
 
     const idx = db.products.findIndex(p => p.id === id);

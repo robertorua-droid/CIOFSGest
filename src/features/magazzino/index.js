@@ -36,6 +36,7 @@ export function initMagazzinoFeature() {
           <td>${p.description}</td>
           <td>${[p.locCorsia,p.locScaffale,p.locPiano].filter(Boolean).join('-')}</td>
           <td class="text-end">${p.stockQty || 0}</td>
+          <td class="text-end">${p.quarantineQty || 0}</td>
         </tr>`).join('');
     }
   };

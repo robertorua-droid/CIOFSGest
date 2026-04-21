@@ -1,6 +1,6 @@
 /* acquisti/index.js - ordini fornitore, DDT in entrata (MODULARE) */
 import { App } from '../../core/app.js';
-import { adjustStockBatch } from '../../domain/inventory.service.js';
+import { adjustStockBatch, adjustQuarantineBatch } from '../../domain/inventory.service.js';
 
   const canDeleteDocs = () => {
   const role = App.currentUser?.role || 'User';
@@ -9,9 +9,10 @@ import { adjustStockBatch } from '../../domain/inventory.service.js';
 
 const recomputeSupplierOrderStatus = (order) => {
   const lines = order?.lines || [];
+  const anyQuarantine = lines.some(l => Number(l.quarantineQty || 0) > 0);
   const allReceived = lines.length > 0 && lines.every(l => Number(l.receivedQty || 0) >= Number(l.qty || 0));
   const anyReceived = lines.some(l => Number(l.receivedQty || 0) > 0);
-  order.status = allReceived ? 'Completato' : (anyReceived ? 'Parzialmente Ricevuto' : 'Inviato');
+  order.status = anyQuarantine ? 'Aperto con riserva' : (allReceived ? 'Completato' : (anyReceived ? 'Parzialmente Ricevuto' : 'Inviato'));
 };
 
 const lineAcceptedQty = (line, ddt = null) => {
@@ -245,7 +246,8 @@ const Fornitori = {
         (o.lines || []).forEach(l => {
           const qty = Number(l.qty || 0);
           const rec = Number(l.receivedQty || 0);
-          const resid = Math.max(0, qty - rec);
+          const quar = Number(l.quarantineQty || 0);
+          const resid = Math.max(0, qty - rec - quar);
           const price = Number(l.price || 0);
           html += `<tr>
             <td>${l.productName || l.description || ''}</td>
@@ -290,24 +292,32 @@ const Fornitori = {
           (ddt.lines || []).forEach(dl => {
             const line = (order.lines || []).find(l => String(l.productId || '') === String(dl.productId || ''))
               || (order.lines || []).find(l => String(l.productName || l.description || '') === String(dl.description || ''));
-            if (line) line.receivedQty = Math.max(0, Number(line.receivedQty || 0) - Number(dl.qty || 0));
+            if (line) {
+              line.receivedQty = Math.max(0, Number(line.receivedQty || 0) - Number(dl.acceptedQty || 0));
+              line.quarantineQty = Math.max(0, Number(line.quarantineQty || 0) - Number(dl.reserveQty || 0));
+            }
           });
           recomputeSupplierOrderStatus(order);
         }
 
         try {
-          const restoreChanges = (ddt.lines || []).map(dl => {
+          const restoreStock = (ddt.lines || []).map(dl => {
             const pid = dl.productId || (db.products || []).find(pp => String(pp.description || '') === String(dl.description || ''))?.id;
-            const q = Number(dl.qty || 0);
+            const q = Number(dl.acceptedQty || 0);
             return pid && q ? { productId: pid, delta: -q } : null;
           }).filter(Boolean);
-          if (restoreChanges.length) {
-            adjustStockBatch(restoreChanges, { reason: 'CANCELLA_DDT_FORNITORE', ref: ddt.number });
-          }
+          const restoreQuarantine = (ddt.lines || []).map(dl => {
+            const pid = dl.productId || (db.products || []).find(pp => String(pp.description || '') === String(dl.description || ''))?.id;
+            const q = Number(dl.reserveQty || 0);
+            return pid && q ? { productId: pid, delta: -q } : null;
+          }).filter(Boolean);
+          if (restoreStock.length) adjustStockBatch(restoreStock, { reason: 'CANCELLA_DDT_FORNITORE', ref: ddt.number });
+          if (restoreQuarantine.length) adjustQuarantineBatch(restoreQuarantine, { reason: 'CANCELLA_DDT_FORNITORE', ref: ddt.number });
         } catch (err) {
           return App.ui.showToast((err && err.message) ? err.message : 'Ripristino magazzino non completato', 'warning');
         }
 
+        db.supplierQuarantine = (db.supplierQuarantine || []).filter(q => String(q.ddtNumber||'') !== String(num));
         const idx = (db.supplierDDTs || []).findIndex(x => x.number === num);
         if (idx >= 0) db.supplierDDTs.splice(idx, 1);
         App.db.save(db);
@@ -337,9 +347,9 @@ const Fornitori = {
         html += `<div class="mb-2"><strong>Data:</strong> ${d.date || ''}</div>`;
         html += `<div class="mb-2"><strong>Destinazione:</strong> ${dest}</div>`;
         html += `<div class="mb-3"><strong>Riferimento Ordine:</strong> ${d.orderNumber || ''}</div>`;
-        html += `<table class="table table-sm"><thead><tr><th>Descrizione</th><th class="text-end">Qtà</th><th class="text-end">Prezzo</th></tr></thead><tbody>`;
+        html += `<table class="table table-sm"><thead><tr><th>Descrizione</th><th class="text-end">Qtà gestita</th><th class="text-end">Accettata</th><th class="text-end">Riserva</th><th class="text-end">Respinta</th><th>Esito</th><th>Motivazione</th><th class="text-end">Prezzo</th></tr></thead><tbody>`;
         (d.lines || []).forEach(l => {
-          html += `<tr><td>${l.description || ''}</td><td class="text-end">${l.qty || 0}</td><td class="text-end">${App.utils.fmtMoney(l.price || 0)}</td></tr>`;
+          html += `<tr><td>${l.description || ''}</td><td class="text-end">${l.qty || 0}</td><td class="text-end">${l.acceptedQty || 0}</td><td class="text-end">${l.reserveQty || 0}</td><td class="text-end">${l.refusedQty || 0}</td><td>${lineOutcomeLabel(l,d)}</td><td>${l.lineNotes || '—'}</td><td class="text-end">${App.utils.fmtMoney(l.price || 0)}</td></tr>`;
         });
         html += `</tbody></table>`;
 
@@ -392,7 +402,7 @@ const Fornitori = {
       const fillOpenOrders = () => {
         const curDb = App.db.ensure();
         const prev = selOrder.value;
-        const openOrders = (curDb.supplierOrders || []).filter(o => (o.lines||[]).some(l => Number(l.receivedQty||0) < Number(l.qty||0)));
+        const openOrders = (curDb.supplierOrders || []).filter(o => (o.lines||[]).some(l => (Number(l.receivedQty||0) + Number(l.quarantineQty||0)) < Number(l.qty||0) || Number(l.quarantineQty||0) > 0));
         selOrder.innerHTML = '<option selected disabled value="">Seleziona un ordine...</option>'
           + openOrders.map(o => `<option value="${o.number}">${o.number} - ${o.supplierName}</option>`).join('');
         if (prev && openOrders.some(o => o.number === prev)) selOrder.value = prev;
@@ -424,7 +434,7 @@ const Fornitori = {
         App.db.save(db);
 
         const rows = order.lines.map((l,i) => {
-          const residual = Math.max(0, Number(l.qty || 0) - Number(l.receivedQty || 0));
+          const residual = Math.max(0, Number(l.qty || 0) - Number(l.receivedQty || 0) - Number(l.quarantineQty || 0));
           if (residual <= 0) return '';
           return `<tr data-i="${i}">
             <td>${l.productName}</td>
@@ -467,7 +477,7 @@ const Fornitori = {
           if (validationError) return;
           const i = parseInt(tr.getAttribute('data-i'), 10);
           const l = order.lines[i];
-          const residual = Math.max(0, Number(l.qty || 0) - Number(l.receivedQty || 0));
+          const residual = Math.max(0, Number(l.qty || 0) - Number(l.receivedQty || 0) - Number(l.quarantineQty || 0));
           const acceptedQty = Math.max(0, Number(tr.querySelector('.ddt-acc-qty')?.value || 0));
           const reserveQty = Math.max(0, Number(tr.querySelector('.ddt-res-qty')?.value || 0));
           const refusedQty = Math.max(0, Number(tr.querySelector('.ddt-ref-qty')?.value || 0));
@@ -490,25 +500,29 @@ const Fornitori = {
         if (handledLines.length === 0) return App.ui.showToast('Nessuna quantità da registrare.', 'warning');
 
         try {
-          const changes = handledLines
-            .map(s => ({ productId: order.lines[s.i].productId, delta: Number(s.acceptedQty || 0) + Number(s.reserveQty || 0) }))
+          const stockChanges = handledLines
+            .map(s => ({ productId: order.lines[s.i].productId, delta: Number(s.acceptedQty || 0) }))
             .filter(x => x.delta > 0);
-          if (changes.length) {
-            adjustStockBatch(changes, { reason: 'DDT_FORNITORE', ref: ddtNum.value });
-          }
+          const quarantineChanges = handledLines
+            .map(s => ({ productId: order.lines[s.i].productId, delta: Number(s.reserveQty || 0) }))
+            .filter(x => x.delta > 0);
+          if (stockChanges.length) adjustStockBatch(stockChanges, { reason: 'DDT_FORNITORE', ref: ddtNum.value });
+          if (quarantineChanges.length) adjustQuarantineBatch(quarantineChanges, { reason: 'DDT_FORNITORE_RISERVA', ref: ddtNum.value });
         } catch (err) {
           return App.ui.showToast(err.message || 'Errore aggiornamento magazzino', 'danger');
         }
 
         handledLines.forEach(s => {
           const line = order.lines[s.i];
-          line.receivedQty = Number(line.receivedQty || 0) + Number(s.acceptedQty || 0) + Number(s.reserveQty || 0);
+          line.receivedQty = Number(line.receivedQty || 0) + Number(s.acceptedQty || 0);
+          line.quarantineQty = Number(line.quarantineQty || 0) + Number(s.reserveQty || 0);
         });
         recomputeSupplierOrderStatus(order);
 
         const generalNotes = (notesEl?.value || '').trim();
         const totalReserved = handledLines.reduce((a, s) => a + Number(s.reserveQty || 0), 0);
         const totalRefused = handledLines.reduce((a, s) => a + Number(s.refusedQty || 0), 0);
+        db.supplierQuarantine = db.supplierQuarantine || [];
         const newDDT = {
           id: App.utils.uuid(),
           number: ddtNum.value,
@@ -535,11 +549,92 @@ const Fornitori = {
         };
         newDDT.status = computeSupplierDDTStatus(newDDT);
         db.supplierDDTs.push(newDDT);
+        handledLines.forEach(s => {
+          if (Number(s.reserveQty || 0) > 0) {
+            const l = order.lines[s.i];
+            db.supplierQuarantine.push({
+              id: App.utils.uuid(),
+              date: ddtDate.value,
+              supplierId: order.supplierId,
+              supplierName: order.supplierName,
+              orderId: order.id,
+              orderNumber: order.number,
+              ddtId: newDDT.id,
+              ddtNumber: newDDT.number,
+              productId: l.productId,
+              description: l.productName || l.description,
+              qty: Number(s.reserveQty || 0),
+              note: s.lineNotes || generalNotes || '',
+              status: 'In quarantena'
+            });
+          }
+        });
         App.db.save(db);
         App.ui.showToast('DDT fornitore registrato', 'success');
         Fornitori.renderOrders();
         Fornitori.renderDDTs();
         App.ui.showSection('elenco-ddt-fornitore');
+      });
+    },
+
+
+
+    renderQuarantine() {
+      const db = App.db.ensure();
+      const tbody = document.getElementById('supplier-quarantine-table-body');
+      if (!tbody) return;
+      const canManage = canDeleteDocs();
+      const rows = (db.supplierQuarantine || []).filter(q => q.status === 'In quarantena');
+      tbody.innerHTML = rows.length ? rows.map(q => `
+        <tr>
+          <td>${q.date || ''}</td>
+          <td>${q.supplierName || ''}</td>
+          <td>${q.orderNumber || ''}</td>
+          <td>${q.ddtNumber || ''}</td>
+          <td>${q.description || ''}</td>
+          <td class="text-end">${q.qty || 0}</td>
+          <td>${q.note || '—'}</td>
+          <td class="text-end">
+            ${canManage ? `<button class="btn btn-sm btn-outline-success" data-action="release-q" data-id="${q.id}">Svincola</button>
+            <button class="btn btn-sm btn-outline-danger ms-1" data-action="reject-q" data-id="${q.id}">Respingi</button>` : '<span class="text-muted">Solo Supervisor</span>'}
+          </td>
+        </tr>`).join('') : `<tr><td colspan="8" class="text-muted">Nessuna merce in quarantena.</td></tr>`;
+    },
+
+    wireQuarantine() {
+      const tbody = document.getElementById('supplier-quarantine-table-body');
+      if (!tbody || tbody.dataset.bound === '1') return;
+      tbody.dataset.bound = '1';
+      tbody.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-action]'); if (!btn) return;
+        if (!canDeleteDocs()) return App.ui.showToast('Permesso negato: serve ruolo Supervisor.', 'warning');
+        const db = App.db.ensure();
+        const id = btn.getAttribute('data-id');
+        const rec = (db.supplierQuarantine || []).find(x => String(x.id) === String(id));
+        if (!rec || rec.status !== 'In quarantena') return;
+        const order = (db.supplierOrders || []).find(o => String(o.id) === String(rec.orderId) || String(o.number) === String(rec.orderNumber));
+        const line = (order?.lines || []).find(l => String(l.productId || '') === String(rec.productId || '')) || (order?.lines || []).find(l => String(l.productName || l.description || '') === String(rec.description || ''));
+        const isRelease = btn.getAttribute('data-action') === 'release-q';
+        if (!confirm(`${isRelease ? 'Svincolare' : 'Respingere'} ${rec.qty} pz di ${rec.description}?`)) return;
+        try {
+          adjustQuarantineBatch([{ productId: rec.productId, delta: -Number(rec.qty || 0) }], { reason: isRelease ? 'SVINCOLO_QUARANTENA' : 'RESPINGIMENTO_QUARANTENA', ref: rec.ddtNumber });
+          if (isRelease) {
+            adjustStockBatch([{ productId: rec.productId, delta: Number(rec.qty || 0) }], { reason: 'SVINCOLO_QUARANTENA', ref: rec.ddtNumber });
+          }
+        } catch (err) {
+          return App.ui.showToast(err.message || 'Errore aggiornamento quarantena', 'danger');
+        }
+        if (line) {
+          line.quarantineQty = Math.max(0, Number(line.quarantineQty || 0) - Number(rec.qty || 0));
+          if (isRelease) line.receivedQty = Number(line.receivedQty || 0) + Number(rec.qty || 0);
+        }
+        rec.status = isRelease ? 'Svincolata' : 'Respinta da quarantena';
+        rec.resolvedAt = App.utils.todayISO();
+        if (order) recomputeSupplierOrderStatus(order);
+        App.db.save(db);
+        this.renderOrders();
+        this.renderQuarantine();
+        App.ui.showToast(isRelease ? 'Merce svincolata e caricata a magazzino.' : 'Merce respinta definitivamente.', 'success');
       });
     },
 
@@ -557,6 +652,7 @@ const Fornitori = {
           try { this.initNewSupplierDDT(); } catch {}
         }
         if (sid === 'elenco-ddt-fornitore') this.renderDDTs();
+        if (sid === 'quarantena-fornitori') this.renderQuarantine();
       };
 
       App.events.on('logged-in', () => {
@@ -566,6 +662,8 @@ const Fornitori = {
         this.initNewSupplierDDT();
         this.renderDDTs();
         this.wireSupplierDDTDetail();
+        this.renderQuarantine();
+        this.wireQuarantine();
       });
 
       App.events.on('db:changed', () => {

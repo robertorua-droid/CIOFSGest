@@ -16,6 +16,7 @@ const ARR_COLS = [
   'supplierOrders',
   'customerDDTs',
   'supplierDDTs',
+  'supplierQuarantine',
   'invoices'
 ];
 

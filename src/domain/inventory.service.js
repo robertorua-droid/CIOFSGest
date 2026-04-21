@@ -67,3 +67,32 @@ export function adjustStockBatch(changes, meta = {}) {
 export function adjustStock(productId, delta, meta = {}) {
   return adjustStockBatch([{ productId, delta }], meta);
 }
+
+
+export function adjustQuarantineBatch(changes, meta = {}) {
+  const db = App.db.ensure();
+  const grouped = new Map();
+  for (const c of changes) {
+    if (!c?.productId) continue;
+    const d = Number(c.delta || 0);
+    if (!Number.isFinite(d) || d === 0) continue;
+    grouped.set(c.productId, (grouped.get(c.productId) || 0) + d);
+  }
+  for (const [productId, delta] of grouped.entries()) {
+    const p = findProduct(db, productId);
+    if (!p) throw new Error(`Prodotto non trovato (${productId})`);
+    const current = Number(p.quarantineQty || 0);
+    const newQty = current + delta;
+    if (newQty < 0) throw new Error(`Quantità in quarantena insufficiente per ${p.code}`);
+  }
+  for (const [productId, delta] of grouped.entries()) {
+    const p = findProduct(db, productId);
+    p.quarantineQty = Number(p.quarantineQty || 0) + delta;
+  }
+  App.db.save(db);
+  App.events.emit('inventory:changed', { changes: Array.from(grouped.entries()).map(([productId, delta]) => ({ productId, delta })), meta: { ...meta, bucket: 'quarantine' } });
+}
+
+export function adjustQuarantine(productId, delta, meta = {}) {
+  return adjustQuarantineBatch([{ productId, delta }], meta);
+}
