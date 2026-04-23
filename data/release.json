@@ -1,15 +1,25 @@
 {
   "current": {
-    "version": "1.32.0",
+    "version": "1.32.1",
     "date": "2026-04-23",
-    "name": "Flusso completo reso fornitore",
+    "name": "Impaginazione PDF reso fornitore",
     "changes": [
-      "Evoluzione del reso fornitore con stato Preparato / Spedito al fornitore.",
-      "Dettaglio reso con causale, numero colli, vettore e note di trasporto modificabili.",
-      "Elenco Resi Fornitore aggiornato con stato e PDF del reso arricchito con i nuovi dati documentali."
+      "Nuova impaginazione del PDF del DDT di reso fornitore con intestazione Mittente/Destinatario.",
+      "Tabella articoli resa con codice, descrizione, quantità e motivazione del reso.",
+      "Piede documento con colli, vettore, stato reso e note di trasporto."
     ]
   },
   "history": [
+    {
+      "version": "1.32.1",
+      "date": "2026-04-23",
+      "name": "Impaginazione PDF reso fornitore",
+      "changes": [
+        "Nuova impaginazione del PDF del DDT di reso fornitore con intestazione Mittente/Destinatario.",
+        "Tabella articoli resa con codice, descrizione, quantità e motivazione del reso.",
+        "Piede documento con colli, vettore, stato reso e note di trasporto."
+      ]
+    },
     {
       "version": "1.32.0",
       "date": "2026-04-23",

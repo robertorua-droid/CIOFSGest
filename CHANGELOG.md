@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.32.1 - Impaginazione PDF reso fornitore
+- nuova impaginazione del PDF del DDT di reso fornitore con intestazione Mittente/Destinatario
+- tabella articoli resa con codice, descrizione, quantità e motivazione del reso
+- piede documento con colli, vettore, stato reso e note di trasporto
+
 ## 1.32.0 - Flusso completo reso fornitore
 - evoluzione del reso fornitore con stato Preparato / Spedito al fornitore
 - dettaglio reso con causale, numero colli, vettore e note di trasporto modificabili

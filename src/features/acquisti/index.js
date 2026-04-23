@@ -88,31 +88,98 @@ const printSupplierReturnPdf = (ret) => {
     const jspdfNs = window.jspdf || {};
     const jsPDFCtor = jspdfNs.jsPDF || window.jsPDF;
     if (!jsPDFCtor) { App.ui.showToast('Libreria PDF non disponibile.', 'warning'); return; }
+    const db = App.db.ensure();
+    const company = db.company || {};
+    const supplier = (db.suppliers || []).find(s => (ret.supplierId && s.id === ret.supplierId) || (ret.supplierName && s.name === ret.supplierName)) || {};
     const doc = new jsPDFCtor();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let y = 16;
+    const lineGap = 5;
+    const boxW = 86;
+    const rightX = pageWidth - 14 - boxW;
+
+    const companyLines = [
+      company.name || 'Nostra Azienda',
+      company.address || '',
+      [company.zip || '', company.city || '', company.province ? `(${company.province})` : ''].filter(Boolean).join(' ')
+    ].filter(Boolean);
+    const supplierLines = [
+      supplier.name || ret.supplierName || 'Fornitore',
+      supplier.address || '',
+      [supplier.zip || '', supplier.city || '', supplier.province ? `(${supplier.province})` : ''].filter(Boolean).join(' ')
+    ].filter(Boolean);
+
     doc.setFontSize(16);
-    doc.text(`Reso Fornitore ${ret.number || ''}`, 14, 18);
+    doc.text('DDT DI RESO A FORNITORE', 14, y);
+    y += 8;
+
+    doc.setFontSize(10);
+    doc.roundedRect(14, y, boxW, 24, 2, 2);
+    doc.text('Mittente', 16, y + 5);
+    companyLines.forEach((line, idx) => doc.text(String(line), 16, y + 10 + idx * lineGap));
+
+    doc.roundedRect(rightX, y, boxW, 24, 2, 2);
+    doc.text('Destinatario', rightX + 2, y + 5);
+    supplierLines.forEach((line, idx) => doc.text(String(line), rightX + 2, y + 10 + idx * lineGap));
+
+    y += 32;
     doc.setFontSize(11);
-    doc.text(`Fornitore: ${ret.supplierName || ''}`, 14, 28);
-    doc.text(`Data: ${ret.date || ''}`, 14, 35);
-    doc.text(`Rif. Ordine: ${ret.sourceOrderNumber || ''}`, 14, 42);
-    doc.text(`Rif. DDT origine: ${ret.sourceDdtNumber || ''}`, 14, 49);
-    doc.text(`Causale reso: ${ret.returnReason || ret.notes || 'Reso da quarantena'}`, 14, 56);
-    doc.text(`Colli: ${Number(ret.packageCount || 1)}`, 14, 63);
-    doc.text(`Vettore: ${ret.carrier || '—'}`, 14, 70);
-    doc.text(`Stato: ${ret.status || 'Preparato'}`, 14, 77);
-    if (ret.shippedAt) doc.text(`Spedito il: ${ret.shippedAt}`, 14, 84);
-    const notesText = `Note: ${ret.transportNotes || ret.notes || '—'}`;
-    const rows = (ret.lines || []).map(l => [l.description || l.productName || '', String(l.qty || 0), l.reason || ret.notes || '—']);
-    if (doc.splitTextToSize) {
-      const split = doc.splitTextToSize(notesText, 180);
-      doc.text(split, 14, ret.shippedAt ? 91 : 84);
-    }
+    doc.text(`Numero DDT di reso: ${ret.number || ''}`, 14, y);
+    doc.text(`Data documento: ${ret.date || ''}`, rightX, y);
+    y += 7;
+    doc.text('Causale: Reso al fornitore', 14, y);
+    y += 7;
+    doc.text(`Rif. Ordine fornitore: ${ret.sourceOrderNumber || '—'}`, 14, y);
+    doc.text(`Rif. DDT origine: ${ret.sourceDdtNumber || '—'}`, rightX, y);
+    y += 9;
+
+    const rows = (ret.lines || []).map(l => [
+      l.productId || '',
+      l.description || l.productName || '',
+      String(l.qty || 0),
+      l.reason || ret.returnReason || ret.notes || '—'
+    ]);
+
     if (doc.autoTable) {
-      doc.autoTable({ startY: ret.shippedAt ? 104 : 98, head: [['Descrizione','Qtà resa','Motivazione']], body: rows });
+      doc.autoTable({
+        startY: y,
+        head: [['Codice', 'Descrizione articolo', 'Qtà resa', 'Motivazione del reso']],
+        body: rows,
+        theme: 'grid',
+        styles: { fontSize: 9, cellPadding: 2 },
+        headStyles: { fillColor: [230, 230, 230], textColor: 20 },
+        columnStyles: {
+          0: { cellWidth: 30 },
+          1: { cellWidth: 70 },
+          2: { cellWidth: 22, halign: 'right' },
+          3: { cellWidth: 58 }
+        }
+      });
+      y = doc.lastAutoTable.finalY + 8;
     } else {
-      let y = ret.shippedAt ? 108 : 102;
-      rows.forEach(r => { doc.text(`${r[0]} - ${r[1]} - ${r[2]}`, 14, y); y += 7; });
+      doc.text('Articoli resi:', 14, y);
+      y += 6;
+      rows.forEach(r => {
+        doc.text(`${r[0]} - ${r[1]} - Qtà ${r[2]} - ${r[3]}`, 14, y);
+        y += 6;
+      });
+      y += 2;
     }
+
+    const transportNotes = ret.transportNotes || ret.notes || '—';
+    const footerLines = [
+      `Colli: ${Number(ret.packageCount || 1)}`,
+      `Vettore: ${ret.carrier || '—'}`,
+      `Stato reso: ${ret.status || 'Preparato'}`,
+      ret.shippedAt ? `Data spedizione: ${ret.shippedAt}` : ''
+    ].filter(Boolean);
+    footerLines.forEach(line => {
+      doc.text(String(line), 14, y);
+      y += 6;
+    });
+    const splitNotes = doc.splitTextToSize ? doc.splitTextToSize(`Note di trasporto: ${transportNotes}`, pageWidth - 28) : [`Note di trasporto: ${transportNotes}`];
+    doc.text(splitNotes, 14, y);
+
     doc.save(`${ret.number || 'reso-fornitore'}.pdf`);
   } catch (e) {
     console.error(e);
