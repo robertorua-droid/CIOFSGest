@@ -50,6 +50,49 @@ const lineOutcomeLabel = (line, ddt = null) => {
   return 'Accettata';
 };
 
+
+const supplierReturnHtml = (ret) => {
+  let html = `<div class="mb-2"><strong>Fornitore:</strong> ${ret.supplierName || ''}</div>`;
+  html += `<div class="mb-2"><strong>Data:</strong> ${ret.date || ''}</div>`;
+  html += `<div class="mb-2"><strong>Rif. Ordine:</strong> ${ret.sourceOrderNumber || ''}</div>`;
+  html += `<div class="mb-2"><strong>Rif. DDT origine:</strong> ${ret.sourceDdtNumber || ''}</div>`;
+  html += `<div class="mb-3"><strong>Motivazione generale:</strong> ${ret.notes || '—'}</div>`;
+  html += `<table class="table table-sm"><thead><tr><th>Descrizione</th><th class="text-end">Qtà resa</th><th>Motivazione</th></tr></thead><tbody>`;
+  (ret.lines || []).forEach(l => {
+    html += `<tr><td>${l.description || l.productName || ''}</td><td class="text-end">${l.qty || 0}</td><td>${l.reason || ret.notes || '—'}</td></tr>`;
+  });
+  html += `</tbody></table>`;
+  return html;
+};
+
+const printSupplierReturnPdf = (ret) => {
+  try {
+    const jspdfNs = window.jspdf || {};
+    const jsPDFCtor = jspdfNs.jsPDF || window.jsPDF;
+    if (!jsPDFCtor) { App.ui.showToast('Libreria PDF non disponibile.', 'warning'); return; }
+    const doc = new jsPDFCtor();
+    doc.setFontSize(16);
+    doc.text(`Reso Fornitore ${ret.number || ''}`, 14, 18);
+    doc.setFontSize(11);
+    doc.text(`Fornitore: ${ret.supplierName || ''}`, 14, 28);
+    doc.text(`Data: ${ret.date || ''}`, 14, 35);
+    doc.text(`Rif. Ordine: ${ret.sourceOrderNumber || ''}`, 14, 42);
+    doc.text(`Rif. DDT origine: ${ret.sourceDdtNumber || ''}`, 14, 49);
+    doc.text(`Motivazione: ${ret.notes || '—'}`, 14, 56);
+    const rows = (ret.lines || []).map(l => [l.description || l.productName || '', String(l.qty || 0), l.reason || ret.notes || '—']);
+    if (doc.autoTable) {
+      doc.autoTable({ startY: 64, head: [['Descrizione','Qtà resa','Motivazione']], body: rows });
+    } else {
+      let y = 68;
+      rows.forEach(r => { doc.text(`${r[0]} - ${r[1]} - ${r[2]}`, 14, y); y += 7; });
+    }
+    doc.save(`${ret.number || 'reso-fornitore'}.pdf`);
+  } catch (e) {
+    console.error(e);
+    App.ui.showToast('Errore nella generazione del PDF del reso.', 'danger');
+  }
+};
+
 const Fornitori = {
     renderOrders() {
       const db = App.db.ensure();
