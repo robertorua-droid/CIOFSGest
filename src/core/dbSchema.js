@@ -15,6 +15,7 @@ export function createInitialDb() {
     customerDDTs: [],
     supplierDDTs: [],
     supplierQuarantine: [],
+    supplierReturnDDTs: [],
     invoices: [],
     notes: {}, // { userId: "...": "testo" }
     settings: {
@@ -30,6 +31,7 @@ export function createInitialDb() {
       orderSupplier: 0,
       ddtCustomer: 0,
       ddtSupplier: 0,
+      ddtReturnSupplier: 0,
       invoice: 0
     }
   };
@@ -77,6 +79,7 @@ export function normalizeDb(input) {
     'customerDDTs',
     'supplierDDTs',
     'supplierQuarantine',
+    'supplierReturnDDTs',
     'invoices'
   ];
   for (const k of arrKeys) {

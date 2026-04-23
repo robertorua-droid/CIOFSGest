@@ -161,11 +161,18 @@ export function mapBackupToDb(backup) {
     ...q
   }));
 
+  const legacySupplierReturnDDTs = backup.supplierReturnDDTs || [];
+  db.supplierReturnDDTs = legacySupplierReturnDDTs.map((r, idx) => ({
+    id: toStr(r.id || `SR-${idx + 1}`),
+    ...r
+  }));
+
   // Counters: se non presenti, stima dai documenti
   if (backup.counters && typeof backup.counters === 'object') {
     db.counters = {
       ...backup.counters,
-      quarantineSupplier: Number(backup.counters.quarantineSupplier || db.supplierQuarantine.length || 0)
+      quarantineSupplier: Number(backup.counters.quarantineSupplier || db.supplierQuarantine.length || 0),
+      ddtReturnSupplier: Number(backup.counters.ddtReturnSupplier || db.supplierReturnDDTs.length || 0)
     };
   } else {
     db.counters = {
@@ -174,6 +181,7 @@ export function mapBackupToDb(backup) {
       ddtCustomer: db.customerDDTs.length,
       ddtSupplier: db.supplierDDTs.length,
       quarantineSupplier: db.supplierQuarantine.length,
+      ddtReturnSupplier: db.supplierReturnDDTs.length,
       invoice: db.invoices.length
     };
   }
@@ -192,7 +200,8 @@ export function summarizeDb(db) {
     supplierOrders: (db.supplierOrders || []).length,
     customerDDTs: (db.customerDDTs || []).length,
     supplierDDTs: (db.supplierDDTs || []).length,
-    invoices: (db.invoices || []).length
+    invoices: (db.invoices || []).length,
+    supplierReturnDDTs: (db.supplierReturnDDTs || []).length
   };
 }
 

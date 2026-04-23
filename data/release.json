@@ -1,15 +1,35 @@
 {
   "current": {
-    "version": "1.29.0",
-    "date": "2026-04-21",
-    "name": "Allineamento inventario",
+    "version": "1.31.0",
+    "date": "2026-04-23",
+    "name": "Elenco resi fornitore",
     "changes": [
-      "Nuovo pulsante in Inventario per allineare le giacenze disponibili ai conteggi fisici inseriti.",
-      "Conferma esplicita richiesta prima dell'allineamento inventariale.",
-      "Aggiornato changelog e versione del gestionale."
+      "Nuova voce Fornitori -> Elenco Resi Fornitore con storico dei DDT di reso generati dalla quarantena.",
+      "Dettaglio dedicato del reso con riferimenti a ordine e DDT origine.",
+      "Stampa PDF del DDT di reso fornitore e aggiornamento changelog/versione."
     ]
   },
   "history": [
+    {
+      "version": "1.31.0",
+      "date": "2026-04-23",
+      "name": "Elenco resi fornitore",
+      "changes": [
+        "Nuova voce Fornitori -> Elenco Resi Fornitore con storico dei DDT di reso generati dalla quarantena.",
+        "Dettaglio dedicato del reso con riferimenti a ordine e DDT origine.",
+        "Stampa PDF del DDT di reso fornitore e aggiornamento changelog/versione."
+      ]
+    },
+    {
+      "version": "1.30.0",
+      "date": "2026-04-21",
+      "name": "Chiusura quarantena fornitori",
+      "changes": [
+        "Nuove azioni in Quarantena Fornitori: Svincola, Reso fornitore, Da distruggere.",
+        "Generazione automatica del DDT di reso al fornitore per le quantità chiuse come reso.",
+        "Scarico automatico della quantità dalla quarantena in caso di reso o distruzione e storico chiusure quarantena."
+      ]
+    },
     {
       "version": "1.29.0",
       "date": "2026-04-21",

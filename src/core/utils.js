@@ -117,6 +117,14 @@ export const utils = {
     const y = new Date().getFullYear();
     return `R-DDT-${y}-${String(c.ddtSupplier).padStart(4,'0')}`;
   },
+
+  nextSupplierReturnDDTNumber(db) {
+    const c = this._ensureCounters(db);
+    c.ddtReturnSupplier = (c.ddtReturnSupplier || 0) + 1;
+    const y = new Date().getFullYear();
+    return `RESO-F-${y}-${String(c.ddtReturnSupplier).padStart(4,'0')}`;
+  },
+
   nextInvoiceNumber(db) {
     const c = this._ensureCounters(db);
     c.invoice = (c.invoice || 0) + 1;

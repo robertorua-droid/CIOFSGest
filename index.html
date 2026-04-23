@@ -125,6 +125,7 @@
 <li class="nav-item menu-item" id="menu-nuovo-ddt-fornitore"><a class="nav-link" data-target="nuovo-ddt-fornitore" href="#"><i class="fas fa-file-invoice"></i> Nuovo DDT Fornitore</a></li>
 <li class="nav-item menu-item" id="menu-elenco-ddt-fornitore"><a class="nav-link" data-target="elenco-ddt-fornitore" href="#"><i class="fas fa-clipboard-list"></i> Elenco DDT Fornitore</a></li>
 <li class="nav-item menu-item" id="menu-quarantena-fornitori"><a class="nav-link" data-target="quarantena-fornitori" href="#"><i class="fas fa-box-open"></i> Quarantena Fornitori</a></li>
+<li class="nav-item menu-item" id="menu-elenco-resi-fornitore"><a class="nav-link" data-target="elenco-resi-fornitore" href="#"><i class="fas fa-undo"></i> Elenco Resi Fornitore</a></li>
 </ul>
 </li>
 <li class="nav-group is-open" data-group="impostazioni">
@@ -262,7 +263,7 @@
 <div class="content-section d-none" id="elenco-giacenze">
 <h2>Elenco Giacenze</h2>
 <table class="table table-hover mt-4">
-<thead><tr><th>Codice</th><th>Descrizione</th><th>Collocazione (Corsia-Scaffale-Piano)</th><th class="text-end">Giacenza</th></tr></thead>
+<thead><tr><th>Codice</th><th>Descrizione</th><th>Collocazione (Corsia-Scaffale-Piano)</th><th>Giacenza</th></tr></thead>
 <tbody id="inventory-table-body"></tbody>
 </table>
 </div>
@@ -276,8 +277,8 @@
 <p class="text-muted mb-3">Inserisci la <strong>giacenza fisica</strong> (conteggio reale). Il sistema confronta automaticamente con la giacenza a gestionale e mostra la differenza.</p>
 <div class="d-flex flex-wrap gap-2 mb-3">
   <button class="btn btn-outline-danger btn-sm" id="reset-physical-counts-btn"><i class="fas fa-eraser"></i> Azzera conteggi fisici</button>
-  <button class="btn btn-primary btn-sm" id="apply-physical-counts-btn"><i class="fas fa-balance-scale"></i> Allinea giacenze da inventario</button>
-  <span class="small text-muted align-self-center">Cancella tutti i valori inseriti nella colonna “Giacenza fisica” oppure allinea le giacenze disponibili ai conteggi fisici inseriti.</span>
+  <button class="btn btn-outline-primary btn-sm" id="apply-physical-counts-btn"><i class="fas fa-balance-scale"></i> Allinea giacenze da inventario</button>
+  <span class="small text-muted align-self-center">Cancella tutti i valori inseriti nella colonna “Giacenza fisica”.</span>
 </div>
 <div class="table-responsive">
 <table class="table table-striped">
@@ -482,10 +483,19 @@
 
 <div class="content-section d-none" id="quarantena-fornitori">
 <h2>Quarantena Fornitori</h2>
-<p class="text-muted">Le righe ricevute con riserva non entrano nella giacenza disponibile. Da qui è possibile svincolarle oppure respingerle definitivamente.</p>
+<p class="text-muted">Le righe ricevute con riserva non entrano nella giacenza disponibile. Da qui è possibile svincolarle, generare il reso al fornitore oppure marcarle come da distruggere.</p>
 <table class="table table-hover">
 <thead><tr><th>Data</th><th>Fornitore</th><th>Ordine</th><th>DDT</th><th>Prodotto</th><th class="text-end">Q.tà in quarantena</th><th>Motivazione</th><th>Azioni</th></tr></thead>
 <tbody id="supplier-quarantine-table-body"></tbody>
+</table>
+</div>
+
+<div class="content-section d-none" id="elenco-resi-fornitore">
+<h2>Elenco Resi Fornitore</h2>
+<p class="text-muted">Storico dei DDT di reso generati a partire dalla gestione della quarantena fornitori.</p>
+<table class="table table-hover">
+<thead><tr><th>Numero Reso</th><th>Data</th><th>Fornitore</th><th>Rif. Ordine</th><th>Rif. DDT origine</th><th>Azioni</th></tr></thead>
+<tbody id="supplier-return-ddts-table-body"></tbody>
 </table>
 </div>
 <!-- Impostazioni -->
@@ -812,6 +822,15 @@
 <div class="modal-header"><h5 class="modal-title" id="supplierDdtDetailModalTitle">Dettaglio DDT Fornitore</h5><button class="btn-close" data-bs-dismiss="modal" type="button"></button></div>
 <div class="modal-body" id="supplierDdtDetailModalBody"></div>
 <div class="modal-footer"><button class="btn btn-danger me-auto d-none" id="delete-supplier-ddt-btn" type="button">Elimina DDT</button><button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Chiudi</button></div>
+</div>
+</div>
+</div>
+<div class="modal fade" id="supplierReturnDetailModal" tabindex="-1">
+<div class="modal-dialog modal-lg">
+<div class="modal-content">
+<div class="modal-header"><h5 class="modal-title" id="supplierReturnDetailModalTitle">Dettaglio Reso Fornitore</h5><button class="btn-close" data-bs-dismiss="modal" type="button"></button></div>
+<div class="modal-body" id="supplierReturnDetailModalBody"></div>
+<div class="modal-footer"><button class="btn btn-primary" id="print-supplier-return-pdf-btn" type="button"><i class="fas fa-file-pdf"></i> Genera PDF</button><button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Chiudi</button></div>
 </div>
 </div>
 </div>

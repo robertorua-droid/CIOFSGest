@@ -384,6 +384,43 @@ const Fornitori = {
       `).join('');
     },
 
+    renderReturnDDTs() {
+      const db = App.db.ensure();
+      const tbody = document.getElementById('supplier-return-ddts-table-body');
+      if (!tbody) return;
+      tbody.innerHTML = (db.supplierReturnDDTs || []).length ? (db.supplierReturnDDTs || []).map(r => `
+        <tr>
+          <td>${r.number || ''}</td>
+          <td>${r.date || ''}</td>
+          <td>${r.supplierName || ''}</td>
+          <td>${r.sourceOrderNumber || ''}</td>
+          <td>${r.sourceDdtNumber || ''}</td>
+          <td class="text-end"><button class="btn btn-sm btn-outline-primary" data-action="view-supplier-return" data-num="${r.number}">Dettaglio</button></td>
+        </tr>
+      `).join('') : `<tr><td colspan="6" class="text-muted">Nessun reso fornitore registrato.</td></tr>`;
+    },
+
+    wireSupplierReturnDetail() {
+      let db = App.db.ensure();
+      App.events.on('db:changed', d => { db = d; });
+      const tbody = document.getElementById('supplier-return-ddts-table-body');
+      if (!tbody || tbody.dataset.wiredDetail === '1') return;
+      tbody.dataset.wiredDetail = '1';
+      tbody.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-action="view-supplier-return"]'); if (!btn) return;
+        const num = btn.getAttribute('data-num');
+        const ret = (db.supplierReturnDDTs || []).find(x => x.number === num);
+        if (!ret) return;
+        const title = document.getElementById('supplierReturnDetailModalTitle');
+        const body = document.getElementById('supplierReturnDetailModalBody');
+        const printBtn = document.getElementById('print-supplier-return-pdf-btn');
+        if (title) title.textContent = `Dettaglio Reso Fornitore ${ret.number}`;
+        if (body) body.innerHTML = supplierReturnHtml(ret);
+        if (printBtn) printBtn.onclick = () => printSupplierReturnPdf(ret);
+        try { bootstrap.Modal.getOrCreateInstance(document.getElementById('supplierReturnDetailModal')).show(); } catch {}
+      });
+    },
+
     initNewSupplierDDT() {
       let db = App.db.ensure();
       App.events.on('db:changed', d => { db = d; });
@@ -582,6 +619,7 @@ const Fornitori = {
     renderQuarantine() {
       const db = App.db.ensure();
       const tbody = document.getElementById('supplier-quarantine-table-body');
+      const histBody = document.getElementById('supplier-quarantine-history-table-body');
       if (!tbody) return;
       const canManage = canDeleteDocs();
       const rows = (db.supplierQuarantine || []).filter(q => q.status === 'In quarantena');
@@ -596,9 +634,24 @@ const Fornitori = {
           <td>${q.note || '—'}</td>
           <td class="text-end">
             ${canManage ? `<button class="btn btn-sm btn-outline-success" data-action="release-q" data-id="${q.id}">Svincola</button>
-            <button class="btn btn-sm btn-outline-danger ms-1" data-action="reject-q" data-id="${q.id}">Respingi</button>` : '<span class="text-muted">Solo Supervisor</span>'}
+            <button class="btn btn-sm btn-outline-warning ms-1" data-action="return-q" data-id="${q.id}">Reso fornitore</button>
+            <button class="btn btn-sm btn-outline-danger ms-1" data-action="destroy-q" data-id="${q.id}">Da distruggere</button>` : '<span class="text-muted">Solo Supervisor</span>'}
           </td>
         </tr>`).join('') : `<tr><td colspan="8" class="text-muted">Nessuna merce in quarantena.</td></tr>`;
+      if (histBody) {
+        const historyRows = (db.supplierQuarantine || []).filter(q => q.status !== 'In quarantena');
+        histBody.innerHTML = historyRows.length ? historyRows.map(q => `
+          <tr>
+            <td>${q.resolvedAt || ''}</td>
+            <td>${q.supplierName || ''}</td>
+            <td>${q.orderNumber || ''}</td>
+            <td>${q.description || ''}</td>
+            <td class="text-end">${q.qty || 0}</td>
+            <td>${q.status || ''}</td>
+            <td>${q.returnDdtNumber || '—'}</td>
+            <td>${q.note || '—'}</td>
+          </tr>`).join('') : `<tr><td colspan="8" class="text-muted">Nessuna quarantena chiusa.</td></tr>`;
+      }
     },
 
     wireQuarantine() {
@@ -614,10 +667,23 @@ const Fornitori = {
         if (!rec || rec.status !== 'In quarantena') return;
         const order = (db.supplierOrders || []).find(o => String(o.id) === String(rec.orderId) || String(o.number) === String(rec.orderNumber));
         const line = (order?.lines || []).find(l => String(l.productId || '') === String(rec.productId || '')) || (order?.lines || []).find(l => String(l.productName || l.description || '') === String(rec.description || ''));
-        const isRelease = btn.getAttribute('data-action') === 'release-q';
-        if (!confirm(`${isRelease ? 'Svincolare' : 'Respingere'} ${rec.qty} pz di ${rec.description}?`)) return;
+        const action = btn.getAttribute('data-action');
+        const isRelease = action === 'release-q';
+        const isReturn = action === 'return-q';
+        const isDestroy = action === 'destroy-q';
+        const actionLabel = isRelease ? 'svincolare' : (isReturn ? 'rendere al fornitore' : 'marcare come da distruggere');
+        if (!confirm(`Vuoi ${actionLabel} ${rec.qty} pz di ${rec.description}?`)) return;
+        let closingNote = String(rec.note || '').trim();
+        if (isReturn || isDestroy) {
+          const entered = prompt(`Inserisci la motivazione per ${isReturn ? 'il reso al fornitore' : 'la distruzione'}:`, closingNote || '');
+          if (entered === null) return;
+          closingNote = String(entered || '').trim();
+          if (!closingNote) {
+            return App.ui.showToast('Inserisci una motivazione per chiudere la quarantena.', 'warning');
+          }
+        }
         try {
-          adjustQuarantineBatch([{ productId: rec.productId, delta: -Number(rec.qty || 0) }], { reason: isRelease ? 'SVINCOLO_QUARANTENA' : 'RESPINGIMENTO_QUARANTENA', ref: rec.ddtNumber });
+          adjustQuarantineBatch([{ productId: rec.productId, delta: -Number(rec.qty || 0) }], { reason: isRelease ? 'SVINCOLO_QUARANTENA' : (isReturn ? 'RESO_DA_QUARANTENA' : 'DISTRUZIONE_DA_QUARANTENA'), ref: rec.ddtNumber });
           if (isRelease) {
             adjustStockBatch([{ productId: rec.productId, delta: Number(rec.qty || 0) }], { reason: 'SVINCOLO_QUARANTENA', ref: rec.ddtNumber });
           }
@@ -628,13 +694,45 @@ const Fornitori = {
           line.quarantineQty = Math.max(0, Number(line.quarantineQty || 0) - Number(rec.qty || 0));
           if (isRelease) line.receivedQty = Number(line.receivedQty || 0) + Number(rec.qty || 0);
         }
-        rec.status = isRelease ? 'Svincolata' : 'Respinta da quarantena';
+        if (isReturn) {
+          db.supplierReturnDDTs = Array.isArray(db.supplierReturnDDTs) ? db.supplierReturnDDTs : [];
+          const returnNumber = App.utils.nextSupplierReturnDDTNumber(db);
+          const returnDoc = {
+            id: App.utils.uuid(),
+            number: returnNumber,
+            date: App.utils.todayISO(),
+            supplierId: rec.supplierId,
+            supplierName: rec.supplierName,
+            sourceOrderId: rec.orderId,
+            sourceOrderNumber: rec.orderNumber,
+            sourceDdtId: rec.ddtId,
+            sourceDdtNumber: rec.ddtNumber,
+            status: 'Reso al fornitore',
+            notes: closingNote,
+            lines: [{
+              productId: rec.productId,
+              productName: rec.description,
+              description: rec.description,
+              qty: Number(rec.qty || 0),
+              reason: closingNote
+            }]
+          };
+          db.supplierReturnDDTs.push(returnDoc);
+          rec.returnDdtNumber = returnNumber;
+        }
+        rec.note = closingNote || rec.note || '';
+        rec.status = isRelease ? 'Svincolata' : (isReturn ? 'Resa al fornitore' : 'Da distruggere');
         rec.resolvedAt = App.utils.todayISO();
+        rec.resolutionType = isRelease ? 'release' : (isReturn ? 'return' : 'destroy');
         if (order) recomputeSupplierOrderStatus(order);
         App.db.save(db);
         this.renderOrders();
         this.renderQuarantine();
-        App.ui.showToast(isRelease ? 'Merce svincolata e caricata a magazzino.' : 'Merce respinta definitivamente.', 'success');
+        this.renderReturnDDTs();
+        App.ui.showToast(
+          isRelease ? 'Merce svincolata e caricata a magazzino.' : (isReturn ? `Creato ${rec.returnDdtNumber || 'DDT di reso'} e rimossa la merce dalla quarantena.` : 'Merce marcata come da distruggere e rimossa dalla quarantena.'),
+          'success'
+        );
       });
     },
 
@@ -653,6 +751,7 @@ const Fornitori = {
         }
         if (sid === 'elenco-ddt-fornitore') this.renderDDTs();
         if (sid === 'quarantena-fornitori') this.renderQuarantine();
+        if (sid === 'elenco-resi-fornitore') this.renderReturnDDTs();
       };
 
       App.events.on('logged-in', () => {
@@ -664,6 +763,8 @@ const Fornitori = {
         this.wireSupplierDDTDetail();
         this.renderQuarantine();
         this.wireQuarantine();
+        this.renderReturnDDTs();
+        this.wireSupplierReturnDetail();
       });
 
       App.events.on('db:changed', () => {
