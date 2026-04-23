@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.33.0 - Gestione quantità quarantena
+- nuovo pulsante "Gestisci quantità quarantena" con ripartizione obbligatoria tra svincolo, reso e distruzione
+- controllo automatico della somma delle quantità e conferma finale unica in Modalità A
+- generazione del DDT di reso solo per la quota resa e storico quarantena distinto per ogni esito
+
+## 1.33.0 - Gestione quantità quarantena
+- nuovo pulsante "Gestisci quantità quarantena" con ripartizione obbligatoria tra svincolo, reso e distruzione
+- controllo automatico della somma delle quantità e conferma finale unica in Modalità A
+- generazione del DDT di reso solo per la quota resa e storico quarantena distinto per ogni esito
+
 ## 1.32.1 - Impaginazione PDF reso fornitore
 - nuova impaginazione del PDF del DDT di reso fornitore con intestazione Mittente/Destinatario
 - tabella articoli resa con codice, descrizione, quantità e motivazione del reso

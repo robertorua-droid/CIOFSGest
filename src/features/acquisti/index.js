@@ -816,9 +816,7 @@ const Fornitori = {
           <td class="text-end">${q.qty || 0}</td>
           <td>${q.note || '—'}</td>
           <td class="text-end">
-            ${canManage ? `<button class="btn btn-sm btn-outline-success" data-action="release-q" data-id="${q.id}">Svincola</button>
-            <button class="btn btn-sm btn-outline-warning ms-1" data-action="return-q" data-id="${q.id}">Reso fornitore</button>
-            <button class="btn btn-sm btn-outline-danger ms-1" data-action="destroy-q" data-id="${q.id}">Da distruggere</button>` : '<span class="text-muted">Solo Supervisor</span>'}
+            ${canManage ? `<button class="btn btn-sm btn-outline-primary" data-action="manage-q" data-id="${q.id}">Gestisci quantità quarantena</button>` : '<span class="text-muted">Solo Supervisor</span>'}
           </td>
         </tr>`).join('') : `<tr><td colspan="8" class="text-muted">Nessuna merce in quarantena.</td></tr>`;
       if (histBody) {
@@ -837,6 +835,139 @@ const Fornitori = {
       }
     },
 
+    openQuarantineManageModal(rec) {
+      const modalEl = document.getElementById('supplierQuarantineManageModal');
+      if (!modalEl || !rec) return;
+      this._quarantineManageId = rec.id;
+      document.getElementById('supplierQuarantineManageModalTitle').textContent = `Gestisci quantità quarantena - ${rec.description || ''}`;
+      document.getElementById('supplierQuarantineManageMeta').innerHTML = `
+        <div><strong>Fornitore:</strong> ${rec.supplierName || ''}</div>
+        <div><strong>Ordine:</strong> ${rec.orderNumber || ''} &nbsp; <strong>DDT origine:</strong> ${rec.ddtNumber || ''}</div>
+      `;
+      document.getElementById('quarantine-total-qty').value = Number(rec.qty || 0);
+      document.getElementById('quarantine-release-qty').value = 0;
+      document.getElementById('quarantine-return-qty').value = 0;
+      document.getElementById('quarantine-destroy-qty').value = 0;
+      document.getElementById('quarantine-resolution-note').value = String(rec.note || '');
+      this.updateQuarantineManageCheck();
+      try { bootstrap.Modal.getOrCreateInstance(modalEl).show(); } catch {}
+    },
+
+    updateQuarantineManageCheck() {
+      const total = Number(document.getElementById('quarantine-total-qty')?.value || 0);
+      const releaseQty = Math.max(0, Number(document.getElementById('quarantine-release-qty')?.value || 0));
+      const returnQty = Math.max(0, Number(document.getElementById('quarantine-return-qty')?.value || 0));
+      const destroyQty = Math.max(0, Number(document.getElementById('quarantine-destroy-qty')?.value || 0));
+      const sum = releaseQty + returnQty + destroyQty;
+      const label = document.getElementById('quarantine-sum-check');
+      const help = document.getElementById('quarantine-sum-help');
+      if (label) {
+        label.textContent = `${sum} / ${total}`;
+        label.className = sum === total ? 'text-success' : 'text-danger';
+      }
+      if (help) {
+        help.textContent = sum === total
+          ? 'La somma è corretta. Puoi confermare la gestione della quarantena.'
+          : 'La somma di svincolo + reso + distruzione deve coincidere con la quantità in quarantena.';
+      }
+      return { total, releaseQty, returnQty, destroyQty, sum };
+    },
+
+    processQuarantineManage() {
+      if (!canDeleteDocs()) return App.ui.showToast('Permesso negato: serve ruolo Supervisor.', 'warning');
+      const db = App.db.ensure();
+      const id = this._quarantineManageId;
+      const rec = (db.supplierQuarantine || []).find(x => String(x.id) === String(id));
+      if (!rec || rec.status !== 'In quarantena') return App.ui.showToast('Riga di quarantena non più disponibile.', 'warning');
+      const { total, releaseQty, returnQty, destroyQty, sum } = this.updateQuarantineManageCheck();
+      if (sum !== total) return App.ui.showToast('La somma delle quantità deve coincidere con la quantità in quarantena.', 'warning');
+      if (total <= 0) return App.ui.showToast('Quantità in quarantena non valida.', 'warning');
+      const note = String(document.getElementById('quarantine-resolution-note')?.value || '').trim();
+      if ((returnQty > 0 || destroyQty > 0) && !note) return App.ui.showToast('Inserisci una motivazione finale per reso o distruzione.', 'warning');
+      if (!confirm(`Confermi la gestione della quarantena?
+
+Svincolo: ${releaseQty}
+Reso: ${returnQty}
+Distruzione: ${destroyQty}`)) return;
+      const order = (db.supplierOrders || []).find(o => String(o.id) === String(rec.orderId) || String(o.number) === String(rec.orderNumber));
+      const line = (order?.lines || []).find(l => String(l.productId || '') === String(rec.productId || '')) || (order?.lines || []).find(l => String(l.productName || l.description || '') === String(rec.description || ''));
+      try {
+        adjustQuarantineBatch([{ productId: rec.productId, delta: -Number(total || 0) }], { reason: 'CHIUSURA_QUARANTENA', ref: rec.ddtNumber });
+        if (releaseQty > 0) adjustStockBatch([{ productId: rec.productId, delta: Number(releaseQty || 0) }], { reason: 'SVINCOLO_QUARANTENA', ref: rec.ddtNumber });
+      } catch (err) {
+        return App.ui.showToast(err.message || 'Errore aggiornamento quarantena', 'danger');
+      }
+      if (line) {
+        line.quarantineQty = Math.max(0, Number(line.quarantineQty || 0) - Number(total || 0));
+        if (releaseQty > 0) line.receivedQty = Number(line.receivedQty || 0) + Number(releaseQty || 0);
+      }
+      const pushHistory = (status, qty, extra = {}) => {
+        if (!(qty > 0)) return;
+        db.supplierQuarantine.push({
+          ...rec,
+          ...extra,
+          id: App.utils.uuid(),
+          qty: Number(qty || 0),
+          status,
+          note: (extra.note ?? (note || rec.note || '')), 
+          resolvedAt: App.utils.todayISO(),
+          sourceQuarantineId: rec.id
+        });
+      };
+      if (returnQty > 0) {
+        db.supplierReturnDDTs = Array.isArray(db.supplierReturnDDTs) ? db.supplierReturnDDTs : [];
+        const returnNumber = App.utils.nextSupplierReturnDDTNumber(db);
+        const returnDoc = {
+          id: App.utils.uuid(),
+          number: returnNumber,
+          date: App.utils.todayISO(),
+          supplierId: rec.supplierId,
+          supplierName: rec.supplierName,
+          sourceOrderId: rec.orderId,
+          sourceOrderNumber: rec.orderNumber,
+          sourceDdtId: rec.ddtId,
+          sourceDdtNumber: rec.ddtNumber,
+          status: 'Preparato',
+          returnReason: 'Reso da quarantena',
+          packageCount: 1,
+          carrier: '',
+          transportNotes: note,
+          notes: note,
+          lines: [{
+            productId: rec.productId,
+            productName: rec.description,
+            description: rec.description,
+            qty: Number(returnQty || 0),
+            reason: note
+          }]
+        };
+        db.supplierReturnDDTs.push(returnDoc);
+        pushHistory('Resa al fornitore', returnQty, { returnDdtNumber: returnNumber, resolutionType: 'return' });
+      }
+      pushHistory('Svincolata', releaseQty, { resolutionType: 'release', note: note || rec.note || '' });
+      pushHistory('Da distruggere', destroyQty, { resolutionType: 'destroy' });
+      db.supplierQuarantine = (db.supplierQuarantine || []).filter(x => String(x.id) !== String(rec.id));
+      if (order) recomputeSupplierOrderStatus(order);
+      App.db.save(db);
+      try { bootstrap.Modal.getOrCreateInstance(document.getElementById('supplierQuarantineManageModal')).hide(); } catch {}
+      this.renderOrders();
+      this.renderQuarantine();
+      this.renderReturnDDTs();
+      App.ui.showToast('Quarantena gestita correttamente.', 'success');
+    },
+
+    wireQuarantineManageModal() {
+      const modalEl = document.getElementById('supplierQuarantineManageModal');
+      if (!modalEl || modalEl.dataset.bound === '1') return;
+      modalEl.dataset.bound = '1';
+      ['quarantine-release-qty', 'quarantine-return-qty', 'quarantine-destroy-qty'].forEach(id => {
+        const el = document.getElementById(id);
+        el?.addEventListener('input', () => this.updateQuarantineManageCheck());
+      });
+      document.getElementById('confirm-quarantine-manage-btn')?.addEventListener('click', () => this.processQuarantineManage());
+      modalEl.addEventListener('hidden.bs.modal', () => { this._quarantineManageId = null; });
+    },
+
     wireQuarantine() {
       const tbody = document.getElementById('supplier-quarantine-table-body');
       if (!tbody || tbody.dataset.bound === '1') return;
@@ -848,78 +979,9 @@ const Fornitori = {
         const id = btn.getAttribute('data-id');
         const rec = (db.supplierQuarantine || []).find(x => String(x.id) === String(id));
         if (!rec || rec.status !== 'In quarantena') return;
-        const order = (db.supplierOrders || []).find(o => String(o.id) === String(rec.orderId) || String(o.number) === String(rec.orderNumber));
-        const line = (order?.lines || []).find(l => String(l.productId || '') === String(rec.productId || '')) || (order?.lines || []).find(l => String(l.productName || l.description || '') === String(rec.description || ''));
-        const action = btn.getAttribute('data-action');
-        const isRelease = action === 'release-q';
-        const isReturn = action === 'return-q';
-        const isDestroy = action === 'destroy-q';
-        const actionLabel = isRelease ? 'svincolare' : (isReturn ? 'rendere al fornitore' : 'marcare come da distruggere');
-        if (!confirm(`Vuoi ${actionLabel} ${rec.qty} pz di ${rec.description}?`)) return;
-        let closingNote = String(rec.note || '').trim();
-        if (isReturn || isDestroy) {
-          const entered = prompt(`Inserisci la motivazione per ${isReturn ? 'il reso al fornitore' : 'la distruzione'}:`, closingNote || '');
-          if (entered === null) return;
-          closingNote = String(entered || '').trim();
-          if (!closingNote) {
-            return App.ui.showToast('Inserisci una motivazione per chiudere la quarantena.', 'warning');
-          }
+        if (btn.getAttribute('data-action') === 'manage-q') {
+          this.openQuarantineManageModal(rec);
         }
-        try {
-          adjustQuarantineBatch([{ productId: rec.productId, delta: -Number(rec.qty || 0) }], { reason: isRelease ? 'SVINCOLO_QUARANTENA' : (isReturn ? 'RESO_DA_QUARANTENA' : 'DISTRUZIONE_DA_QUARANTENA'), ref: rec.ddtNumber });
-          if (isRelease) {
-            adjustStockBatch([{ productId: rec.productId, delta: Number(rec.qty || 0) }], { reason: 'SVINCOLO_QUARANTENA', ref: rec.ddtNumber });
-          }
-        } catch (err) {
-          return App.ui.showToast(err.message || 'Errore aggiornamento quarantena', 'danger');
-        }
-        if (line) {
-          line.quarantineQty = Math.max(0, Number(line.quarantineQty || 0) - Number(rec.qty || 0));
-          if (isRelease) line.receivedQty = Number(line.receivedQty || 0) + Number(rec.qty || 0);
-        }
-        if (isReturn) {
-          db.supplierReturnDDTs = Array.isArray(db.supplierReturnDDTs) ? db.supplierReturnDDTs : [];
-          const returnNumber = App.utils.nextSupplierReturnDDTNumber(db);
-          const returnDoc = {
-            id: App.utils.uuid(),
-            number: returnNumber,
-            date: App.utils.todayISO(),
-            supplierId: rec.supplierId,
-            supplierName: rec.supplierName,
-            sourceOrderId: rec.orderId,
-            sourceOrderNumber: rec.orderNumber,
-            sourceDdtId: rec.ddtId,
-            sourceDdtNumber: rec.ddtNumber,
-            status: 'Preparato',
-            returnReason: 'Reso da quarantena',
-            packageCount: 1,
-            carrier: '',
-            transportNotes: closingNote,
-            notes: closingNote,
-            lines: [{
-              productId: rec.productId,
-              productName: rec.description,
-              description: rec.description,
-              qty: Number(rec.qty || 0),
-              reason: closingNote
-            }]
-          };
-          db.supplierReturnDDTs.push(returnDoc);
-          rec.returnDdtNumber = returnNumber;
-        }
-        rec.note = closingNote || rec.note || '';
-        rec.status = isRelease ? 'Svincolata' : (isReturn ? 'Resa al fornitore' : 'Da distruggere');
-        rec.resolvedAt = App.utils.todayISO();
-        rec.resolutionType = isRelease ? 'release' : (isReturn ? 'return' : 'destroy');
-        if (order) recomputeSupplierOrderStatus(order);
-        App.db.save(db);
-        this.renderOrders();
-        this.renderQuarantine();
-        this.renderReturnDDTs();
-        App.ui.showToast(
-          isRelease ? 'Merce svincolata e caricata a magazzino.' : (isReturn ? `Creato ${rec.returnDdtNumber || 'DDT di reso'} e rimossa la merce dalla quarantena.` : 'Merce marcata come da distruggere e rimossa dalla quarantena.'),
-          'success'
-        );
       });
     },
 

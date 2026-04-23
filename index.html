@@ -483,7 +483,7 @@
 
 <div class="content-section d-none" id="quarantena-fornitori">
 <h2>Quarantena Fornitori</h2>
-<p class="text-muted">Le righe ricevute con riserva non entrano nella giacenza disponibile. Da qui è possibile svincolarle, generare il reso al fornitore oppure marcarle come da distruggere.</p>
+<p class="text-muted">Le righe ricevute con riserva non entrano nella giacenza disponibile. Usa <strong>Gestisci quantità quarantena</strong> per ripartire l'intera quantità tra svincolo, reso al fornitore e distruzione con una conferma finale unica.</p>
 <table class="table table-hover">
 <thead><tr><th>Data</th><th>Fornitore</th><th>Ordine</th><th>DDT</th><th>Prodotto</th><th class="text-end">Q.tà in quarantena</th><th>Motivazione</th><th>Azioni</th></tr></thead>
 <tbody id="supplier-quarantine-table-body"></tbody>
@@ -825,6 +825,48 @@
 </div>
 </div>
 </div>
+
+<div class="modal fade" id="supplierQuarantineManageModal" tabindex="-1">
+<div class="modal-dialog modal-lg">
+<div class="modal-content">
+<div class="modal-header"><h5 class="modal-title" id="supplierQuarantineManageModalTitle">Gestisci quantità quarantena</h5><button class="btn-close" data-bs-dismiss="modal" type="button"></button></div>
+<div class="modal-body">
+  <div id="supplierQuarantineManageMeta" class="mb-3 text-muted small"></div>
+  <div class="row g-3 align-items-end">
+    <div class="col-md-3">
+      <label class="form-label">Q.tà in quarantena</label>
+      <input type="number" class="form-control" id="quarantine-total-qty" readonly />
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Svincola</label>
+      <input type="number" min="0" step="1" class="form-control" id="quarantine-release-qty" value="0" />
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Reso fornitore</label>
+      <input type="number" min="0" step="1" class="form-control" id="quarantine-return-qty" value="0" />
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Da distruggere</label>
+      <input type="number" min="0" step="1" class="form-control" id="quarantine-destroy-qty" value="0" />
+    </div>
+  </div>
+  <div class="mt-3">
+    <div class="small">Controllo somma: <strong id="quarantine-sum-check">0 / 0</strong></div>
+    <div class="form-text" id="quarantine-sum-help">La somma di svincolo + reso + distruzione deve coincidere con la quantità in quarantena.</div>
+  </div>
+  <div class="mt-3">
+    <label class="form-label">Motivazione / annotazioni finali</label>
+    <textarea class="form-control" id="quarantine-resolution-note" rows="3" placeholder="Obbligatoria se è presente una quantità da rendere o da distruggere."></textarea>
+  </div>
+</div>
+<div class="modal-footer">
+  <button class="btn btn-outline-primary" id="confirm-quarantine-manage-btn" type="button">Conferma gestione quarantena</button>
+  <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Chiudi</button>
+</div>
+</div>
+</div>
+</div>
+
 <div class="modal fade" id="supplierReturnDetailModal" tabindex="-1">
 <div class="modal-dialog modal-lg">
 <div class="modal-content">
