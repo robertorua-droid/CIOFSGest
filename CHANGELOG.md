@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.32.0 - Flusso completo reso fornitore
+- evoluzione del reso fornitore con stato Preparato / Spedito al fornitore
+- dettaglio reso con causale, numero colli, vettore e note di trasporto modificabili
+- elenco Resi Fornitore aggiornato con stato e PDF del reso arricchito con i nuovi dati documentali
+
 ## 1.31.0 - Elenco resi fornitore
 - nuova voce Fornitori -> Elenco Resi Fornitore con storico dei DDT di reso generati dalla quarantena
 - dettaglio dedicato del reso con riferimenti a ordine e DDT origine

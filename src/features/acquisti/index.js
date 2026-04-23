@@ -52,11 +52,22 @@ const lineOutcomeLabel = (line, ddt = null) => {
 
 
 const supplierReturnHtml = (ret) => {
-  let html = `<div class="mb-2"><strong>Fornitore:</strong> ${ret.supplierName || ''}</div>`;
-  html += `<div class="mb-2"><strong>Data:</strong> ${ret.date || ''}</div>`;
-  html += `<div class="mb-2"><strong>Rif. Ordine:</strong> ${ret.sourceOrderNumber || ''}</div>`;
-  html += `<div class="mb-2"><strong>Rif. DDT origine:</strong> ${ret.sourceDdtNumber || ''}</div>`;
-  html += `<div class="mb-3"><strong>Motivazione generale:</strong> ${ret.notes || '—'}</div>`;
+  const statusBadge = ret.status === 'Spedito al fornitore'
+    ? '<span class="badge bg-success">Spedito al fornitore</span>'
+    : '<span class="badge bg-warning text-dark">Preparato</span>';
+  let html = `<div class="row g-3 mb-3">`;
+  html += `<div class="col-md-6"><div><strong>Fornitore:</strong> ${ret.supplierName || ''}</div><div><strong>Data reso:</strong> ${ret.date || ''}</div><div><strong>Numero reso:</strong> ${ret.number || ''}</div></div>`;
+  html += `<div class="col-md-6"><div><strong>Rif. Ordine:</strong> ${ret.sourceOrderNumber || ''}</div><div><strong>Rif. DDT origine:</strong> ${ret.sourceDdtNumber || ''}</div><div><strong>Stato:</strong> ${statusBadge}</div></div>`;
+  html += `</div>`;
+  html += `<div class="row g-3 mb-3">`;
+  html += `<div class="col-md-6"><label class="form-label">Causale reso</label><input class="form-control" id="supplier-return-cause" value="${ret.returnReason || 'Reso da quarantena'}"></div>`;
+  html += `<div class="col-md-3"><label class="form-label">Numero colli</label><input class="form-control" id="supplier-return-packages" type="number" min="1" value="${Number(ret.packageCount || 1)}"></div>`;
+  html += `<div class="col-md-3"><label class="form-label">Vettore</label><input class="form-control" id="supplier-return-carrier" value="${ret.carrier || ''}" placeholder="Es. Trasporti Rossi"></div>`;
+  html += `</div>`;
+  html += `<div class="mb-3"><label class="form-label">Note di trasporto / annotazioni</label><textarea class="form-control" id="supplier-return-transport-notes" rows="3" placeholder="Es. reso per difetto riscontrato in controllo qualità">${ret.transportNotes || ret.notes || ''}</textarea></div>`;
+  if (ret.shippedAt) {
+    html += `<div class="mb-3 text-success"><strong>Spedito il:</strong> ${ret.shippedAt}</div>`;
+  }
   html += `<table class="table table-sm"><thead><tr><th>Descrizione</th><th class="text-end">Qtà resa</th><th>Motivazione</th></tr></thead><tbody>`;
   (ret.lines || []).forEach(l => {
     html += `<tr><td>${l.description || l.productName || ''}</td><td class="text-end">${l.qty || 0}</td><td>${l.reason || ret.notes || '—'}</td></tr>`;
@@ -64,6 +75,13 @@ const supplierReturnHtml = (ret) => {
   html += `</tbody></table>`;
   return html;
 };
+
+const readSupplierReturnMetaFromDetail = () => ({
+  returnReason: document.getElementById('supplier-return-cause')?.value?.trim() || 'Reso da quarantena',
+  packageCount: Math.max(1, Number(document.getElementById('supplier-return-packages')?.value || 1)),
+  carrier: document.getElementById('supplier-return-carrier')?.value?.trim() || '',
+  transportNotes: document.getElementById('supplier-return-transport-notes')?.value?.trim() || ''
+});
 
 const printSupplierReturnPdf = (ret) => {
   try {
@@ -78,12 +96,21 @@ const printSupplierReturnPdf = (ret) => {
     doc.text(`Data: ${ret.date || ''}`, 14, 35);
     doc.text(`Rif. Ordine: ${ret.sourceOrderNumber || ''}`, 14, 42);
     doc.text(`Rif. DDT origine: ${ret.sourceDdtNumber || ''}`, 14, 49);
-    doc.text(`Motivazione: ${ret.notes || '—'}`, 14, 56);
+    doc.text(`Causale reso: ${ret.returnReason || ret.notes || 'Reso da quarantena'}`, 14, 56);
+    doc.text(`Colli: ${Number(ret.packageCount || 1)}`, 14, 63);
+    doc.text(`Vettore: ${ret.carrier || '—'}`, 14, 70);
+    doc.text(`Stato: ${ret.status || 'Preparato'}`, 14, 77);
+    if (ret.shippedAt) doc.text(`Spedito il: ${ret.shippedAt}`, 14, 84);
+    const notesText = `Note: ${ret.transportNotes || ret.notes || '—'}`;
     const rows = (ret.lines || []).map(l => [l.description || l.productName || '', String(l.qty || 0), l.reason || ret.notes || '—']);
+    if (doc.splitTextToSize) {
+      const split = doc.splitTextToSize(notesText, 180);
+      doc.text(split, 14, ret.shippedAt ? 91 : 84);
+    }
     if (doc.autoTable) {
-      doc.autoTable({ startY: 64, head: [['Descrizione','Qtà resa','Motivazione']], body: rows });
+      doc.autoTable({ startY: ret.shippedAt ? 104 : 98, head: [['Descrizione','Qtà resa','Motivazione']], body: rows });
     } else {
-      let y = 68;
+      let y = ret.shippedAt ? 108 : 102;
       rows.forEach(r => { doc.text(`${r[0]} - ${r[1]} - ${r[2]}`, 14, y); y += 7; });
     }
     doc.save(`${ret.number || 'reso-fornitore'}.pdf`);
@@ -438,15 +465,34 @@ const Fornitori = {
           <td>${r.supplierName || ''}</td>
           <td>${r.sourceOrderNumber || ''}</td>
           <td>${r.sourceDdtNumber || ''}</td>
+          <td>${r.status || 'Preparato'}</td>
           <td class="text-end"><button class="btn btn-sm btn-outline-primary" data-action="view-supplier-return" data-num="${r.number}">Dettaglio</button></td>
         </tr>
-      `).join('') : `<tr><td colspan="6" class="text-muted">Nessun reso fornitore registrato.</td></tr>`;
+      `).join('') : `<tr><td colspan="7" class="text-muted">Nessun reso fornitore registrato.</td></tr>`;
     },
 
     wireSupplierReturnDetail() {
       let db = App.db.ensure();
+      let currentReturnNumber = null;
       App.events.on('db:changed', d => { db = d; });
       const tbody = document.getElementById('supplier-return-ddts-table-body');
+      const saveBtn = document.getElementById('save-supplier-return-meta-btn');
+      const markBtn = document.getElementById('mark-supplier-return-shipped-btn');
+      const printBtn = document.getElementById('print-supplier-return-pdf-btn');
+      const renderDetail = (ret) => {
+        const title = document.getElementById('supplierReturnDetailModalTitle');
+        const body = document.getElementById('supplierReturnDetailModalBody');
+        if (title) title.textContent = `Dettaglio Reso Fornitore ${ret.number}`;
+        if (body) body.innerHTML = supplierReturnHtml(ret);
+        if (markBtn) {
+          markBtn.disabled = ret.status === 'Spedito al fornitore';
+        }
+        if (printBtn) printBtn.onclick = () => {
+          const live = (App.db.ensure().supplierReturnDDTs || []).find(x => x.number === ret.number) || ret;
+          Object.assign(live, readSupplierReturnMetaFromDetail());
+          printSupplierReturnPdf(live);
+        };
+      };
       if (!tbody || tbody.dataset.wiredDetail === '1') return;
       tbody.dataset.wiredDetail = '1';
       tbody.addEventListener('click', (e) => {
@@ -454,14 +500,41 @@ const Fornitori = {
         const num = btn.getAttribute('data-num');
         const ret = (db.supplierReturnDDTs || []).find(x => x.number === num);
         if (!ret) return;
-        const title = document.getElementById('supplierReturnDetailModalTitle');
-        const body = document.getElementById('supplierReturnDetailModalBody');
-        const printBtn = document.getElementById('print-supplier-return-pdf-btn');
-        if (title) title.textContent = `Dettaglio Reso Fornitore ${ret.number}`;
-        if (body) body.innerHTML = supplierReturnHtml(ret);
-        if (printBtn) printBtn.onclick = () => printSupplierReturnPdf(ret);
+        currentReturnNumber = ret.number;
+        renderDetail(ret);
         try { bootstrap.Modal.getOrCreateInstance(document.getElementById('supplierReturnDetailModal')).show(); } catch {}
       });
+      if (saveBtn && saveBtn.dataset.bound !== '1') {
+        saveBtn.dataset.bound = '1';
+        saveBtn.addEventListener('click', () => {
+          if (!currentReturnNumber) return;
+          const curDb = App.db.ensure();
+          const ret = (curDb.supplierReturnDDTs || []).find(x => x.number === currentReturnNumber);
+          if (!ret) return;
+          Object.assign(ret, readSupplierReturnMetaFromDetail());
+          App.db.save(curDb);
+          this.renderReturnDDTs();
+          renderDetail(ret);
+          App.ui.showToast('Dati del reso salvati.', 'success');
+        });
+      }
+      if (markBtn && markBtn.dataset.bound !== '1') {
+        markBtn.dataset.bound = '1';
+        markBtn.addEventListener('click', () => {
+          if (!currentReturnNumber) return;
+          const curDb = App.db.ensure();
+          const ret = (curDb.supplierReturnDDTs || []).find(x => x.number === currentReturnNumber);
+          if (!ret) return;
+          if (ret.status === 'Spedito al fornitore') return App.ui.showToast('Il reso è già segnato come spedito.', 'info');
+          Object.assign(ret, readSupplierReturnMetaFromDetail());
+          ret.status = 'Spedito al fornitore';
+          ret.shippedAt = App.utils.todayISO();
+          App.db.save(curDb);
+          this.renderReturnDDTs();
+          renderDetail(ret);
+          App.ui.showToast('Reso segnato come spedito al fornitore.', 'success');
+        });
+      }
     },
 
     initNewSupplierDDT() {
@@ -750,7 +823,11 @@ const Fornitori = {
             sourceOrderNumber: rec.orderNumber,
             sourceDdtId: rec.ddtId,
             sourceDdtNumber: rec.ddtNumber,
-            status: 'Reso al fornitore',
+            status: 'Preparato',
+            returnReason: 'Reso da quarantena',
+            packageCount: 1,
+            carrier: '',
+            transportNotes: closingNote,
             notes: closingNote,
             lines: [{
               productId: rec.productId,

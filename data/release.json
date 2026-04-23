@@ -1,15 +1,25 @@
 {
   "current": {
-    "version": "1.31.0",
+    "version": "1.32.0",
     "date": "2026-04-23",
-    "name": "Elenco resi fornitore",
+    "name": "Flusso completo reso fornitore",
     "changes": [
-      "Nuova voce Fornitori -> Elenco Resi Fornitore con storico dei DDT di reso generati dalla quarantena.",
-      "Dettaglio dedicato del reso con riferimenti a ordine e DDT origine.",
-      "Stampa PDF del DDT di reso fornitore e aggiornamento changelog/versione."
+      "Evoluzione del reso fornitore con stato Preparato / Spedito al fornitore.",
+      "Dettaglio reso con causale, numero colli, vettore e note di trasporto modificabili.",
+      "Elenco Resi Fornitore aggiornato con stato e PDF del reso arricchito con i nuovi dati documentali."
     ]
   },
   "history": [
+    {
+      "version": "1.32.0",
+      "date": "2026-04-23",
+      "name": "Flusso completo reso fornitore",
+      "changes": [
+        "Evoluzione del reso fornitore con stato Preparato / Spedito al fornitore.",
+        "Dettaglio reso con causale, numero colli, vettore e note di trasporto modificabili.",
+        "Elenco Resi Fornitore aggiornato con stato e PDF del reso arricchito con i nuovi dati documentali."
+      ]
+    },
     {
       "version": "1.31.0",
       "date": "2026-04-23",
