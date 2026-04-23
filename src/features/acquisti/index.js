@@ -999,7 +999,11 @@ Distruzione: ${destroyQty}`)) return;
           try { this.initNewSupplierDDT(); } catch {}
         }
         if (sid === 'elenco-ddt-fornitore') this.renderDDTs();
-        if (sid === 'quarantena-fornitori') this.renderQuarantine();
+        if (sid === 'quarantena-fornitori') {
+          this.renderQuarantine();
+          this.wireQuarantine();
+          this.wireQuarantineManageModal();
+        }
         if (sid === 'elenco-resi-fornitore') this.renderReturnDDTs();
       };
 
@@ -1012,6 +1016,7 @@ Distruzione: ${destroyQty}`)) return;
         this.wireSupplierDDTDetail();
         this.renderQuarantine();
         this.wireQuarantine();
+        this.wireQuarantineManageModal();
         this.renderReturnDDTs();
         this.wireSupplierReturnDetail();
       });
