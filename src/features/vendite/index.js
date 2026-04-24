@@ -280,6 +280,11 @@ dateEl.value = App.utils.todayISO();
       const custName = document.getElementById('ddt-customer-name');
       const ddtNum = document.getElementById('ddt-number');
       const ddtDate = document.getElementById('ddt-date');
+      const ddtParcels = document.getElementById('ddt-parcels');
+      const ddtCarrier = document.getElementById('ddt-carrier');
+      const ddtTransportReason = document.getElementById('ddt-transport-reason');
+      const ddtExternalAspect = document.getElementById('ddt-external-aspect');
+      const ddtNotes = document.getElementById('ddt-notes');
       const tbody = document.getElementById('ddt-products-tbody');
 
             const fillOpenOrders = () => {
@@ -295,7 +300,7 @@ dateEl.value = App.utils.todayISO();
         form.reset();
         if (details) details.classList.add('d-none');
         if (tbody) tbody.innerHTML = '';
-        try { custName.value = ''; ddtNum.value = ''; ddtDate.value = ''; } catch {}
+        try { custName.value = ''; ddtNum.value = ''; ddtDate.value = ''; if (ddtParcels) ddtParcels.value = ''; if (ddtCarrier) ddtCarrier.value = ''; if (ddtTransportReason) ddtTransportReason.value = 'Vendita'; if (ddtExternalAspect) ddtExternalAspect.value = ''; if (ddtNotes) ddtNotes.value = ''; } catch {}
         fillOpenOrders();
       };
       App.events.on('section:changed', (sid) => {
@@ -314,6 +319,7 @@ dateEl.value = App.utils.todayISO();
         custName.value = order.customerName;
         ddtNum.value = App.utils.nextCustomerDDTNumber(db);
         ddtDate.value = App.utils.todayISO();
+        if (ddtTransportReason && !ddtTransportReason.value) ddtTransportReason.value = 'Vendita';
         App.db.save(db);
 
         const rows = order.lines.map((l,i) => {
@@ -395,6 +401,11 @@ dateEl.value = App.utils.todayISO();
           customerId: order.customerId,
           customerName: order.customerName,
           orderNumber: order.number,
+          parcels: Number(ddtParcels?.value || 0) || null,
+          carrier: (ddtCarrier?.value || '').trim(),
+          transportReason: (ddtTransportReason?.value || '').trim(),
+          externalAspect: (ddtExternalAspect?.value || '').trim(),
+          notes: (ddtNotes?.value || '').trim(),
           lines: shipLines.map(s => {
             const l = order.lines[s.i];
             return { productId: l.productId, description: l.productName, qty: s.qty, price: l.price, iva: 22 };
@@ -425,11 +436,27 @@ dateEl.value = App.utils.todayISO();
           const body = document.getElementById('ddtDetailModalBody');
           const title = document.getElementById('ddtDetailModalTitle');
           title.textContent = `Dettaglio DDT ${d.number}`;
-          let html = `<div class="mb-2"><strong>Cliente:</strong> ${d.customerName}</div>`;
-          html += `<div class="mb-2"><strong>Data:</strong> ${d.date}</div>`;
-          html += `<div class="mb-2"><strong>Riferimento Ordine:</strong> ${d.orderNumber}</div>`;
-          html += `<table class="table table-sm"><thead><tr><th>Descrizione</th><th class="text-end">Qtà</th></tr></thead><tbody>`;
-          d.lines.forEach(l => { html += `<tr><td>${l.description}</td><td class="text-end">${l.qty}</td></tr>`; });
+          const company = db.company || {};
+          const customer = (db.customers||[]).find(c => String(c.id) === String(d.customerId)) || {};
+          const companyAddress = [company.address || '', [company.zip || '', company.city || '', company.province ? `(${company.province})` : ''].filter(Boolean).join(' ')].filter(Boolean).join('<br>');
+          const customerAddress = (customer.address || '').replace(/
+/g, '<br>');
+          let html = `<div class="row g-3 mb-3">`;
+          html += `<div class="col-md-6"><div class="card h-100"><div class="card-body"><div class="small text-uppercase text-muted mb-1">Mittente</div><div class="fw-semibold">${company.name || 'Nostra azienda'}</div>${companyAddress ? `<div class="small mt-1">${companyAddress}</div>` : ''}</div></div></div>`;
+          html += `<div class="col-md-6"><div class="card h-100"><div class="card-body"><div class="small text-uppercase text-muted mb-1">Destinatario</div><div class="fw-semibold">${d.customerName || customer.name || '-'}</div>${customerAddress ? `<div class="small mt-1">${customerAddress}</div>` : ''}</div></div></div>`;
+          html += `</div>`;
+          html += `<div class="row g-2 mb-3">`;
+          html += `<div class="col-md-3"><strong>Numero DDT:</strong><br>${d.number}</div>`;
+          html += `<div class="col-md-3"><strong>Data:</strong><br>${d.date}</div>`;
+          html += `<div class="col-md-6"><strong>Riferimento Ordine:</strong><br>${d.orderNumber}</div>`;
+          html += `<div class="col-md-3"><strong>Colli:</strong><br>${d.parcels ?? '-'}</div>`;
+          html += `<div class="col-md-3"><strong>Vettore:</strong><br>${d.carrier || '-'}</div>`;
+          html += `<div class="col-md-3"><strong>Causale trasporto:</strong><br>${d.transportReason || 'Vendita'}</div>`;
+          html += `<div class="col-md-3"><strong>Aspetto esteriore:</strong><br>${d.externalAspect || '-'}</div>`;
+          html += `</div>`;
+          if (d.notes) html += `<div class="mb-3"><strong>Note:</strong><br>${d.notes}</div>`;
+          html += `<table class="table table-sm"><thead><tr><th>Codice</th><th>Descrizione</th><th class="text-end">Qtà</th></tr></thead><tbody>`;
+          d.lines.forEach(l => { const parts = String(l.description || '').split(' - '); const code = parts.length > 1 ? parts.shift() : ''; const desc = parts.length ? parts.join(' - ') : String(l.description||''); html += `<tr><td>${code || '-'}</td><td>${desc}</td><td class="text-end">${l.qty}</td></tr>`; });
           html += `</tbody></table>`;
           body.innerHTML = html;
           const delBtn = document.getElementById('delete-customer-ddt-btn');
@@ -449,13 +476,44 @@ dateEl.value = App.utils.todayISO();
             try {
               const { jsPDF } = window.jspdf;
               const doc = new jsPDF();
-              doc.setFontSize(14);
-              doc.text(`DDT ${d.number}`, 14, 16);
+              const company = db.company || {};
+              const customer = (db.customers||[]).find(c => String(c.id) === String(d.customerId)) || {};
+              const companyLines = [company.name || 'Nostra azienda', company.address || '', [company.zip || '', company.city || '', company.province ? `(${company.province})` : ''].filter(Boolean).join(' ')].filter(Boolean);
+              const customerLines = [d.customerName || customer.name || 'Cliente', customer.address || ''].filter(Boolean);
+
+              doc.setFontSize(15);
+              doc.text('DOCUMENTO DI TRASPORTO', 14, 16);
               doc.setFontSize(11);
-              doc.text(`Cliente: ${d.customerName}`, 14, 26);
-              doc.text(`Data: ${d.date}`, 14, 34);
-              const rows = d.lines.map(l => [l.description, String(l.qty)]);
-              doc.autoTable({ head: [['Descrizione','Qtà']], body: rows, startY: 40 });
+              doc.text(`Numero DDT: ${d.number}`, 14, 24);
+              doc.text(`Data documento: ${d.date}`, 140, 24);
+
+              doc.setDrawColor(180);
+              doc.rect(14, 30, 86, 26);
+              doc.rect(110, 30, 86, 26);
+              doc.setFontSize(10);
+              doc.text('Mittente', 16, 36);
+              companyLines.forEach((line, idx) => doc.text(String(line), 16, 42 + idx * 5));
+              doc.text('Destinatario', 112, 36);
+              customerLines.forEach((line, idx) => doc.text(String(line), 112, 42 + idx * 5, { maxWidth: 80 }));
+
+              doc.text(`Causale trasporto: ${d.transportReason || 'Vendita'}`, 14, 64);
+              doc.text(`Riferimento ordine: ${d.orderNumber || '-'}`, 14, 70);
+              doc.text(`Aspetto esteriore: ${d.externalAspect || '-'}`, 14, 76);
+              doc.text(`Colli: ${d.parcels ?? '-'}`, 130, 64);
+              doc.text(`Vettore: ${d.carrier || '-'}`, 130, 70);
+
+              const rows = d.lines.map(l => {
+                const parts = String(l.description || '').split(' - ');
+                const code = parts.length > 1 ? parts.shift() : '';
+                const desc = parts.length ? parts.join(' - ') : String(l.description || '');
+                return [code || '-', desc, String(l.qty)];
+              });
+              doc.autoTable({ head: [['Codice','Descrizione','Qtà']], body: rows, startY: 82, styles: { fontSize: 10 }, headStyles: { fillColor: [230,230,230], textColor: 20 } });
+              let y = doc.lastAutoTable.finalY + 8;
+              if (d.notes) {
+                doc.text('Note:', 14, y);
+                doc.text(String(d.notes), 14, y + 6, { maxWidth: 180 });
+              }
               doc.save(`DDT_${d.number}.pdf`);
             } catch(e){ console.error(e); }
           }, { once: true });
