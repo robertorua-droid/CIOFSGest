@@ -439,8 +439,7 @@ dateEl.value = App.utils.todayISO();
           const company = db.company || {};
           const customer = (db.customers||[]).find(c => String(c.id) === String(d.customerId)) || {};
           const companyAddress = [company.address || '', [company.zip || '', company.city || '', company.province ? `(${company.province})` : ''].filter(Boolean).join(' ')].filter(Boolean).join('<br>');
-          const customerAddress = (customer.address || '').replace(/
-/g, '<br>');
+          const customerAddress = (customer.address || '').replace(/\n/g, '<br>');
           let html = `<div class="row g-3 mb-3">`;
           html += `<div class="col-md-6"><div class="card h-100"><div class="card-body"><div class="small text-uppercase text-muted mb-1">Mittente</div><div class="fw-semibold">${company.name || 'Nostra azienda'}</div>${companyAddress ? `<div class="small mt-1">${companyAddress}</div>` : ''}</div></div></div>`;
           html += `<div class="col-md-6"><div class="card h-100"><div class="card-body"><div class="small text-uppercase text-muted mb-1">Destinatario</div><div class="fw-semibold">${d.customerName || customer.name || '-'}</div>${customerAddress ? `<div class="small mt-1">${customerAddress}</div>` : ''}</div></div></div>`;
