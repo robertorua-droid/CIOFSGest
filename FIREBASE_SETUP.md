@@ -183,3 +183,6 @@ La release 1.65.0 conferma Firebase/Firestore come unica persistenza del gestion
 
 ## Aggiornamento 1.66.0
 La consultazione dei DDT di reso al fornitore usa la collezione Firestore già prevista `supplierReturnDDTs`. Non sono richieste nuove regole Firebase rispetto alla baseline Firebase-only.
+
+## Aggiornamento 1.67.0
+Il Registro Prodotti Macerati legge lo storico già salvato nella collezione `supplierQuarantine`. Non sono richieste nuove collezioni, indici o regole Firebase rispetto alla baseline 1.66.0.

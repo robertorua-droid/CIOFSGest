@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.67.0 - Registro prodotti macerati
+- aggiunta sotto Magazzino la vista `Registro Prodotti Macerati`.
+- il registro espone in sola consultazione le quantità chiuse dalla quarantena fornitori come `Da distruggere` / `destroy`.
+- la vista usa i dati già presenti in `supplierQuarantine`, senza introdurre nuova persistenza e senza creare lo storico completo per prodotto.
+- aggiunti `src/domain/macerated.service.js`, `src/features/magazzino/macerated.ui.js` e `tests/macerated.service.test.mjs`.
+
 ## 1.66.0 - Consultazione DDT resi fornitore
 - Riorganizzata la sezione Elenco DDT Fornitore con due tab: Ricevuti dal Fornitore e Resi al Fornitore.
 - Integrato nella pagina DDT Fornitore l'elenco dei DDT di reso al fornitore, mantenendoli separati dai DDT ricevuti.

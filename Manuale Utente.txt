@@ -143,3 +143,6 @@ La versione 1.65.0 è una release di consolidamento tecnico: non introduce nuove
 
 Novità 1.66.0 - DDT Fornitore
 Nella voce Elenco DDT Fornitore sono disponibili due schede: Ricevuti dal Fornitore e Resi al Fornitore. La seconda scheda permette di consultare i DDT di reso generati dalla quarantena, aprirne il dettaglio, completare i dati di spedizione e stampare il PDF.
+
+Novità 1.67.0 - Registro Prodotti Macerati
+Nel gruppo Magazzino è disponibile la voce Prodotti Macerati. La pagina mostra l'elenco delle quantità distrutte/macerate quando la quarantena fornitori viene chiusa con esito "Da distruggere". La pagina è consultiva: non modifica le giacenze e non sostituisce la gestione della quarantena.

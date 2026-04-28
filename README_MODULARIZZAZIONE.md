@@ -141,3 +141,6 @@ La versione 1.65.0 chiude il refactoring strutturale. La baseline stabile mantie
 
 ## Aggiornamento 1.66.0 - DDT Fornitore a tab
 La sezione `Elenco DDT Fornitore` è ora divisa in due tab: `Ricevuti dal Fornitore` per i DDT in ingresso e `Resi al Fornitore` per i DDT di reso generati dalla quarantena. La scelta mantiene distinti i flussi documentali in entrata e in uscita senza aggiungere una nuova area applicativa.
+
+## Aggiornamento 1.67.0 - Registro prodotti macerati
+La sezione Magazzino include ora la vista `Registro Prodotti Macerati`, implementata con `src/domain/macerated.service.js` e `src/features/magazzino/macerated.ui.js`. La vista è solo consultiva e deriva le righe dallo storico `supplierQuarantine` già esistente, filtrando gli esiti di quarantena chiusi come distruzione/macerazione.

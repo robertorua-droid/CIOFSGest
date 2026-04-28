@@ -12,6 +12,9 @@ const requiredFiles = [
   'src/domain/purchasing.service.js',
   'src/domain/backup.service.js',
   'src/domain/stats.service.js',
+  'src/domain/macerated.service.js',
+  'src/features/magazzino/macerated.ui.js',
+  'tests/macerated.service.test.mjs',
   'src/core/dbMutation.js',
   'tests/dbMutation.test.mjs',
   'tools/run-domain-tests.mjs',
@@ -129,7 +132,9 @@ const uiSplitChecks = [
   ['src/features/impostazioni/index.js', './company.ui.js'],
   ['src/features/impostazioni/index.js', './users.ui.js'],
   ['src/features/impostazioni/index.js', './advanced.ui.js'],
-  ['src/features/impostazioni/index.js', './release.ui.js']
+  ['src/features/impostazioni/index.js', './release.ui.js'],
+  ['src/features/magazzino/index.js', './macerated.ui.js'],
+  ['src/features/magazzino/macerated.ui.js', '../../domain/macerated.service.js']
 ];
 
 for (const [file, text] of uiSplitChecks) {

@@ -1,17 +1,29 @@
 {
   "current": {
-    "version": "1.66.0",
+    "version": "1.67.0",
     "date": "2026-04-28",
-    "name": "Consultazione DDT resi fornitore",
-    "title": "Consultazione DDT resi fornitore",
+    "name": "Registro prodotti macerati",
+    "title": "Registro prodotti macerati",
     "changes": [
-      "Riorganizzata la sezione Elenco DDT Fornitore con due tab: Ricevuti dal Fornitore e Resi al Fornitore.",
-      "Integrato nella pagina DDT Fornitore l'elenco dei DDT di reso al fornitore, mantenendoli separati dai DDT ricevuti.",
-      "Mantenute consultazione dettaglio, salvataggio dati reso, marcatura spedito e stampa PDF dei resi al fornitore.",
-      "Aggiornati smoke test browser/DOM per distinguere correttamente target Bootstrap tab e target modal."
+      "Aggiunta in Magazzino la nuova vista Registro Prodotti Macerati.",
+      "Il registro mostra in consultazione le quantità distrutte/macerate provenienti dalla chiusura della quarantena fornitori.",
+      "I dati sono ricavati dallo storico supplierQuarantine già esistente, senza introdurre nuova persistenza o uno storico prodotto completo.",
+      "Aggiunti service e test Node.js dedicati al registro dei prodotti macerati."
     ]
   },
   "history": [
+    {
+      "version": "1.67.0",
+      "date": "2026-04-28",
+      "name": "Registro prodotti macerati",
+      "title": "Registro prodotti macerati",
+      "changes": [
+        "Aggiunta in Magazzino la nuova vista Registro Prodotti Macerati.",
+        "Il registro mostra in consultazione le quantità distrutte/macerate provenienti dalla chiusura della quarantena fornitori.",
+        "I dati sono ricavati dallo storico supplierQuarantine già esistente, senza introdurre nuova persistenza o uno storico prodotto completo.",
+        "Aggiunti service e test Node.js dedicati al registro dei prodotti macerati."
+      ]
+    },
     {
       "version": "1.66.0",
       "date": "2026-04-28",

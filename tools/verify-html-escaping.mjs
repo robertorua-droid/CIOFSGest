@@ -11,6 +11,7 @@ const requiredEscapedRenderers = [
   ['src/features/anagrafiche/products.ui.js', 'const h = value => App.utils.escapeHtml(value);'],
   ['src/features/anagrafiche/suppliers.ui.js', 'const h = value => App.utils.escapeHtml(value);'],
   ['src/features/magazzino/index.js', 'const h = value => App.utils.escapeHtml(value);'],
+  ['src/features/magazzino/macerated.ui.js', 'renderMaceratedProductsTable({ db, tbody, h })'],
   ['src/features/vendite/index.js', 'const h = value => App.utils.escapeHtml(value);'],
   ['src/features/acquisti/index.js', 'const h = value => App.utils.escapeHtml(value);'],
   ['src/features/impostazioni/users.ui.js', 'const h = value => App.utils.escapeHtml(value);'],
