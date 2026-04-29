@@ -12,6 +12,9 @@ const requiredFiles = [
   'src/domain/purchasing.service.js',
   'src/domain/backup.service.js',
   'src/domain/stats.service.js',
+  'src/domain/macerated.service.js',
+  'src/features/magazzino/macerated.ui.js',
+  'tests/macerated.service.test.mjs',
   'src/core/dbMutation.js',
   'tests/dbMutation.test.mjs',
   'tools/run-domain-tests.mjs',
@@ -33,6 +36,7 @@ const requiredFiles = [
   'src/core/firestore/conflict.js',
   'tests/firestore.conflict.test.mjs',
   'tests/browser-smoke.test.mjs',
+  'tests/quarantine-ui-wiring.test.mjs',
   'tools/verify-browser-smoke.mjs',
   'tools/browser-smoke-lib.mjs'
 ];
@@ -102,6 +106,7 @@ const sourceChecks = [
   ['src/features/acquisti/index.js', 'permissions.service.js'],
   ['src/features/vendite/index.js', 'App.db.mutate'],
   ['src/features/acquisti/index.js', 'App.db.mutate'],
+  ['src/features/acquisti/index.js', 'wireQuarantineManageModal();'],
   ['src/features/impostazioni/advanced.ui.js', 'App.db.mutate'],
   ['src/features/magazzino/index.js', 'App.db.mutate'],
   ['src/features/login/index.js', 'App.db.mutate'],
@@ -129,7 +134,9 @@ const uiSplitChecks = [
   ['src/features/impostazioni/index.js', './company.ui.js'],
   ['src/features/impostazioni/index.js', './users.ui.js'],
   ['src/features/impostazioni/index.js', './advanced.ui.js'],
-  ['src/features/impostazioni/index.js', './release.ui.js']
+  ['src/features/impostazioni/index.js', './release.ui.js'],
+  ['src/features/magazzino/index.js', './macerated.ui.js'],
+  ['src/features/magazzino/macerated.ui.js', '../../domain/macerated.service.js']
 ];
 
 for (const [file, text] of uiSplitChecks) {

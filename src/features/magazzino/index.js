@@ -1,5 +1,6 @@
 import { App } from '../../core/app.js';
 import { adjustStock } from '../../domain/inventory.service.js';
+import { renderMaceratedProductsTable } from './macerated.ui.js';
 
 export function initMagazzinoFeature() {
   const loadForm = document.getElementById('manual-load-form');
@@ -9,6 +10,7 @@ export function initMagazzinoFeature() {
   const stockSel = document.getElementById('stock-query-product-select');
   const inventoryBody = document.getElementById('inventory-table-body');
   const inventoryPhysicalBody = document.getElementById('inventory-physical-body');
+  const maceratedProductsBody = document.getElementById('macerated-products-table-body');
   const btnResetPhysical = document.getElementById('reset-physical-counts-btn');
   const btnApplyPhysical = document.getElementById('apply-physical-counts-btn');
 
@@ -42,6 +44,11 @@ export function initMagazzinoFeature() {
           <td class="text-end">${p.quarantineQty || 0}</td>
         </tr>`).join('');
     }
+  };
+
+  const renderProdottiMacerati = () => {
+    const db = App.db.ensure();
+    renderMaceratedProductsTable({ db, tbody: maceratedProductsBody, h });
   };
 
   const renderInventarioFisico = () => {
@@ -196,6 +203,7 @@ export function initMagazzinoFeature() {
 fillSelects();
   renderElencoGiacenze();
   renderInventarioFisico();
+  renderProdottiMacerati();
 
   if (loadForm && loadForm.dataset.bound !== '1') {
     loadForm.dataset.bound = '1';
@@ -256,7 +264,8 @@ fillSelects();
   }
 
   const refreshAll = () => { fillSelects(); renderElencoGiacenze();
-  renderInventarioFisico(); };
+  renderInventarioFisico();
+  renderProdottiMacerati(); };
 
   
   // Reset forms quando si entra nelle sezioni (evita che restino i dati precedenti)
@@ -285,6 +294,9 @@ fillSelects();
     }
     if (sid === 'inventario-fisico') {
       renderInventarioFisico();
+    }
+    if (sid === 'prodotti-macerati') {
+      renderProdottiMacerati();
     }
   };
   App.events.on('section:changed', (sid) => { resetSection(sid); });

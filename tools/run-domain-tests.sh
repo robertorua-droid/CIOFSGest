@@ -8,6 +8,7 @@ tests=(
   tests/firestore.conflict.test.mjs
   tests/inventory.rules.test.mjs
   tests/masterdata.rules.test.mjs
+  tests/macerated.service.test.mjs
   tests/permissions.service.test.mjs
   tests/purchasing.service.test.mjs
   tests/referentialIntegrity.service.test.mjs
@@ -15,6 +16,7 @@ tests=(
   tests/stats.service.test.mjs
   tests/utils.test.mjs
   tests/printing.test.mjs
+  tests/quarantine-ui-wiring.test.mjs
   tests/browser-smoke.test.mjs
 )
 for file in "${tests[@]}"; do

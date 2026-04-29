@@ -786,6 +786,7 @@ Distruzione: ${destroyQty}`)) return;
         this.wireSupplierDDTDetail();
         this.renderQuarantine();
         this.wireQuarantine();
+        this.wireQuarantineManageModal();
         this.renderReturnDDTs();
         this.wireSupplierReturnDetail();
       });

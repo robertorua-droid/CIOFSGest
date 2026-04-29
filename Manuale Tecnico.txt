@@ -137,3 +137,13 @@ Questa versione chiude il refactoring strutturale. Il progetto è Firebase-only,
 
 Aggiornamento 1.66.0 - Consultazione DDT resi fornitore
 La pagina Elenco DDT Fornitore contiene ora due tab Bootstrap: Ricevuti dal Fornitore e Resi al Fornitore. L'elenco dei resi continua a usare supplierReturnDDTs e il modal di dettaglio/stampa esistente; la vecchia sezione separata Elenco Resi Fornitore è stata assorbita nella pagina DDT Fornitore.
+
+Aggiornamento 1.67.0 - Registro prodotti macerati
+Aggiunta una vista consultiva sotto Magazzino per mostrare le quantità distrutte/macerate provenienti dalla quarantena fornitori. La logica è nel service src/domain/macerated.service.js, la UI in src/features/magazzino/macerated.ui.js e i dati continuano a provenire da supplierQuarantine senza nuova persistenza.
+
+
+## Aggiornamento 1.67.1 - Patch gestione quarantena fornitori
+- Ripristinato il collegamento eventi della modal Gestisci quantità quarantena.
+- Il controllo somma si aggiorna di nuovo quando si compilano Svincola, Reso fornitore e Da distruggere.
+- La conferma della gestione quarantena torna a generare il DDT di reso al fornitore quando previsto.
+- Aggiunto test Node.js dedicato al wiring della UI quarantena per evitare regressioni.

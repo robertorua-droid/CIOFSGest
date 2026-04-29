@@ -183,3 +183,13 @@ La release 1.65.0 conferma Firebase/Firestore come unica persistenza del gestion
 
 ## Aggiornamento 1.66.0
 La consultazione dei DDT di reso al fornitore usa la collezione Firestore già prevista `supplierReturnDDTs`. Non sono richieste nuove regole Firebase rispetto alla baseline Firebase-only.
+
+## Aggiornamento 1.67.0
+Il Registro Prodotti Macerati legge lo storico già salvato nella collezione `supplierQuarantine`. Non sono richieste nuove collezioni, indici o regole Firebase rispetto alla baseline 1.66.0.
+
+
+## Aggiornamento 1.67.1 - Patch gestione quarantena fornitori
+- Ripristinato il collegamento eventi della modal Gestisci quantità quarantena.
+- Il controllo somma si aggiorna di nuovo quando si compilano Svincola, Reso fornitore e Da distruggere.
+- La conferma della gestione quarantena torna a generare il DDT di reso al fornitore quando previsto.
+- Aggiunto test Node.js dedicato al wiring della UI quarantena per evitare regressioni.
