@@ -1,6 +1,5 @@
 import { App } from '../../core/app.js';
 import { adjustStock } from '../../domain/inventory.service.js';
-import { renderMaceratedProductsTable } from './macerated.ui.js';
 
 export function initMagazzinoFeature() {
   const loadForm = document.getElementById('manual-load-form');
@@ -10,15 +9,12 @@ export function initMagazzinoFeature() {
   const stockSel = document.getElementById('stock-query-product-select');
   const inventoryBody = document.getElementById('inventory-table-body');
   const inventoryPhysicalBody = document.getElementById('inventory-physical-body');
-  const maceratedProductsBody = document.getElementById('macerated-products-table-body');
   const btnResetPhysical = document.getElementById('reset-physical-counts-btn');
   const btnApplyPhysical = document.getElementById('apply-physical-counts-btn');
 
-  const h = value => App.utils.escapeHtml(value);
-
   const fillSelects = () => {
     const db = App.db.ensure();
-    const opts = (db.products || []).map(p => `<option value="${h(p.id)}">${h(p.code)} - ${h(p.description)}</option>`).join('');
+    const opts = (db.products || []).map(p => `<option value="${p.id}">${p.code} - ${p.description}</option>`).join('');
     const prevLoad = loadSel?.value;
     const prevUnload = unloadSel?.value;
     const prevStock = stockSel?.value;
@@ -37,18 +33,13 @@ export function initMagazzinoFeature() {
     if (inventoryBody) {
       inventoryBody.innerHTML = (db.products || []).map(p => `
         <tr>
-          <td>${h(p.code)}</td>
-          <td>${h(p.description)}</td>
-          <td>${h([p.locCorsia,p.locScaffale,p.locPiano].filter(Boolean).join('-'))}</td>
+          <td>${p.code}</td>
+          <td>${p.description}</td>
+          <td>${[p.locCorsia,p.locScaffale,p.locPiano].filter(Boolean).join('-')}</td>
           <td class="text-end">${p.stockQty || 0}</td>
           <td class="text-end">${p.quarantineQty || 0}</td>
         </tr>`).join('');
     }
-  };
-
-  const renderProdottiMacerati = () => {
-    const db = App.db.ensure();
-    renderMaceratedProductsTable({ db, tbody: maceratedProductsBody, h });
   };
 
   const renderInventarioFisico = () => {
@@ -65,13 +56,13 @@ export function initMagazzinoFeature() {
       const diffTxt = diff === '' ? '' : (diff > 0 ? `+${diff}` : `${diff}`);
 
       return `
-        <tr data-pid="${h(p.id)}">
-          <td>${h(p.code)}</td>
-          <td>${h(p.description)}</td>
-          <td>${h([p.locCorsia,p.locScaffale,p.locPiano].filter(Boolean).join('-'))}</td>
+        <tr data-pid="${p.id}">
+          <td>${p.code}</td>
+          <td>${p.description}</td>
+          <td>${[p.locCorsia,p.locScaffale,p.locPiano].filter(Boolean).join('-')}</td>
           <td class="text-end">${sysQty}</td>
           <td class="text-end" style="max-width:180px">
-            <input class="form-control form-control-sm text-end inv-phys-input" type="number" step="1" placeholder="—" value="${h(physVal)}">
+            <input class="form-control form-control-sm text-end inv-phys-input" type="number" step="1" placeholder="—" value="${physVal}">
           </td>
           <td class="text-end ${diffCls} inv-diff-cell">${diffTxt}</td>
         </tr>`;
@@ -117,14 +108,13 @@ export function initMagazzinoFeature() {
       const tr = inp.closest('tr');
       if (!tr) return;
       const pid = tr.getAttribute('data-pid');
-      App.db.mutate('inventory:set-physical-count', currentDb => {
-        currentDb.settings = currentDb.settings || {};
-        currentDb.settings.physicalCounts = currentDb.settings.physicalCounts || {};
-        const v = String(inp.value || '').trim();
-        if (v === '') delete currentDb.settings.physicalCounts[pid];
-        else currentDb.settings.physicalCounts[pid] = Number(v);
-        return { productId: pid };
-      });
+      const dbx = App.db.ensure();
+      dbx.settings = dbx.settings || {};
+      dbx.settings.physicalCounts = dbx.settings.physicalCounts || {};
+      const v = String(inp.value || '').trim();
+      if (v === '') delete dbx.settings.physicalCounts[pid];
+      else dbx.settings.physicalCounts[pid] = Number(v);
+      App.db.save(dbx);
     });
   }
 
@@ -165,19 +155,19 @@ export function initMagazzinoFeature() {
         return;
       }
 
-      App.db.mutate('inventory:apply-physical-alignment', currentDb => {
-        for (const [pid, val] of entries) {
-          const p = (currentDb.products || []).find(x => String(x.id) === String(pid));
-          if (!p) continue;
-          p.stockQty = Number(val);
-        }
-        currentDb.settings = currentDb.settings || {};
-        currentDb.settings.lastInventoryAlignment = {
-          at: Date.now(),
-          count: entries.length
-        };
-        return { count: entries.length };
-      });
+      for (const [pid, val] of entries) {
+        const p = (dbx.products || []).find(x => String(x.id) === String(pid));
+        if (!p) continue;
+        p.stockQty = Number(val);
+      }
+
+      dbx.settings = dbx.settings || {};
+      dbx.settings.lastInventoryAlignment = {
+        at: Date.now(),
+        count: entries.length
+      };
+
+      App.db.save(dbx);
       App.events.emit('inventory:changed', { reason: 'ALLINEAMENTO_INVENTARIO', count: entries.length });
       renderElencoGiacenze();
       renderInventarioFisico();
@@ -190,11 +180,10 @@ export function initMagazzinoFeature() {
     btnResetPhysical.dataset.bound = '1';
     btnResetPhysical.addEventListener('click', () => {
       if (!confirm('Azzera tutti i conteggi fisici inseriti?')) return;
-      App.db.mutate('inventory:reset-physical-counts', currentDb => {
-        currentDb.settings = currentDb.settings || {};
-        currentDb.settings.physicalCounts = {};
-        return { reset: true };
-      });
+      const dbx = App.db.ensure();
+      dbx.settings = dbx.settings || {};
+      dbx.settings.physicalCounts = {};
+      App.db.save(dbx);
       renderInventarioFisico();
       App.ui.showToast('Conteggi fisici azzerati.', 'success');
     });
@@ -203,7 +192,6 @@ export function initMagazzinoFeature() {
 fillSelects();
   renderElencoGiacenze();
   renderInventarioFisico();
-  renderProdottiMacerati();
 
   if (loadForm && loadForm.dataset.bound !== '1') {
     loadForm.dataset.bound = '1';
@@ -264,8 +252,7 @@ fillSelects();
   }
 
   const refreshAll = () => { fillSelects(); renderElencoGiacenze();
-  renderInventarioFisico();
-  renderProdottiMacerati(); };
+  renderInventarioFisico(); };
 
   
   // Reset forms quando si entra nelle sezioni (evita che restino i dati precedenti)
@@ -294,9 +281,6 @@ fillSelects();
     }
     if (sid === 'inventario-fisico') {
       renderInventarioFisico();
-    }
-    if (sid === 'prodotti-macerati') {
-      renderProdottiMacerati();
     }
   };
   App.events.on('section:changed', (sid) => { resetSection(sid); });

@@ -1,167 +1,187 @@
+import { config } from './config.js';
 import { createInitialDb, normalizeDb } from './dbSchema.js';
 import { firebase } from './firebase.js';
 import { firestoreRepo } from './firestoreRepo.js';
-import { createMutationRunner } from './dbMutation.js';
-import { getExpectedRemoteRevision } from './firestore/conflict.js';
-
-function cloneDb(db) {
-  return JSON.parse(JSON.stringify(db));
-}
-
-function createMemoryStore() {
-  let current = null;
-  let syncState = null;
-
-  return {
-    hasData() {
-      return Boolean(current);
-    },
-    get() {
-      return current;
-    },
-    set(db, nextSyncState = syncState) {
-      current = normalizeDb(db || createInitialDb());
-      syncState = nextSyncState;
-      return current;
-    },
-    clear() {
-      current = null;
-      syncState = null;
-    },
-    getSyncState() {
-      return syncState;
-    },
-    setSyncState(nextSyncState) {
-      syncState = nextSyncState;
-    },
-    snapshot() {
-      if (!current) return null;
-      return cloneDb(current);
-    }
-  };
-}
 
 /**
- * DB wrapper Firebase-only con cache esclusivamente in memoria.
- * Firestore è l'unica persistenza dei dati applicativi; la cache serve solo
- * a condividere lo stato normalizzato tra i moduli durante la sessione.
+ * DB wrapper con cache in memoria (singleton).
+ * Emissione evento 'db:changed' ad ogni salvataggio.
  */
 export function createDb(events) {
-  const memory = createMemoryStore();
-  let mutateWithDraft = null;
-
-  function setSyncStatus(target, patch) {
-    target._syncStatus = { ...target._syncStatus, ...patch };
-    events?.emit?.('sync:status', target._syncStatus);
-  }
-
   return {
+    _key: config.DB_KEY,
+    _cache: null,
+    _modeKey: config.PERSISTENCE_KEY,
+    _syncTsKey: `${config.DB_KEY}__lastSyncedAt`,
+    _syncEnabled: false,
     _syncStatus: { state: 'idle', lastError: null, lastSyncedAt: null },
+    _syncState: null,
     _syncQueued: null,
     _syncRunning: false,
     _syncWaiters: [],
 
-    getMode() {
-      return 'firebase';
+    load() {
+      try {
+        const raw = localStorage.getItem(this._key);
+        return raw ? JSON.parse(raw) : null;
+      } catch {
+        return null;
+      }
     },
 
-    setMode(mode = 'firebase') {
-      if (mode && mode !== 'firebase') {
-        throw new Error('Modalità locale disabilitata: il gestionale è Firebase-only.');
-      }
-      return 'firebase';
+    getMode() {
+      return localStorage.getItem(this._modeKey) || 'local';
+    },
+
+    setMode(mode) {
+      localStorage.setItem(this._modeKey, mode);
     },
 
     async init() {
-      await firebase.init();
+      // carica il DB nel cache prima che la UI venga inizializzata
+      const mode = this.getMode();
 
-      // Prima del login non esiste ancora un rootPath Firestore utente.
-      // La cache applicativa resta vuota finché loadFromFirebase() non completa.
-      if (!firebase.uid) {
-        memory.clear();
-        this._syncQueued = null;
-        this._syncStatus = { state: 'idle', lastError: null, lastSyncedAt: null };
-        events?.emit?.('sync:status', this._syncStatus);
-        return null;
+      // Local-first: carica sempre la cache locale (utile se refresh prima della sync)
+      let local = this.load();
+      if (local) {
+        local = normalizeDb(local);
+        this._cache = local;
+        localStorage.setItem(this._key, JSON.stringify(local));
       }
 
-      return this.loadFromFirebase();
-    },
+      if (mode === 'firebase') {
+        try {
+          await firebase.init();
+          const repo = firestoreRepo(firebase.fs, firebase.getRootPath());
 
-    async loadFromFirebase() {
-      try {
-        await firebase.init();
-        if (!firebase.uid) throw new Error('Firebase Auth non disponibile: effettua il login prima di caricare i dati.');
+          // Se la cache locale è più recente dell'ultima sync completata, non sovrascrivere con remoto:
+          const lastSyncedAt = parseInt(localStorage.getItem(this._syncTsKey) || '0', 10) || 0;
+          const localUpdatedAt = this._cache?.meta?.updatedAt || 0;
 
-        const repo = firestoreRepo(firebase.fs, firebase.getRootPath());
-        const remote = await repo.loadAll();
-        const db = memory.set(remote || createInitialDb());
-        memory.setSyncState(repo.buildState(db));
+          if (this._cache && localUpdatedAt > lastSyncedAt) {
+            // tenta di riallineare subito il remoto dalla cache locale
+            await repo.writeAll(this._cache);
+            this._syncState = repo.buildState(this._cache);
+            this._syncEnabled = true;
+            this._syncStatus = { state: 'idle', lastError: null, lastSyncedAt: Date.now() };
+            try { localStorage.setItem(this._syncTsKey, String(this._syncStatus.lastSyncedAt)); } catch {}
+            events?.emit?.('sync:status', this._syncStatus);
+            return this._cache;
+          }
 
-        this._syncStatus = { state: 'idle', lastError: null, lastSyncedAt: Date.now() };
-        events?.emit?.('sync:status', this._syncStatus);
-        events?.emit?.('db:changed', db);
-        return db;
-      } catch (e) {
-        const err = e instanceof Error ? e : new Error(String(e?.message || e));
-        memory.clear();
-        this._syncQueued = null;
-        this._syncStatus = { state: 'error', lastError: String(err.message || err), lastSyncedAt: null };
-        events?.emit?.('sync:status', this._syncStatus);
-        throw err;
+          const remote = await repo.loadAll();
+          if (remote) {
+            const norm = normalizeDb(remote);
+            this._cache = norm;
+            // fallback locale per offline
+            localStorage.setItem(this._key, JSON.stringify(norm));
+            this._syncEnabled = true;
+            this._syncStatus = { ...this._syncStatus, state: 'idle', lastError: null };
+            try { localStorage.setItem(this._syncTsKey, String(Date.now())); } catch {}
+            events?.emit?.('sync:status', this._syncStatus);
+            return norm;
+          }
+        } catch (e) {
+          // fallback locale
+          this._syncEnabled = false;
+          this._syncStatus = { ...this._syncStatus, state: 'error', lastError: String(e?.message || e) };
+          events?.emit?.('sync:status', this._syncStatus);
+          if (this._cache) return this._cache;
+        }
       }
+
+      // Local mode or fallback
+      let db = this.load();
+      if (!db) {
+        db = createInitialDb();
+        this.save(db);
+      } else {
+        db = normalizeDb(db);
+        this._cache = db;
+        // persisti eventuali default aggiunti
+        localStorage.setItem(this._key, JSON.stringify(db));
+      }
+      return this._cache;
     },
 
     save(db) {
-      const normalized = normalizeDb(db);
-      normalized.meta = (normalized.meta && typeof normalized.meta === 'object') ? normalized.meta : {};
-      normalized.meta.updatedAt = Date.now();
-      normalized.meta.revision = Number(normalized.meta.revision || 0) + 1;
+      db = normalizeDb(db);
+      // aggiorna timestamp modifiche
+      db.meta = (db.meta && typeof db.meta === 'object') ? db.meta : {};
+      db.meta.updatedAt = Date.now();
+      // cache -> garantisce che tutti i moduli lavorino sulla stessa reference
+      this._cache = db;
+      localStorage.setItem(this._key, JSON.stringify(db));
+      events?.emit?.('db:changed', db);
 
-      // Stato sessione: reference condivisa in memoria, non persistenza locale.
-      const current = memory.set(normalized);
-      events?.emit?.('db:changed', current);
-
-      this._enqueueSync(current);
-      return current;
-    },
-
-    mutate(label, updater) {
-      if (!mutateWithDraft) {
-        mutateWithDraft = createMutationRunner({
-          ensure: () => this.ensure(),
-          save: draft => this.save(draft),
-          emit: (eventName, payload) => events?.emit?.(eventName, payload)
-        });
+      // Se Firebase è attivo: sincronizza in background
+      if (this.getMode() === 'firebase') {
+        this._syncEnabled = true;
+        this._enqueueSync(db);
       }
-      return mutateWithDraft(label, updater);
+      return db;
     },
 
     ensure() {
-      if (memory.hasData()) return memory.get();
-      throw new Error('Dati non ancora caricati da Firebase. Effettua il login e attendi il caricamento Firestore.');
+      if (this._cache) return this._cache;
+
+      let db = this.load();
+      if (!db) {
+        db = createInitialDb();
+        this.save(db);
+      } else {
+        db = normalizeDb(db);
+        this._cache = db;
+        // persisti eventuali default aggiunti
+        localStorage.setItem(this._key, JSON.stringify(db));
+      }
+      return db;
     },
 
     resetCache() {
-      memory.clear();
-      this._syncQueued = null;
-      this._syncStatus = { state: 'idle', lastError: null, lastSyncedAt: null };
-      events?.emit?.('sync:status', this._syncStatus);
+      this._cache = null;
     },
 
     getSyncStatus() {
       return { ...this._syncStatus };
     },
 
+    async migrateLocalToFirebase() {
+      const local = normalizeDb(this.load() || this.ensure());
+      await firebase.init();
+      const repo = firestoreRepo(firebase.fs, firebase.getRootPath());
+      this._syncStatus = { ...this._syncStatus, state: 'syncing', lastError: null };
+      events?.emit?.('sync:status', this._syncStatus);
+      await repo.writeAll(local);
+      this._syncState = null; // reset diff state
+      this.setMode('firebase');
+      this._syncStatus = { state: 'idle', lastError: null, lastSyncedAt: Date.now() };
+      try { localStorage.setItem(this._syncTsKey, String(this._syncStatus.lastSyncedAt)); } catch {}
+          try { localStorage.setItem(this._syncTsKey, String(this._syncStatus.lastSyncedAt)); } catch {}
+      events?.emit?.('sync:status', this._syncStatus);
+      return true;
+    },
+
+    async pullFirebaseToLocal() {
+      await firebase.init();
+      const repo = firestoreRepo(firebase.fs, firebase.getRootPath());
+      const remote = await repo.loadAll();
+      if (remote) {
+        const norm = normalizeDb(remote);
+        this.save(norm);
+        return norm;
+      }
+      return null;
+    },
+
     async syncNow() {
-      const current = this.ensure();
-      return this._enqueueSync(current, true);
+      if (this.getMode() !== 'firebase') return true;
+      return this._enqueueSync(this._cache || this.ensure(), true);
     },
 
     _enqueueSync(db, force = false) {
-      const snapshot = cloneDb(normalizeDb(db));
-      const expectedRemoteRevision = getExpectedRemoteRevision(memory.getSyncState());
-      this._syncQueued = { snapshot, force, expectedRemoteRevision };
+      // Mantieni sempre l'ultima versione da sincronizzare
+      this._syncQueued = { snapshot: JSON.parse(JSON.stringify(db)), force };
       const waiter = new Promise((resolve, reject) => {
         this._syncWaiters.push({ resolve, reject });
       });
@@ -185,31 +205,32 @@ export function createDb(events) {
     async _runSyncLoop() {
       let lastError = null;
       while (this._syncQueued) {
-        const { snapshot, force, expectedRemoteRevision } = this._syncQueued;
+        const { snapshot, force } = this._syncQueued;
         this._syncQueued = null;
 
         try {
           await firebase.init();
-          if (!firebase.uid) throw new Error('Firebase Auth non disponibile: impossibile sincronizzare.');
           const repo = firestoreRepo(firebase.fs, firebase.getRootPath());
 
-          setSyncStatus(this, { state: 'syncing', lastError: null });
+          this._syncStatus = { ...this._syncStatus, state: 'syncing', lastError: null };
+          events?.emit?.('sync:status', this._syncStatus);
 
-          const prevState = memory.getSyncState();
-          await repo.assertRemoteRevision(expectedRemoteRevision);
-          if (force || !prevState) {
+          if (force || !this._syncState) {
             await repo.writeAll(snapshot);
-            memory.setSyncState(repo.buildState(snapshot));
+            // ricostruisci stato hash da snapshot (senza ulteriori scritture)
+            this._syncState = repo.buildState(snapshot);
           } else {
-            memory.setSyncState(await repo.diffAndSync(snapshot, prevState));
+            this._syncState = await repo.diffAndSync(snapshot, this._syncState);
           }
 
           this._syncStatus = { state: 'idle', lastError: null, lastSyncedAt: Date.now() };
+          try { localStorage.setItem(this._syncTsKey, String(this._syncStatus.lastSyncedAt)); } catch {}
           events?.emit?.('sync:status', this._syncStatus);
           lastError = null;
         } catch (e) {
           lastError = e instanceof Error ? e : new Error(String(e?.message || e));
-          setSyncStatus(this, { state: 'error', lastError: String(lastError?.message || lastError) });
+          this._syncStatus = { ...this._syncStatus, state: 'error', lastError: String(lastError?.message || lastError) };
+          events?.emit?.('sync:status', this._syncStatus);
         }
       }
       this._syncRunning = false;

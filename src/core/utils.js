@@ -16,15 +16,6 @@ export const utils = {
     const num = Number.isFinite(v) ? v : 0;
     return '€ ' + num.toFixed(2).replace('.', ',');
   },
-
-  escapeHtml(value) {
-    return String(value ?? '')
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#39;');
-  },
   _ensureCounters(db) {
     if (!db || typeof db !== 'object') throw new Error('DB non valido');
     if (!db.counters || typeof db.counters !== 'object' || Array.isArray(db.counters)) db.counters = {};

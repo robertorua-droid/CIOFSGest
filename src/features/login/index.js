@@ -1,4 +1,5 @@
 import { App } from '../../core/app.js';
+import { createInitialDb } from '../../core/dbSchema.js';
 
 function applyMenuForRole(user) {
   const isUser = (user?.role === 'User');
@@ -92,6 +93,8 @@ async function enterApp({ user, db, isFirebaseUser }) {
         await App.firebase.logout();
       }
     } catch {}
+    // Torna in modalità Local per evitare che all'avvio l'app provi Firestore senza sessione
+    try { App.db.setMode('local'); } catch {}
     location.reload();
   });
 
@@ -193,6 +196,22 @@ export function initLogin() {
     const password = document.getElementById('login-password')?.value || '';
     const password2 = document.getElementById('login-password-confirm')?.value || '';
 
+    // Emergency local login always allowed
+    if (email.toLowerCase() === 'admin') {
+      if (password !== 'gestionale') { setError('Credenziali admin non valide.'); return; }
+      try { App.db.setMode('local'); } catch {}
+      const db = App.db.ensure();
+      const user = { id: 'admin', name: 'Admin', surname: 'admin', role: 'Admin', password: 'gestionale' };
+      // compat: salva admin in users se non esiste
+      try {
+        const exists = (db.users || []).some(u => (u.surname || '').toLowerCase() === 'admin');
+        if (!exists) { db.users = db.users || []; db.users.push({ ...user }); App.db.save(db); }
+      } catch {}
+      clearLoginFields();
+      await enterApp({ user, db, isFirebaseUser: false });
+      return;
+    }
+
     if (!email) { setError('Inserisci la tua email.'); return; }
     if (!password) { setError('Inserisci la password.'); return; }
     if (!isValidEmail(email)) { setError('Inserisci un indirizzo email valido.'); return; }
@@ -210,21 +229,31 @@ export function initLogin() {
       return;
     }
 
-    // Carica dati da Firestore nella cache in memoria. Nessun fallback operativo su archivio locale.
+    // Dopo login Firebase: usa Firestore come archivio principale
+    try { App.db.setMode('firebase'); } catch {}
+
+    // Carica dati remoti; se non esistono ancora, inizializza uno schema vuoto e sincronizza
     let db = null;
     try {
-      db = await App.db.loadFromFirebase();
+      db = await App.db.pullFirebaseToLocal();
     } catch (e) {
       setError('Login ok, ma non riesco a leggere Firestore: ' + String(e?.message || e));
       return;
     }
 
-    // Ruolo e profilo: usa directory utenti su Firestore (appUsers/{uid})
+    if (!db) {
+      const fresh = createInitialDb();
+      App.db.save(fresh);
+      try { await App.db.syncNow(); } catch {}
+      db = App.db.ensure();
+    }
+
+        // Ruolo e profilo: usa directory utenti su Firestore (appUsers/{uid})
     let profile = null;
     try {
       profile = await App.userDirectory.ensureMyProfile(email);
     } catch (e) {
-      // Se le rules non permettono ancora appUsers, continuiamo con il ruolo calcolato lato app
+      // Se le rules non permettono ancora appUsers, continuiamo con fallback locale
     }
 
     const uid = App.firebase.uid || email;
@@ -233,33 +262,34 @@ export function initLogin() {
     let role = (profile && profile.role) ? profile.role : (sup.includes(emailLc) ? 'Supervisor' : (App.config?.DEFAULT_ROLE || 'User'));
 
     // Manteniamo un record utente nel DB applicativo per mostrare/gestire ruoli
-    let appUser = null;
-    App.db.mutate('auth:upsert-current-user', currentDb => {
-      currentDb.users = Array.isArray(currentDb.users) ? currentDb.users : [];
-      appUser = currentDb.users.find(u => String(u?.email || '').toLowerCase() === emailLc);
-      if (!appUser) {
-        appUser = {
-          id: uid,
-          email,
-          name: (email.split('@')[0] || email),
-          surname: profile?.surname || '',
-          role
-        };
-        currentDb.users.push(appUser);
-      } else {
-        if (profile && profile.role && appUser.role !== profile.role) {
-          appUser.role = profile.role;
-          if (profile.name) appUser.name = profile.name;
-          if (profile.surname) appUser.surname = profile.surname;
-        }
-        if (sup.includes(emailLc) && appUser.role !== 'Supervisor') {
-          appUser.role = 'Supervisor';
-        }
+    db.users = Array.isArray(db.users) ? db.users : [];
+    let appUser = db.users.find(u => String(u?.email || '').toLowerCase() === emailLc);
+
+    if (!appUser) {
+      appUser = {
+        id: uid,
+        email,
+        name: (email.split('@')[0] || email),
+        surname: profile?.surname || '',
+        role
+      };
+      db.users.push(appUser);
+      App.db.save(db);
+    } else {
+      // Se ho un profilo Firestore con ruolo, allineo il record locale
+      if (profile && profile.role && appUser.role !== profile.role) {
+        appUser.role = profile.role;
+        if (profile.name) appUser.name = profile.name;
+        if (profile.surname) appUser.surname = profile.surname;
+        App.db.save(db);
+      }
+      // Se l'email è in lista Supervisor, forziamo il ruolo
+      if (sup.includes(emailLc) && appUser.role !== 'Supervisor') {
+        appUser.role = 'Supervisor';
+        App.db.save(db);
       }
       role = appUser.role || role;
-      return { email: emailLc, role };
-    });
-    db = App.db.ensure();
+    }
 
     const user = {
       id: appUser.id || uid,

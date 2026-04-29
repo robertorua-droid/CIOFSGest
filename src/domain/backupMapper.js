@@ -201,7 +201,6 @@ export function summarizeDb(db) {
     customerDDTs: (db.customerDDTs || []).length,
     supplierDDTs: (db.supplierDDTs || []).length,
     invoices: (db.invoices || []).length,
-    supplierQuarantine: (db.supplierQuarantine || []).length,
     supplierReturnDDTs: (db.supplierReturnDDTs || []).length
   };
 }

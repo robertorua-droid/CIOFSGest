@@ -1,148 +1,113 @@
-Manuale Utente - Gestionale Magazzino Didattico Firebase-only (v1.42.0)
+Manuale Utente - Gestionale Magazzino Didattico (Beta 0.14.11.25)
 
 Introduzione
-============
-Il gestionale didattico simula i principali processi di magazzino: anagrafiche, ordini, DDT, fatture, giacenze, inventario, quarantena fornitori e resi. Questa versione è Firebase-only: l'accesso avviene con Firebase Authentication e i dati applicativi vengono letti e scritti su Firestore.
+Benvenuto nel Gestionale Magazzino Didattico. Questo software è uno strumento educativo progettato per simulare le principali operazioni di un'azienda commerciale: dalla gestione delle anagrafiche (clienti, fornitori, prodotti) al flusso completo dei documenti di vendita (Ordine → DDT → Fattura) e di acquisto.
+L'applicazione funziona interamente nel tuo browser e salva tutti i dati localmente sul tuo computer (tramite Local Storage). Non è necessaria alcuna installazione o connessione a server esterni.
+Primo Accesso
+Al primo avvio, o dopo aver cancellato i dati, l'applicazione non ha utenti registrati. Per accedere, utilizza le seguenti credenziali di default:
+•	Username: admin
+•	Password: gestionale
+Questo utente ha il ruolo di Admin e possiede tutti i permessi per utilizzare ogni funzione del programma.
+Interfaccia Principale
+L'applicazione è divisa in due aree principali:
+1.	Barra dei Menu (Sidebar) a sinistra: Contiene tutti i link per navigare tra le diverse sezioni del gestionale. Le voci visibili dipendono dal ruolo dell'utente.
+2.	Area dei Contenuti a destra: È dove vengono visualizzate le pagine, le tabelle e i moduli di inserimento dati.
+________________________________________
+Capitolo 1: Guida per il Ruolo "User"
+Il ruolo "User" è pensato per un operatore di magazzino con accesso limitato alle sole funzioni di consultazione e gestione della merce.
+1.1 Home Page
+Dopo il login, verrai accolto da una pagina di benvenuto personalizzata con il tuo nome e cognome.
+In questa pagina troverai:
+•	Data e Ora Correnti: Un orologio che si aggiorna in tempo reale.
+•	Calendario: Un calendario del mese in corso con evidenziato il giorno attuale.
+•	Block-notes Personale: Un'area di testo dove puoi prendere appunti. Cliccando su "Salva note", i tuoi appunti verranno salvati e resteranno disponibili anche dopo aver effettuato il logout e un nuovo accesso. Ogni utente ha il proprio block-notes separato.
+1.2 Statistiche
+La pagina delle statistiche per il ruolo "User" è focalizzata sulla situazione del magazzino:
+•	Grafico "Top 5 Prodotti per Giacenza": Un istogramma che mostra i 5 prodotti con la maggiore quantità disponibile a magazzino.
+•	Grafico "Top 5 Prodotti in Esaurimento": Un grafico a torta che evidenzia i 5 prodotti con una giacenza inferiore a 50 pezzi, per aiutarti a identificare le priorità di riordino.
+1.3 Gestione Anagrafiche (Accesso Limitato)
+•	Anagrafica Prodotti: Puoi visualizzare l'elenco completo dei prodotti, modificarne le schede (es. per aggiornare la collocazione) o eliminarli. Non puoi creare nuovi prodotti.
+•	Anagrafica Utenti: Puoi visualizzare l'elenco degli utenti ma non puoi aggiungere, modificare o eliminare utenti.
+1.4 Gestione Magazzino
+Questa è la sezione principale per l'operatore di magazzino.
+•	Carico Manuale: Permette di aumentare la giacenza di un prodotto per motivi non legati a un acquisto (es. rettifica inventariale, reso da cliente).
+•	Scarico Manuale: Permette di diminuire la giacenza di un prodotto (es. per rottura, uso interno, invio di campioni).
+•	Giacenze: Una funzione di ricerca rapida per consultare la quantità e la collocazione di un singolo prodotto.
+•	Inventario: Visualizza una tabella completa con tutti i prodotti e la loro giacenza attuale.
+1.5 Ciclo Attivo e Passivo (Sola Visualizzazione)
+L'utente "User" può consultare i documenti ma non può crearli o modificarli.
+•	Elenco Ordini Cliente/Fornitore: Puoi visualizzare la lista degli ordini esistenti e i loro dettagli.
+•	Elenco DDT Cliente/Fornitore: Puoi visualizzare la lista dei DDT emessi o ricevuti e i loro dettagli, inclusa la possibilità di stamparli.
+•	Elenco Fatture: Puoi visualizzare la lista delle fatture emesse e i loro dettagli, inclusa la stampa.
+Nota Importante: I pulsanti per eliminare ordini, DDT o fatture non sono visibili per l'utente con ruolo "User".
+________________________________________
+Capitolo 2: Guida per i Ruoli "Supervisor" e "Admin"
+I ruoli "Supervisor" e "Admin" hanno accesso completo a tutte le funzionalità del gestionale. Di seguito sono spiegate le logiche di flusso dei documenti e le funzionalità avanzate a loro riservate.
 
-Non esiste più una modalità operativa locale per i dati gestionali. Se Firebase Auth o Firestore non sono disponibili, il gestionale mostra un errore esplicito e non attiva archivi alternativi nel browser.
+2.1 Home Page e Statistiche
+•	Home Page: Identica a quella del ruolo "User", con calendario e block-notes personale.
+•	Statistiche: La pagina delle statistiche per questi ruoli è orientata alle vendite:
+o	Grafico "Fatturato Ordini per Mese": Mostra il valore totale (€) degli ordini cliente, raggruppato per mese.
+o	Grafico "Valore Ordini per Cliente": Un grafico a torta che mostra la distribuzione del valore totale degli ordini tra i vari clienti.
+2.2 Gestione Anagrafiche (Accesso Completo)
+A differenza dell'utente "User", gli utenti "Admin" e "Supervisor" possono creare, modificare ed eliminare liberamente:
+•	Clienti
+•	Fornitori
+•	Prodotti
+L'utente Admin ha in più la possibilità di gestire l'Anagrafica Utenti e l'Anagrafica Azienda.
+2.3 Flusso di Vendita (Ciclo Attivo)
+Questo flusso simula l'intero processo di vendita, dalla ricezione di un ordine alla sua fatturazione.
+2.3.1 Creazione di un Ordine Cliente
+1.	Vai su Clienti > Nuovo Ordine Cliente.
+2.	Seleziona un cliente dal menu a tendina. Data e numero ordine vengono compilati automaticamente.
+3.	Nella sezione "Aggiungi Prodotti", seleziona un prodotto. Il suo prezzo di vendita verrà caricato in automatico.
+4.	Specifica la quantità e clicca su "Aggiungi Riga".
+5.	Ripeti l'operazione per tutti i prodotti che il cliente desidera ordinare.
+6.	Una volta completato, clicca su "Salva Ordine". L'ordine verrà creato con lo stato "In lavorazione".
+2.3.2 Evasione dell'Ordine tramite DDT
+Il DDT (Documento di Trasporto) è il documento che accompagna la merce spedita e certifica l'uscita dei prodotti dal magazzino.
+1.	Vai su Clienti > Nuovo DDT Cliente.
+2.	Seleziona un ordine aperto dal menu a tendina. Verranno caricati i dettagli del cliente e l'elenco dei prodotti ordinati ma non ancora spediti.
+3.	Inserisci i dati del trasporto (Vettore, Peso, etc.).
+4.	Per ogni prodotto, il campo "Qtà da Spedire" è preimpostato sulla quantità residua. Puoi modificarlo se stai effettuando una spedizione parziale.
+5.	Clicca su "Genera DDT". Questa operazione:
+o	Scala la giacenza dei prodotti spediti dal magazzino.
+o	Crea un nuovo DDT con stato "Da Fatturare".
+o	Aggiorna lo stato dell'ordine collegato in "Parzialmente Evaso" o "Evaso".
+2.3.3 Fatturazione dei DDT
+La fattura raggruppa uno o più DDT per richiedere il pagamento al cliente.
+1.	Vai su Clienti > Fatturazione.
+2.	Seleziona il cliente per cui vuoi emettere fattura.
+3.	Apparirà un elenco di tutti i DDT "Da Fatturare" per quel cliente. Spunta le caselle dei DDT che vuoi includere.
+4.	Clicca su "Crea Anteprima Fattura". Il sistema raggrupperà tutti i prodotti, calcolerà gli imponibili per aliquota IVA e il totale.
+5.	Controlla l'anteprima e, se corretta, clicca su "Genera Fattura Definitiva". Questa azione:
+o	Crea una nuova fattura.
+o	Cambia lo stato dei DDT inclusi in "Fatturato".
+2.4 Gestione dei Documenti (Eliminazione e Ripristino)
+Gli utenti Admin e Supervisor possono annullare le operazioni eseguite.
+•	Eliminare un Ordine: Dall'elenco ordini, clicca su "Visualizza" e poi su "Elimina Ordine". L'ordine verrà rimosso in modo permanente.
+•	Eliminare un DDT: Dall'elenco DDT, clicca sul pulsante con l'icona del cestino. Puoi eliminare solo DDT non ancora fatturati. L'eliminazione di un DDT provoca:
+1.	Il ripristino della giacenza dei prodotti a magazzino.
+2.	L'aggiornamento dell'ordine collegato, che tornerà allo stato "In lavorazione" o "Parzialmente Evaso".
+•	Eliminare una Fattura: Dall'elenco fatture, clicca sul pulsante con l'icona del cestino. L'eliminazione di una fattura provoca:
+1.	La cancellazione del documento fattura.
+2.	Il ripristino dei DDT collegati, che torneranno allo stato "Da Fatturare", pronti per essere inclusi in una nuova fattura.
+2.5 Ciclo Passivo (Acquisti)
+Il flusso di acquisto è simile a quello di vendita.
+•	Nuovo Ordine Fornitore: Crea un ordine per l'acquisto di merce.
+•	Nuovo DDT Fornitore: Registra l'arrivo della merce a magazzino. Questa operazione aumenta la giacenza dei prodotti ricevuti.
+________________________________________
+Capitolo 3: Funzionalità per l'Admin
+Il ruolo "Admin" ha tutti i permessi dei ruoli "User" e "Supervisor", con in più la possibilità di gestire le impostazioni di base del sistema.
+3.1 Anagrafica Azienda
+In Impostazioni > Anagrafica Azienda, puoi definire i dati dell'azienda che utilizza il gestionale. Queste informazioni verranno usate nelle intestazioni dei documenti.
+3.2 Anagrafica Utenti
+In Impostazioni > Anagrafica Utenti, l'Admin può:
+•	Creare nuovi utenti definendo Nome, Cognome (usato come username), Password e Ruolo ("User", "Supervisor", "Admin").
+•	Modificare o Eliminare gli utenti esistenti.
+3.3 Funzionalità Avanzate
+La sezione Impostazioni > Avanzate permette di gestire l'intero database dell'applicazione.
+•	Esporta Dati: Salva una copia di backup di tutti i dati (anagrafiche, documenti, note) in un singolo file .json. Il nome del file includerà il cognome dell'utente che ha eseguito l'esportazione.
+•	Importa Dati: Carica un file di backup precedentemente esportato. ATTENZIONE: Questa operazione sovrascrive tutti i dati attualmente presenti.
+•	Cancella Tutti i Dati: Rimuove in modo permanente tutti i dati dal browser, riportando l'applicazione allo stato di prima installazione. Utilizzare con estrema cautela.
 
-Accesso
-=======
-1. Apri il gestionale da un server statico o dalla pagina pubblicata.
-2. Usa la scheda Accedi con email e password Firebase.
-3. Se il docente ha abilitato la registrazione, usa la scheda Registrati per creare l'account.
-4. Dopo il login, il gestionale carica i dati da Firestore nello spazio dell'utente autenticato.
-
-Ruoli
-=====
-- User: ruolo studente/operatore. Può esercitarsi su consultazione e operazioni consentite dal docente.
-- Admin/Supervisor: ruoli docente o gestione avanzata. Possono amministrare dati, utenti applicativi, backup e funzioni avanzate.
-
-Capitolo 1: Guida per il ruolo User
-===================================
-
-1.1 Home page
--------------
-La home mostra riepiloghi operativi, calendario e block-notes personale. Le informazioni vengono salvate tramite Firestore insieme agli altri dati dell'utente.
-
-1.2 Magazzino
--------------
-- Carico manuale: aumenta la giacenza per rettifiche, rientri o simulazioni didattiche.
-- Scarico manuale: diminuisce la giacenza per rotture, uso interno o campioni.
-- Giacenze: permette di consultare quantità e collocazione dei prodotti.
-- Inventario: mostra la tabella completa dei prodotti con le giacenze correnti.
-
-1.3 Ciclo attivo e passivo in consultazione
--------------------------------------------
-L'utente con ruolo User può consultare ordini, DDT e fatture secondo le autorizzazioni configurate. I pulsanti di eliminazione o amministrazione non sono visibili quando il ruolo non li consente.
-
-Capitolo 2: Guida per Admin e Supervisor
-========================================
-
-2.1 Statistiche
----------------
-Le statistiche mostrano riepiloghi su ordini, clienti e andamento operativo, utili per esercitazioni e discussione in aula.
-
-2.2 Anagrafiche
----------------
-Admin e Supervisor possono creare, modificare ed eliminare clienti, fornitori e prodotti. Le modifiche vengono salvate su Firestore.
-
-2.3 Ciclo di vendita
---------------------
-1. Nuovo ordine cliente: registra l'ordine con righe prodotto e quantità.
-2. Nuovo DDT cliente: evade l'ordine, anche parzialmente, e scarica la giacenza.
-3. Fatturazione: raggruppa uno o più DDT da fatturare e genera la fattura definitiva.
-
-2.4 Ciclo di acquisto
----------------------
-1. Nuovo ordine fornitore: registra la richiesta di acquisto.
-2. Nuovo DDT fornitore: registra l'arrivo merce e aggiorna la giacenza.
-3. Quarantena fornitori: gestisce merce con riserva, svincolo, reso al fornitore o distruzione.
-
-2.5 Eliminazioni e ripristini
------------------------------
-Le eliminazioni documentali disponibili ai ruoli autorizzati aggiornano anche gli stati collegati e le giacenze quando previsto dal flusso.
-
-Capitolo 3: Impostazioni
-========================
-
-3.1 Anagrafica azienda
-----------------------
-Permette di impostare i dati aziendali usati nelle intestazioni dei documenti.
-
-3.2 Utenti Firebase
--------------------
-La gestione utenti opera sugli account/profili Firebase già registrati. Il docente può modificare ruolo e profilo applicativo quando le regole Firestore lo consentono.
-
-3.3 Backup e import Firebase
-----------------------------
-- Esporta backup Firebase: forza la sincronizzazione e scarica un file JSON letto da Firestore.
-- Carica esempio incluso: mostra in anteprima il dataset didattico incluso nel progetto.
-- Importa su Firebase: scrive il backup o il dataset esempio nello spazio Firestore dell'utente autenticato.
-- Cancella dati Firebase: rimuove in modo permanente i documenti Firestore dello spazio utente corrente dopo conferma.
-
-Attenzione: import e cancellazione agiscono su Firestore. Prima di sovrascrivere dati importanti, esporta un backup Firebase.
-
-Capitolo 4: Release e changelog
-===============================
-La sezione Release e changelog mostra la versione corrente, la cronologia delle modifiche e il changelog testuale incluso nel pacchetto.
-
-
-Nota versione 1.42.0
-====================
-L'area Vendite mantiene le stesse funzioni operative per ordini cliente, DDT e fatture. Il cambiamento è tecnico: la logica interna è stata separata dalla schermata per migliorare manutenzione e test, senza introdurre nuove funzioni per l'utente.
-
-Aggiornamento 1.43.0: la logica di dominio dell’area Acquisti/Fornitori è stata separata in src/domain/purchasing.service.js. La feature acquisti mantiene UI, rendering e orchestrazione, mentre stato ordine, DDT, quarantena, resi e rollback sono coperti da test Node.js.
-
-Aggiornamento 1.44.0: backup, import, export e cancellazione dati Firebase sono ora orchestrati da src/domain/backup.service.js. La schermata Impostazioni mantiene le sole responsabilità UI e invoca il servizio per normalizzazione, controlli di allineamento e operazioni Firestore.
-
-
-Versione 1.45.0
-Aggiornamento tecnico interno: sono stati consolidati i test automatici sulle funzioni principali. L'uso del gestionale non cambia.
-
-
-Versione 1.46.0
-Aggiornamento tecnico interno: la schermata di login è stata allineata al funzionamento Firebase Auth e non mostra più riferimenti al vecchio accesso locale.
-
-
-Aggiornamento 1.47.0: il repository Firestore è stato suddiviso in moduli interni per costanti, batch, stato di sincronizzazione e repository operativo. `src/core/firestoreRepo.js` resta una facciata compatibile, quindi non cambiano bootstrap, login, backup o flussi utente.
-
-
-Aggiornamento 1.50.0: la logica di calcolo delle statistiche è stata separata in `src/domain/stats.service.js`. `src/core/stats.js` mantiene solo rendering Chart.js, aggiornamento DOM e tabelle, riducendo il rischio di regressioni sui KPI. La release 1.50.0 consolida gli step di modularizzazione 14 e 15.
-
-Nota versione 1.55.0
-La gestione rimane Firebase-only. Le regole di cancellazione sono più protette: clienti, fornitori o prodotti già collegati a documenti gestionali vengono bloccati per evitare incoerenze nei percorsi didattici.
-
-Nota versione 1.56.0
-
-Questa versione non cambia le funzioni visibili agli utenti. Migliora la robustezza interna del gestionale: vendite, acquisti, impostazioni, login e inventario fisico salvano ora tramite mutazioni controllate, riducendo il rischio di stati parziali o salvataggi duplicati.
-
-Nota versione 1.57.0
-Questa versione non aggiunge funzioni visibili: migliora la sicurezza interna dei salvataggi. Le modifiche ai dati vengono applicate in modo più controllato e, se una modifica fallisce, lo stato precedente resta invariato.
-
-Nota versione 1.58.0
-Il refactoring ha separato ulteriormente la struttura interna delle schermate Vendite, Acquisti e Impostazioni. Le funzionalità visibili restano invariate: l'intervento serve a rendere il gestionale più manutenibile e meno fragile.
-
-Versione 1.59.0
-Aggiornamento tecnico di sicurezza e stabilità: i dati inseriti in anagrafiche, documenti, magazzino e note vengono trattati in modo più sicuro quando visualizzati nelle tabelle e nei dettagli.
-
-Versione 1.60.0
-La stampa PDF di DDT, fatture e resi mantiene lo stesso comportamento visibile. La modifica è interna: la generazione dei documenti è stata separata dalla UI per rendere il gestionale più robusto e più semplice da mantenere.
-
-Versione 1.61.0
-Questa versione non aggiunge nuove funzioni visibili. Migliora la sicurezza dei salvataggi: se i dati su Firebase sono cambiati da un altro browser o utente, il gestionale evita di sovrascriverli e richiede di ricaricare i dati prima di continuare.
-
-
-Nota versione 1.62.0
-Sono stati aggiunti controlli tecnici automatici di smoke test della schermata browser. Non cambiano le funzionalità visibili per gli allievi, ma riducono il rischio di errori di caricamento o collegamenti UI mancanti dopo futuri aggiornamenti.
-
-Nota versione 1.65.0
-
-La versione 1.65.0 è una release di consolidamento tecnico: non introduce nuove funzioni operative per gli allievi, ma stabilizza il gestionale con Firebase come unico archivio dati e con controlli interni più robusti.
-
-
-Novità 1.66.0 - DDT Fornitore
-Nella voce Elenco DDT Fornitore sono disponibili due schede: Ricevuti dal Fornitore e Resi al Fornitore. La seconda scheda permette di consultare i DDT di reso generati dalla quarantena, aprirne il dettaglio, completare i dati di spedizione e stampare il PDF.
-
-Novità 1.67.0 - Registro Prodotti Macerati
-Nel gruppo Magazzino è disponibile la voce Prodotti Macerati. La pagina mostra l'elenco delle quantità distrutte/macerate quando la quarantena fornitori viene chiusa con esito "Da distruggere". La pagina è consultiva: non modifica le giacenze e non sostituisce la gestione della quarantena.

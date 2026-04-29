@@ -1,142 +1,80 @@
-Manuale Tecnico - Gestionale Magazzino Didattico Firebase-only (v1.42.0)
+Manuale Tecnico – Gestionale Magazzino Didattico (patch badge + tooltip) – 2025-11-21
 
-Scopo della release
-===================
-La versione 1.42.0 mantiene il refactoring Firebase-only e avvia il refactoring di dominio dell'area Vendite. Firestore resta l'unica persistenza dei dati gestionali; il browser mantiene solo cache di sessione in memoria. La logica più critica di ordini cliente, DDT cliente e fatture è stata separata dalla UI per ridurre fragilità e regressioni.
+Contenuto della patch
+---------------------
+La patch `script_badges_tooltips_patch.js` aggiunge:
+1) **Badge colorati** con **tooltip** esplicativi per gli "Stato" di:
+   - Elenco Ordini Cliente
+   - Elenco Ordini Fornitore
+   - Elenco DDT Cliente
+   - Elenco DDT Fornitore
+   - Elenco Fatture
+2) **Messaggio di benvenuto** in Home sincronizzato con il *Nome Cognome* visualizzato nella sidebar.
 
-Architettura
-============
-- Entry point: index.html carica src/main.js come ES Module.
-- Core applicativo: src/core/app.js crea App, event bus, db wrapper, home, stats e riferimenti Firebase.
-- Dati: src/core/db.js normalizza e mantiene lo stato in memoria, poi sincronizza su Firestore tramite src/core/firestoreRepo.js.
-- Schema: src/core/dbSchema.js definisce struttura iniziale e normalizzazione.
-- Backup: src/domain/backupMapper.js converte backup JSON precedenti nello schema corrente.
-- Vendite: src/domain/sales.service.js contiene calcoli e mutazioni per ordini cliente, DDT cliente, fatture e rollback.
-- Feature: src/features/* contiene le aree funzionali caricate dal bootstrap modulare; src/features/vendite/index.js resta focalizzato su DOM, modali, toast, stampa e orchestrazione.
+Integrazione
+------------
+- Il file va incluso **dopo** il `script.js` principale. Questo repository lo fa automaticamente
+  inserendo la riga:
 
-Persistenza e bootstrap
-=======================
-1. App.boot() inizializza Firebase.
-2. Prima del login non viene caricato alcun archivio applicativo locale.
-3. Dopo login Firebase, App.db.loadFromFirebase() legge Firestore e popola la cache di sessione.
-4. App.db.save(db) aggiorna la cache di sessione e accoda la sincronizzazione Firestore.
-5. App.db.ensure() fallisce se i dati non sono ancora stati caricati da Firebase.
+  <script src="script_badges_tooltips_patch.js"></script>
 
-Regola tecnica: nessuna funzione applicativa deve leggere o scrivere su localStorage o sessionStorage. Non sono previsti usi ammessi di storage browser.
+  immediatamente prima del tag `</body>` in `index.html`.
 
-Tema e identificativi browser
-=============================
-Il tema UI segue la preferenza di sistema al caricamento della pagina. Il toggle tema resta funzionante nella sessione corrente, ma non viene salvato nel browser. Non viene generato alcun device id persistente: l’identità applicativa dipende dall’utente Firebase autenticato.
+Dipendenze
+----------
+- **Bootstrap 5 (bundle)** deve essere caricato perché la patch usa `bootstrap.Tooltip`.
+- Funziona sia con jQuery che senza, non modifica né rimuove funzioni esistenti.
 
-Backup/import/export
-====================
-- Export: sincronizza prima la cache corrente, rilegge Firestore e scarica un backup JSON remoto.
-- Import: normalizza il JSON, opzionalmente svuota lo spazio Firestore utente e scrive su Firebase.
-- Dataset esempio: resta una sorgente didattica di anteprima; l'applicazione avviene sempre su Firestore.
+Mappatura degli stati → badge
+-----------------------------
+Gli stati vengono normalizzati (minuscole, abbreviazioni comuni) e resi con badge Bootstrap:
 
-Verifica Node.js
-================
-Eseguire:
+• **ORDINI** (`entityType = "order"`)
+  - *In lavorazione* → `badge bg-secondary` – "Ordine registrato ma non ancora evaso"
+  - *Parzialmente evaso* (accetta anche "Parz...") → `badge bg-warning text-dark`
+  - *Evaso* (accetta anche "Evas...") → `badge bg-success`
+  - *Spedito* → `badge bg-info text-dark`
+  - *Annullato* → `badge bg-danger`
 
-npm run verify
+• **DDT** (`entityType = "ddt"`)
+  - *Emesso* / *Ricevuto* → `badge bg-primary`
+  - *Parzialmente fatturato* → `badge bg-warning text-dark`
+  - *Fatturato* → `badge bg-success`
+  - *Annullato* → `badge bg-danger`
 
-Lo script controlla:
-- sintassi JavaScript con node --check;
-- versione package/release allineata a 1.42.0;
-- presenza della voce corrente in CHANGELOG.md;
-- test Node.js di dominio con node --test sui flussi principali di vendita;
-- assenza della cartella legacy;
-- assenza di chiamate operative alla vecchia modalità locale;
-- assenza totale di localStorage e sessionStorage.
+• **FATTURE** (`entityType = "invoice"`)
+  - *Emessa* → `badge bg-primary`
+  - *Pagata* → `badge bg-success`
+  - *Parziale* → `badge bg-warning text-dark`
+  - *Stornata* → `badge bg-danger`
 
-Checklist manuale prima della consegna
-======================================
-1. Avvio con server statico, non da file://.
-2. Login Firebase valido.
-3. Caricamento Firestore riuscito.
-4. Creazione/modifica di un dato semplice e sync senza errore.
-5. Export backup Firebase.
-6. Import dataset esempio su account di test.
-7. Sezione Release e changelog visibile con versione 1.42.0.
-8. Verifica manuale di ordine cliente, DDT cliente, cancellazione DDT, fattura e cancellazione fattura su account di test.
+Tecnica di aggancio non invasiva
+--------------------------------
+- La patch **non** richiede modifiche al rendering originale delle tabelle.
+- Per ogni sezione elencata, individua automaticamente l'indice della colonna **"Stato"**
+  (match testuale sull'intestazione) e sostituisce il testo della cella con un `<span class="badge ...">`.
+- Un `MutationObserver` rielabora la tabella ogni volta che le righe vengono rigenerate
+  (es. filtri, paginazioni, salvataggi).
 
-Note sulla patch badge/tooltip
-==============================
-Il file script_badges_tooltips_patch.js resta incluso come patch UI indipendente per badge colorati e tooltip sugli stati documentali. Non gestisce persistenza dati e non partecipa al refactoring Firebase-only.
+Tooltips
+--------
+- I badge contengono `data-bs-toggle="tooltip"` e `data-bs-title="..."`.
+- Vengono inizializzati con `new bootstrap.Tooltip(...)` in `initTooltips()` e ri‑inizializzati
+  a ogni aggiornamento delle tabelle.
 
-Aggiornamento 1.43.0: la logica di dominio dell’area Acquisti/Fornitori è stata separata in src/domain/purchasing.service.js. La feature acquisti mantiene UI, rendering e orchestrazione, mentre stato ordine, DDT, quarantena, resi e rollback sono coperti da test Node.js.
+Messaggio di benvenuto
+----------------------
+- La patch sincronizza il testo di `#welcome-message` con il contenuto di `#user-name-sidebar`.
+- In assenza del nome, il testo resta "Benvenuto".
+- La sincronizzazione è immediata e anche successiva (osserva cambiamenti nella sidebar).
 
-Aggiornamento 1.44.0: backup, import, export e cancellazione dati Firebase sono ora orchestrati da src/domain/backup.service.js. La schermata Impostazioni mantiene le sole responsabilità UI e invoca il servizio per normalizzazione, controlli di allineamento e operazioni Firestore.
+Sicurezza della patch
+---------------------
+- Nessuna modifica distruttiva al DOM esterno alla colonna "Stato".
+- Se la cella è già stata trasformata, viene saltata (flag `data-enhanced="1"`).
+- Se uno stato non è riconosciuto, viene usato un badge `bg-secondary` con tooltip generico.
 
-
-Versione 1.45.0 - Test dominio consolidati
-- Aggiunta una suite di regressione Node.js sui service di dominio e sulla normalizzazione schema.
-- I test coprono vendite, acquisti, quarantena e backup Firebase-only.
-- Nessuna modifica funzionale visibile per l'utente finale.
-
-
-Versione 1.46.0 - Pulizia prudente index.html
-- Rimossi dal login i testi residui riferiti al vecchio accesso locale.
-- Aggiunti marker strutturali nel file HTML principale.
-- Aggiunta verifica Node.js della struttura HTML e dei target di navigazione.
-
-
-Aggiornamento 1.47.0: il repository Firestore è stato suddiviso in moduli interni per costanti, batch, stato di sincronizzazione e repository operativo. `src/core/firestoreRepo.js` resta una facciata compatibile, quindi non cambiano bootstrap, login, backup o flussi utente.
-
-
-Aggiornamento 1.50.0: la logica di calcolo delle statistiche è stata separata in `src/domain/stats.service.js`. `src/core/stats.js` mantiene solo rendering Chart.js, aggiornamento DOM e tabelle, riducendo il rischio di regressioni sui KPI. La release 1.50.0 consolida gli step di modularizzazione 14 e 15.
-
-Versione 1.55.0 - Consolidamento struttura logica
-- Introdotte regole pure per inventario/anagrafiche e test Node.js dedicati.
-- Introdotta mutazione DB controllata App.db.mutate(label, updater) per ridurre salvataggi sparsi.
-- Centralizzati permessi e integrità referenziale delle cancellazioni.
-- Aggiunta utility escapeHtml per proteggere i rendering HTML dinamici principali.
-- Aggiunto controllo npm run verify:structure.
-
-Versione 1.56.0 - Mutazioni DB controllate estese
-
-- I moduli feature usano App.db.mutate(label, updater) per modificare il database applicativo.
-- App.db.save() resta confinato al wrapper dati e ai percorsi infrastrutturali, evitando salvataggi diretti sparsi nelle schermate.
-- I flussi documentali di vendite e acquisti applicano modifiche documento e variazioni stock/quarantena nello stesso perimetro di mutazione applicativa.
-- La verifica struttura intercetta regressioni su App.db.save() nei moduli feature.
-
-Versione 1.57.0 - Mutazioni DB transazionali
-- Aggiunto il runner src/core/dbMutation.js.
-- App.db.mutate(label, updater) applica le modifiche su una copia draft dello stato in memoria.
-- Se l'updater genera errore, lo stato condiviso non viene salvato e non viene sincronizzato.
-- Sono vietate mutazioni annidate e mutazioni asincrone per ridurre il rischio di stati parziali.
-- Le note della home usano ora db.mutate(), così non restano salvataggi DB diretti fuori dal wrapper dati.
-
-Versione 1.58.0 - Split UI features
-La schermata Vendite è stata alleggerita con moduli UI dedicati ai rendering di ordini cliente, DDT cliente e fatture. La schermata Acquisti è stata alleggerita con moduli UI dedicati a ordini fornitore, DDT/resi e quarantena. La schermata Impostazioni è stata separata in moduli per azienda, utenti, avanzate e release/changelog. Gli entrypoint mantengono il wiring principale e i flussi continuano a usare service di dominio e mutazioni DB controllate.
-
-Versione 1.59.0 - Audit escaping HTML dinamico
-- Estesa la protezione dei rendering dinamici tramite escapeHtml.
-- Aggiunta verifica automatica tools/verify-html-escaping.mjs.
-- Il comando npm run verify include ora anche il controllo anti-regressione sui template HTML dinamici.
-
-Versione 1.60.0 - Layer stampa/PDF separato
-La generazione dei PDF è stata separata dalla UI: i documenti clienti sono gestiti da src/printing/sales.print.js, i resi fornitore da src/printing/purchasing.print.js e gli helper condivisi da src/printing/common.print.js. La verifica tools/verify-printing.mjs impedisce che la logica jsPDF venga reinserita nei moduli feature.
-
-Versione 1.61.0 - Guardia conflitti Firestore
-- Aggiunto il documento meta/app per salvare meta.revision su Firestore.
-- Prima della sync il wrapper DB confronta la revision remota con quella nota alla sessione corrente.
-- In caso di differenza viene generato un errore esplicito e il salvataggio non sovrascrive i dati remoti.
-- Aggiunti test Node.js dedicati alla logica di conflitto revisionale.
-
-
-Versione 1.62.0 - Smoke test browser/DOM
-- Aggiunta verifica Node.js tools/verify-browser-smoke.mjs.
-- Controlla la struttura minima della pagina, le dipendenze browser e il grafo degli import locali.
-- La verifica è inclusa in npm run verify insieme ai test dominio e agli altri controlli strutturali.
-
-Versione 1.65.0 - Chiusura refactoring strutturale
-
-Questa versione chiude il refactoring strutturale. Il progetto è Firebase-only, non usa localStorage/sessionStorage per il codice applicativo, separa logica di dominio e UI, centralizza le mutazioni DB e include verifiche Node.js per release, struttura, HTML, stampa, smoke DOM e dominio.
-
-
-Aggiornamento 1.66.0 - Consultazione DDT resi fornitore
-La pagina Elenco DDT Fornitore contiene ora due tab Bootstrap: Ricevuti dal Fornitore e Resi al Fornitore. L'elenco dei resi continua a usare supplierReturnDDTs e il modal di dettaglio/stampa esistente; la vecchia sezione separata Elenco Resi Fornitore è stata assorbita nella pagina DDT Fornitore.
-
-Aggiornamento 1.67.0 - Registro prodotti macerati
-Aggiunta una vista consultiva sotto Magazzino per mostrare le quantità distrutte/macerate provenienti dalla quarantena fornitori. La logica è nel service src/domain/macerated.service.js, la UI in src/features/magazzino/macerated.ui.js e i dati continuano a provenire da supplierQuarantine senza nuova persistenza.
+Rollback
+--------
+- Per rimuovere la funzionalità, eliminare il tag `<script src="script_badges_tooltips_patch.js"></script>` da `index.html`
+  e cancellare il file `script_badges_tooltips_patch.js`.

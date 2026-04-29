@@ -1,54 +1,100 @@
 import { App } from '../core/app.js';
-import {
-  deleteCustomerRecord,
-  deleteProductRecord,
-  deleteSupplierRecord,
-  upsertCustomerRecord,
-  upsertProductRecord,
-  upsertSupplierRecord
-} from './masterdata.rules.js';
-
-function uuid() {
-  return App.utils.uuid();
-}
 
 export const masterdata = {
   // ===== Customers =====
   upsertCustomer(customer) {
-    const payload = App.db.mutate('masterdata:upsert-customer', db => upsertCustomerRecord(db, customer, uuid));
-    App.events.emit('customers:changed', App.db.ensure().customers || []);
+    const db = App.db.ensure();
+    db.customers = db.customers || [];
+    const id = customer.id || App.utils.uuid();
+    const payload = { id, name: customer.name, piva: customer.piva || '', address: customer.address || '' };
+    const idx = db.customers.findIndex(c => c.id === id);
+    if (idx >= 0) db.customers[idx] = payload;
+    else db.customers.push(payload);
+    App.db.save(db);
+    App.events.emit('customers:changed', db.customers);
     return payload;
   },
-
   deleteCustomer(id) {
-    const deleted = App.db.mutate('masterdata:delete-customer', db => deleteCustomerRecord(db, id));
-    if (deleted) App.events.emit('customers:changed', App.db.ensure().customers || []);
-    return deleted;
+    const db = App.db.ensure();
+    const idx = (db.customers || []).findIndex(c => c.id === id);
+    if (idx >= 0) {
+      db.customers.splice(idx, 1);
+      App.db.save(db);
+      App.events.emit('customers:changed', db.customers);
+      return true;
+    }
+    return false;
   },
 
   // ===== Suppliers =====
   upsertSupplier(supplier) {
-    const payload = App.db.mutate('masterdata:upsert-supplier', db => upsertSupplierRecord(db, supplier, uuid));
-    App.events.emit('suppliers:changed', App.db.ensure().suppliers || []);
+    const db = App.db.ensure();
+    db.suppliers = db.suppliers || [];
+    const id = supplier.id || App.utils.uuid();
+    const payload = { id, name: supplier.name, piva: supplier.piva || '', address: supplier.address || '' };
+    const idx = db.suppliers.findIndex(s => s.id === id);
+    if (idx >= 0) db.suppliers[idx] = payload;
+    else db.suppliers.push(payload);
+    App.db.save(db);
+    App.events.emit('suppliers:changed', db.suppliers);
     return payload;
   },
-
   deleteSupplier(id) {
-    const deleted = App.db.mutate('masterdata:delete-supplier', db => deleteSupplierRecord(db, id));
-    if (deleted) App.events.emit('suppliers:changed', App.db.ensure().suppliers || []);
-    return deleted;
+    const db = App.db.ensure();
+    const idx = (db.suppliers || []).findIndex(s => s.id === id);
+    if (idx >= 0) {
+      db.suppliers.splice(idx, 1);
+      App.db.save(db);
+      App.events.emit('suppliers:changed', db.suppliers);
+      return true;
+    }
+    return false;
   },
 
   // ===== Products =====
   upsertProduct(product) {
-    const payload = App.db.mutate('masterdata:upsert-product', db => upsertProductRecord(db, product, uuid));
-    App.events.emit('products:changed', App.db.ensure().products || []);
+    const db = App.db.ensure();
+    db.products = db.products || [];
+    const id = product.id || App.utils.uuid();
+
+    // preserva giacenza se il prodotto esiste già
+    const prev = db.products.find(p => p.id === id);
+    const stockQty = typeof product.stockQty === 'number'
+      ? product.stockQty
+      : (prev?.stockQty || 0);
+
+    const payload = {
+      id,
+      description: product.description,
+      code: product.code,
+      purchasePrice: Number(product.purchasePrice || 0),
+      salePrice: Number(product.salePrice || 0),
+      iva: Number.parseInt(product.iva || 22, 10),
+      locCorsia: product.locCorsia || '',
+      locScaffale: product.locScaffale || '',
+      locPiano: product.locPiano || '',
+      stockQty,
+      quarantineQty: typeof product.quarantineQty === 'number' ? product.quarantineQty : (prev?.quarantineQty || 0)
+    };
+
+    const idx = db.products.findIndex(p => p.id === id);
+    if (idx >= 0) db.products[idx] = payload;
+    else db.products.push(payload);
+
+    App.db.save(db);
+    App.events.emit('products:changed', db.products);
     return payload;
   },
 
   deleteProduct(id) {
-    const deleted = App.db.mutate('masterdata:delete-product', db => deleteProductRecord(db, id));
-    if (deleted) App.events.emit('products:changed', App.db.ensure().products || []);
-    return deleted;
+    const db = App.db.ensure();
+    const idx = (db.products || []).findIndex(p => p.id === id);
+    if (idx >= 0) {
+      db.products.splice(idx, 1);
+      App.db.save(db);
+      App.events.emit('products:changed', db.products);
+      return true;
+    }
+    return false;
   }
 };

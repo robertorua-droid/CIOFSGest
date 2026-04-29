@@ -1,15 +1,4 @@
 {
   "type": "module",
-  "version": "1.67.0",
-  "scripts": {
-    "verify:firebase-only": "node tools/verify-firebase-only.mjs",
-    "test:domain": "bash tools/run-domain-tests.sh",
-    "verify": "node tools/verify-firebase-only.mjs && node tools/verify-html-structure.mjs && node tools/verify-structure.mjs && node tools/verify-html-escaping.mjs && node tools/verify-printing.mjs && node tools/verify-browser-smoke.mjs && node tools/verify-release-closure.mjs && bash tools/run-domain-tests.sh",
-    "verify:html": "node tools/verify-html-structure.mjs",
-    "verify:structure": "node tools/verify-structure.mjs",
-    "verify:html-escaping": "node tools/verify-html-escaping.mjs",
-    "verify:printing": "node tools/verify-printing.mjs",
-    "verify:browser-smoke": "node tools/verify-browser-smoke.mjs",
-    "verify:release": "node tools/verify-release-closure.mjs"
-  }
+  "version": "1.33.0"
 }

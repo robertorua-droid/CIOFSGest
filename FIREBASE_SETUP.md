@@ -1,23 +1,21 @@
-# Firebase + GitHub Pages - Gestionale Firebase-only v1.41.0
+# Firebase + GitHub Pages (dati per singolo utente)
 
-Il gestionale usa Firebase Authentication e Firestore come unico archivio operativo dei dati applicativi. I dati di ciascun utente sono salvati sotto:
+Questa versione del gestionale usa **Firestore** come archivio remoto (opzionale) e salva i dati nello spazio:
 
 `users/{uid}/...`
 
-dove `{uid}` è l'identificativo restituito da Firebase Authentication.
+dove `{uid}` è l'identificativo restituito da **Firebase Authentication**.
 
-## 1) Firebase Console - configurazione minima
+## 1) Firebase Console – configurazione minima
 
 1. **Authentication → Sign-in method**
-   - abilita **Email/Password**.
+   - abilita **Email/Password** (consigliato) e, se vuoi, anche **Anonymous** come fallback.
 
 2. **Authentication → Settings → Authorized domains**
-   - aggiungi il dominio GitHub Pages o il dominio da cui pubblichi il gestionale.
+   - aggiungi: `robertorua-droid.github.io`
 
 3. **Firestore Database → Rules**
-   - usa regole che consentano a ogni utente di leggere/scrivere il proprio spazio dati.
-
-Esempio base per dati per singolo utente:
+   - regole consigliate (per singolo utente):
 
 ```js
 rules_version = '2';
@@ -30,33 +28,39 @@ service cloud.firestore {
 }
 ```
 
-> Nota: evitare regole aperte, perché chiunque potrebbe scrivere o cancellare dati.
+> Nota: evitare regole “aperte” (database pubblico) perché chiunque può scrivere/cancellare dati.
 
-## 2) Configurazione web app
+## 2) Dove mettere la configurazione
 
-La configurazione Firebase della web app è in:
+La configurazione web app è in:
 
 `src/core/firebaseConfig.js`
 
-Aggiorna lì i valori `apiKey`, `authDomain`, `projectId`, `storageBucket`, `messagingSenderId` e `appId`.
+## 3) Test import backup (JSON)
 
-## 3) Backup, import e dataset esempio
+Vai in **Impostazioni → Avanzate** e usa la card:
 
-Vai in **Impostazioni → Avanzate** e usa la card backup/import.
+**Test Import Backup (JSON → Schema → Firebase)**
 
-- **Esporta backup Firebase** forza la sincronizzazione e scarica un JSON letto da Firestore.
-- **Carica esempio incluso** usa `data/admin_gestionale_backup_2025-11-14.json` solo come sorgente di anteprima.
-- **Importa su Firebase** normalizza il JSON nello schema corrente e scrive su Firestore sotto `users/{uid}`.
-- L'opzione di svuotamento prima dell'import elimina i documenti Firestore dell'utente corrente prima di riscrivere il dataset.
+- “Carica esempio incluso” usa il file:
+  `data/admin_gestionale_backup_2025-11-14.json`
+- Puoi anche caricare un tuo file `.json`
+- Dopo l’anteprima:
+  - **Importa nel gestionale (locale)**: carica il DB nel browser
+  - **Importa su Firebase (utente)**: salva su Firestore sotto `users/{uid}`
 
-Non esiste una modalità operativa locale per i dati gestionali e non esistono fallback automatici su cache browser.
+## 4) Attivare Firebase come archivio principale
 
-## 4) Directory utenti e ruoli (`appUsers`)
+In **Impostazioni → Avanzate** abilita lo switch:
 
-Per gestire i ruoli `User` e `Supervisor` dall'app serve una collezione globale:
+“Usa Firebase come archivio principale”
 
-`appUsers/{uid}`
+e premi “Scarica da Firebase” (oppure importa prima un backup su Firebase).
 
+
+## Directory utenti e ruoli (appUsers)
+
+Per gestire i ruoli (User/Supervisor) dall'app serve una collezione globale `appUsers/{uid}`.
 Esempio regole consigliate:
 
 ```js
@@ -68,30 +72,43 @@ service cloud.firestore {
       return signedIn() && get(/databases/$(database)/documents/appUsers/$(request.auth.uid)).data.role == 'Supervisor';
     }
 
+    // Dati gestionali per singolo utente
     match /users/{uid}/{document=**} {
       allow read, write: if signedIn() && request.auth.uid == uid;
     }
 
+    // Directory utenti globale (ruoli)
     match /appUsers/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isSupervisor());
+
+      // Ogni utente può creare il proprio profilo SOLO con ruolo User
       allow create: if signedIn() && request.auth.uid == uid && request.resource.data.role == 'User';
+
+      // L'utente può aggiornare il proprio profilo ma NON cambiare ruolo
       allow update: if signedIn() && (
         (request.auth.uid == uid && request.resource.data.role == resource.data.role)
         || isSupervisor()
       );
+
       allow delete: if isSupervisor();
     }
   }
 }
 ```
 
-Per la prima attivazione del docente come Supervisor puoi aggiungere la sua email in `src/core/config.js`, nell'elenco `SUPERVISOR_EMAILS`.
+> Nota: per la prima attivazione del docente come Supervisor puoi aggiungere la sua email in `src/core/config.js` (SUPERVISOR_EMAILS).
 
-## 5) Utilizzo Firestore della classe
 
-La card **Utilizzo Firestore (classe)** calcola la somma dei dati di tutti gli utenti. Per usarla, il Supervisor deve poter leggere anche i dati degli altri utenti sotto `users/{uid}/...`.
+### Nota Docente
+Nel file `src/core/config.js` trovi già impostata l’email docente `roberto.rua@gmail.com` in `SUPERVISOR_EMAILS`. Se vuoi cambiarla, modifica quell’elenco e ripubblica su GitHub.
 
-Regola di lettura ampliata:
+
+## 5) Utilizzo Firestore (classe)
+
+La card “Utilizzo Firestore (classe)” (in Impostazioni → Avanzate) calcola la somma dei dati di **tutti gli utenti**.
+Per farlo, il Supervisor deve poter **leggere** anche i dati degli altri utenti sotto `users/{uid}/...`.
+
+Aggiungi quindi `|| isSupervisor()` alle regole di lettura:
 
 ```js
 match /users/{uid}/{document=**} {
@@ -100,89 +117,4 @@ match /users/{uid}/{document=**} {
 }
 ```
 
-Questo permette al Supervisor di leggere i dati degli studenti per la stima, ma non di modificarli.
-
-## 6) Verifica finale del pacchetto
-
-Dalla root del progetto esegui:
-
-```bash
-npm run verify:firebase-only
-```
-
-Il controllo deve terminare con esito positivo prima della pubblicazione o consegna agli allievi.
-
-
-## Storage browser
-
-La versione 1.41.0 non usa localStorage né sessionStorage. Tutta la persistenza applicativa passa da Firebase/Firestore; il tema non viene salvato nel browser e non esiste un device id persistente.
-
-Aggiornamento 1.44.0: backup, import, export e cancellazione dati Firebase sono ora orchestrati da src/domain/backup.service.js. La schermata Impostazioni mantiene le sole responsabilità UI e invoca il servizio per normalizzazione, controlli di allineamento e operazioni Firestore.
-
-## Verifiche 1.45.0
-
-La versione 1.45.0 mantiene il modello Firebase-only/localStorage-zero e aggiunge test Node.js di regressione sui service di dominio. Eseguire `npm run verify` prima di pubblicare il pacchetto.
-
-## Verifiche 1.46.0
-
-La verifica completa include ora anche `npm run verify:html`, che controlla la coerenza di `index.html` e l'assenza di residui testuali legati alla vecchia modalità locale.
-
-
-Aggiornamento 1.47.0: il repository Firestore è stato suddiviso in moduli interni per costanti, batch, stato di sincronizzazione e repository operativo. `src/core/firestoreRepo.js` resta una facciata compatibile, quindi non cambiano bootstrap, login, backup o flussi utente.
-
-
-Aggiornamento 1.50.0: la logica di calcolo delle statistiche è stata separata in `src/domain/stats.service.js`. `src/core/stats.js` mantiene solo rendering Chart.js, aggiornamento DOM e tabelle, riducendo il rischio di regressioni sui KPI. La release 1.50.0 consolida gli step di modularizzazione 14 e 15.
-
-## Verifica versione 1.55.0
-
-Dopo l'aggiornamento eseguire:
-
-```bash
-npm run verify
-```
-
-La verifica controlla Firebase-only/localStorage-zero, struttura HTML, confini logici dei moduli e test Node.js di dominio.
-
-## Verifica versione 1.56.0
-
-La versione 1.56.0 mantiene il progetto Firebase-only e localStorage-zero. Le modifiche applicative delle schermate principali passano da mutazioni DB controllate; eseguire `npm run verify` per controllare Firebase-only, struttura HTML, confini logici e test di dominio.
-
-## Verifica versione 1.57.0
-
-La versione 1.57.0 mantiene il progetto Firebase-only e localStorage-zero. Il wrapper dati usa mutazioni transazionali su cache in memoria: eseguire `npm run verify` per controllare Firebase-only, struttura HTML, confini logici e test di dominio.
-
-## Verifica versione 1.58.0
-
-La versione 1.58.0 mantiene il progetto Firebase-only e localStorage-zero. I nuovi moduli UI non introducono persistenza locale e continuano a usare il wrapper Firebase-only esistente. Eseguire `npm run verify` per controllare Firebase-only, struttura HTML, confini logici e test di dominio.
-
-## Versione 1.59.0
-Nessuna modifica richiesta alla configurazione Firebase. Lo step 19 riguarda la protezione dei rendering HTML dinamici e le verifiche automatiche locali.
-
-## Verifica versione 1.60.0
-
-La versione 1.60.0 mantiene il progetto Firebase-only e localStorage-zero. Il layer di stampa/PDF è separato in `src/printing/`; eseguire `npm run verify` per controllare Firebase-only, struttura HTML, escaping, layer stampa e test di dominio.
-
-## Verifica versione 1.61.0
-
-La versione 1.61.0 mantiene il progetto Firebase-only e localStorage-zero. Viene aggiunto il documento `meta/app` per persistere la revision applicativa e bloccare sovrascritture accidentali se Firebase è cambiato da un altro browser o utente. Non sono richieste modifiche manuali alle regole Firestore già usate dal progetto, purché il percorso `meta/*` sia incluso nelle regole dati dell'ambiente.
-
-## Verifiche finali consigliate
-
-Dalla versione 1.62.0, oltre alla verifica Firebase-only, è disponibile anche:
-
-```bash
-npm run verify:browser-smoke
-```
-
-Il controllo verifica che la pagina statica carichi le librerie browser attese, il modulo `src/main.js`, le sezioni collegate dalla sidebar e le modali richiamate dai pulsanti.
-
-## Release finale 1.65.0
-
-La release 1.65.0 conferma Firebase/Firestore come unica persistenza del gestionale. Prima della distribuzione eseguire npm run verify oppure i singoli script di verifica indicati nelle note finali di release.
-
-
-## Aggiornamento 1.66.0
-La consultazione dei DDT di reso al fornitore usa la collezione Firestore già prevista `supplierReturnDDTs`. Non sono richieste nuove regole Firebase rispetto alla baseline Firebase-only.
-
-## Aggiornamento 1.67.0
-Il Registro Prodotti Macerati legge lo storico già salvato nella collezione `supplierQuarantine`. Non sono richieste nuove collezioni, indici o regole Firebase rispetto alla baseline 1.66.0.
+Nota: questo non permette al Supervisor di modificare i dati degli studenti (solo leggere).

@@ -35,8 +35,6 @@ export function initCustomersUI() {
     try { bootstrap.Modal.getOrCreateInstance(modalEl).hide(); } catch {}
   };
 
-  const h = value => App.utils.escapeHtml(value);
-
   const render = (filter = '') => {
     const db = App.db.ensure();
     const term = String(filter || '').toLowerCase();
@@ -46,13 +44,13 @@ export function initCustomersUI() {
     });
     tbody.innerHTML = items.map(c => `
       <tr>
-        <td>${h(c.id || '')}</td>
-        <td>${h(c.name || '')}</td>
-        <td>${h(c.piva || '')}</td>
-        <td>${h(c.address || '')}</td>
+        <td>${c.id || ''}</td>
+        <td>${c.name || ''}</td>
+        <td>${c.piva || ''}</td>
+        <td>${c.address || ''}</td>
         <td class="text-end">
-          <button type="button" class="btn btn-sm btn-outline-primary" data-action="edit" data-id="${h(c.id || '')}">Modifica</button>
-          <button type="button" class="btn btn-sm btn-outline-danger" data-action="del" data-id="${h(c.id || '')}">Elimina</button>
+          <button type="button" class="btn btn-sm btn-outline-primary" data-action="edit" data-id="${String(c.id || '')}">Modifica</button>
+          <button type="button" class="btn btn-sm btn-outline-danger" data-action="del" data-id="${String(c.id || '')}">Elimina</button>
         </td>
       </tr>`).join('');
   };

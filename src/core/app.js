@@ -27,14 +27,13 @@ export const App = {
   sidebar: null,
 
   /**
-   * Bootstrap asincrono Firebase-only.
-   * Inizializza Firebase; se esiste già una sessione autenticata carica Firestore,
-   * altrimenti il caricamento dati avviene dopo il login.
+   * Bootstrap asincrono (caricamento DB locale o Firestore, ecc.).
+   * Da chiamare prima di inizializzare le feature.
    */
   async boot() {
     await db.init();
   }
 };
 
-// Espone App per debug da console browser
+// Expose for debugging / compatibility with legacy
 window.App = App;
