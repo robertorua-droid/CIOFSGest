@@ -1,13 +1,9 @@
 /**
  * Theme toggle (Bootstrap 5.3 data-bs-theme).
  *
- * Applies theme by setting:
- *   document.documentElement.dataset.bsTheme = 'light' | 'dark'
- *
- * Persists to localStorage so it works on GitHub Pages without extra setup.
+ * No browser storage is used: the initial value follows the system preference
+ * and the toggle affects only the current page session.
  */
-
-const THEME_KEY = 'ciofs_gest_theme';
 
 function prefersDark() {
   try {
@@ -18,8 +14,6 @@ function prefersDark() {
 }
 
 export function getSavedTheme() {
-  const v = (localStorage.getItem(THEME_KEY) || '').toLowerCase();
-  if (v === 'dark' || v === 'light') return v;
   return prefersDark() ? 'dark' : 'light';
 }
 
@@ -33,22 +27,17 @@ export function applyTheme(theme) {
 }
 
 export function setTheme(theme) {
-  const t = (theme === 'dark') ? 'dark' : 'light';
-  localStorage.setItem(THEME_KEY, t);
-  applyTheme(t);
+  applyTheme(theme === 'dark' ? 'dark' : 'light');
 }
 
 export function initThemeToggle() {
-  // Initial apply
   applyTheme(getSavedTheme());
 
   const toggle = document.getElementById('themeToggle');
   if (!toggle) return;
 
-  // Ensure correct state
-  toggle.checked = (getSavedTheme() === 'dark');
+  toggle.checked = (document.documentElement.getAttribute('data-bs-theme') === 'dark');
 
-  // Bind changes
   toggle.addEventListener('change', () => {
     setTheme(toggle.checked ? 'dark' : 'light');
   });

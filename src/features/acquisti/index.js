@@ -1,76 +1,49 @@
 /* acquisti/index.js - ordini fornitore, DDT in entrata (MODULARE) */
 import { App } from '../../core/app.js';
-import { adjustStockBatch, adjustQuarantineBatch } from '../../domain/inventory.service.js';
-
-  const canDeleteDocs = () => {
-  const role = App.currentUser?.role || 'User';
-  return role === 'Supervisor' || role === 'Admin';
-};
-
-const recomputeSupplierOrderStatus = (order) => {
-  const lines = order?.lines || [];
-  const anyQuarantine = lines.some(l => Number(l.quarantineQty || 0) > 0);
-  const allReceived = lines.length > 0 && lines.every(l => Number(l.receivedQty || 0) >= Number(l.qty || 0));
-  const anyReceived = lines.some(l => Number(l.receivedQty || 0) > 0);
-  order.status = anyQuarantine ? 'Aperto con riserva' : (allReceived ? 'Completato' : (anyReceived ? 'Parzialmente Ricevuto' : 'Inviato'));
-};
-
-const lineAcceptedQty = (line, ddt = null) => {
-  if (line && ('acceptedQty' in line || 'reserveQty' in line || 'refusedQty' in line)) return Number(line?.acceptedQty || 0);
-  return ddt?.refused ? 0 : (ddt?.withReserve ? 0 : Number(line?.qty || 0));
-};
-const lineReserveQty = (line, ddt = null) => {
-  if (line && ('acceptedQty' in line || 'reserveQty' in line || 'refusedQty' in line)) return Number(line?.reserveQty || 0);
-  return ddt?.withReserve ? Number(line?.qty || 0) : 0;
-};
-const lineRefusedQty = (line, ddt = null) => {
-  if (line && ('acceptedQty' in line || 'reserveQty' in line || 'refusedQty' in line)) return Number(line?.refusedQty || 0);
-  return ddt?.refused ? Number(line?.qty || 0) : 0;
-};
-const receivedLikeQty = (line, ddt = null) => lineAcceptedQty(line, ddt) + lineReserveQty(line, ddt);
-const computeSupplierDDTStatus = (ddt) => {
-  const lines = ddt?.lines || [];
-  const accepted = lines.reduce((a, l) => a + lineAcceptedQty(l, ddt), 0);
-  const reserved = lines.reduce((a, l) => a + lineReserveQty(l, ddt), 0);
-  const refused = lines.reduce((a, l) => a + lineRefusedQty(l, ddt), 0);
-  if (refused > 0 && accepted + reserved === 0) return 'Respinto totale';
-  if (refused > 0 && reserved > 0) return 'Parzialmente respinto con riserva';
-  if (refused > 0) return 'Parzialmente respinto';
-  if (reserved > 0) return 'Ricevuto con riserva';
-  return 'Ricevuto';
-};
-const lineOutcomeLabel = (line, ddt = null) => {
-  const a = lineAcceptedQty(line, ddt);
-  const r = lineReserveQty(line, ddt);
-  const x = lineRefusedQty(line, ddt);
-  if (x > 0 && a + r === 0) return 'Respinta';
-  if (x > 0 && r > 0) return 'Mista (riserva + respinta)';
-  if (x > 0) return 'Mista';
-  if (r > 0) return 'Con riserva';
-  return 'Accettata';
-};
-
+import { applyQuarantineBatch, applyStockBatch, validateQuarantineBatch, validateStockBatch } from '../../domain/inventory.rules.js';
+import {
+  applyQuarantineResolutionToOrder,
+  applySupplierReceiptToOrder,
+  buildQuarantineHistoryRecords,
+  buildSupplierDDT,
+  buildSupplierOrder,
+  buildSupplierQuarantineRecords,
+  buildSupplierReturnFromQuarantine,
+  getSupplierDDTRestoreChanges,
+  getSupplierOrderResidual,
+  getSupplierReceiptInventoryChanges,
+  lineOutcomeLabel,
+  rollbackSupplierDDT
+} from '../../domain/purchasing.service.js';
+import { canDeleteDocuments } from '../../domain/permissions.service.js';
+import { renderSupplierOrdersTable } from './orders.ui.js';
+import { renderSupplierDDTsTable, renderSupplierReturnDDTsTable } from './ddts.ui.js';
+import { renderSupplierQuarantineTables } from './quarantine.ui.js';
+import { getJsPDFConstructor } from '../../printing/common.print.js';
+import { printSupplierReturnPdf } from '../../printing/purchasing.print.js';
+const canDeleteDocs = () => canDeleteDocuments(App.currentUser);
+const h = value => App.utils.escapeHtml(value);
 
 const supplierReturnHtml = (ret) => {
   const statusBadge = ret.status === 'Spedito al fornitore'
     ? '<span class="badge bg-success">Spedito al fornitore</span>'
     : '<span class="badge bg-warning text-dark">Preparato</span>';
   let html = `<div class="row g-3 mb-3">`;
-  html += `<div class="col-md-6"><div><strong>Fornitore:</strong> ${ret.supplierName || ''}</div><div><strong>Data reso:</strong> ${ret.date || ''}</div><div><strong>Numero reso:</strong> ${ret.number || ''}</div></div>`;
-  html += `<div class="col-md-6"><div><strong>Rif. Ordine:</strong> ${ret.sourceOrderNumber || ''}</div><div><strong>Rif. DDT origine:</strong> ${ret.sourceDdtNumber || ''}</div><div><strong>Stato:</strong> ${statusBadge}</div></div>`;
+  html += `<div class="col-md-6"><div><strong>Fornitore:</strong> ${h(ret.supplierName || '')}</div><div><strong>Data reso:</strong> ${h(ret.date || '')}</div><div><strong>Numero reso:</strong> ${h(ret.number || '')}</div></div>`;
+  html += `<div class="col-md-6"><div><strong>Rif. Ordine:</strong> ${h(ret.sourceOrderNumber || '')}</div><div><strong>Rif. DDT origine:</strong> ${h(ret.sourceDdtNumber || '')}</div><div><strong>Stato:</strong> ${statusBadge}</div></div>`;
   html += `</div>`;
   html += `<div class="row g-3 mb-3">`;
-  html += `<div class="col-md-6"><label class="form-label">Causale reso</label><input class="form-control" id="supplier-return-cause" value="${ret.returnReason || 'Reso da quarantena'}"></div>`;
+  html += `<div class="col-md-6"><label class="form-label">Causale reso</label><input class="form-control" id="supplier-return-cause" value="${h(ret.returnReason || 'Reso da quarantena')}"></div>`;
   html += `<div class="col-md-3"><label class="form-label">Numero colli</label><input class="form-control" id="supplier-return-packages" type="number" min="1" value="${Number(ret.packageCount || 1)}"></div>`;
-  html += `<div class="col-md-3"><label class="form-label">Vettore</label><input class="form-control" id="supplier-return-carrier" value="${ret.carrier || ''}" placeholder="Es. Trasporti Rossi"></div>`;
+  html += `<div class="col-md-3"><label class="form-label">Vettore</label><input class="form-control" id="supplier-return-carrier" value="${h(ret.carrier || '')}" placeholder="Es. Trasporti Rossi"></div>`;
   html += `</div>`;
-  html += `<div class="mb-3"><label class="form-label">Note di trasporto / annotazioni</label><textarea class="form-control" id="supplier-return-transport-notes" rows="3" placeholder="Es. reso per difetto riscontrato in controllo qualità">${ret.transportNotes || ret.notes || ''}</textarea></div>`;
+  html += `<div class="mb-3"><label class="form-label">Note di trasporto / annotazioni</label><textarea class="form-control" id="supplier-return-transport-notes" rows="3" placeholder="Es. reso per difetto riscontrato in controllo qualità">${h(ret.transportNotes || ret.notes || '')}</textarea></div>`;
   if (ret.shippedAt) {
-    html += `<div class="mb-3 text-success"><strong>Spedito il:</strong> ${ret.shippedAt}</div>`;
+    html += `<div class="mb-3 text-success"><strong>Spedito il:</strong> ${h(ret.shippedAt)}</div>`;
   }
   html += `<table class="table table-sm"><thead><tr><th>Descrizione</th><th class="text-end">Qtà resa</th><th>Motivazione</th></tr></thead><tbody>`;
   (ret.lines || []).forEach(l => {
-    html += `<tr><td>${l.description || l.productName || ''}</td><td class="text-end">${l.qty || 0}</td><td>${l.reason || ret.notes || '—'}</td></tr>`;
+    html += `<tr><td>${h(l.description || l.productName || '')}</td><td class="text-end">${l.qty || 0}</td><td>${h(l.reason || ret.notes || '—')}</td></tr>`;
   });
   html += `</tbody></table>`;
   return html;
@@ -83,129 +56,16 @@ const readSupplierReturnMetaFromDetail = () => ({
   transportNotes: document.getElementById('supplier-return-transport-notes')?.value?.trim() || ''
 });
 
-const printSupplierReturnPdf = (ret) => {
-  try {
-    const jspdfNs = window.jspdf || {};
-    const jsPDFCtor = jspdfNs.jsPDF || window.jsPDF;
-    if (!jsPDFCtor) { App.ui.showToast('Libreria PDF non disponibile.', 'warning'); return; }
-    const db = App.db.ensure();
-    const company = db.company || {};
-    const supplier = (db.suppliers || []).find(s => (ret.supplierId && s.id === ret.supplierId) || (ret.supplierName && s.name === ret.supplierName)) || {};
-    const doc = new jsPDFCtor();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    let y = 16;
-    const lineGap = 5;
-    const boxW = 86;
-    const rightX = pageWidth - 14 - boxW;
-
-    const companyLines = [
-      company.name || 'Nostra Azienda',
-      company.address || '',
-      [company.zip || '', company.city || '', company.province ? `(${company.province})` : ''].filter(Boolean).join(' ')
-    ].filter(Boolean);
-    const supplierLines = [
-      supplier.name || ret.supplierName || 'Fornitore',
-      supplier.address || '',
-      [supplier.zip || '', supplier.city || '', supplier.province ? `(${supplier.province})` : ''].filter(Boolean).join(' ')
-    ].filter(Boolean);
-
-    doc.setFontSize(16);
-    doc.text('DDT DI RESO A FORNITORE', 14, y);
-    y += 8;
-
-    doc.setFontSize(10);
-    doc.roundedRect(14, y, boxW, 24, 2, 2);
-    doc.text('Mittente', 16, y + 5);
-    companyLines.forEach((line, idx) => doc.text(String(line), 16, y + 10 + idx * lineGap));
-
-    doc.roundedRect(rightX, y, boxW, 24, 2, 2);
-    doc.text('Destinatario', rightX + 2, y + 5);
-    supplierLines.forEach((line, idx) => doc.text(String(line), rightX + 2, y + 10 + idx * lineGap));
-
-    y += 32;
-    doc.setFontSize(11);
-    doc.text(`Numero DDT di reso: ${ret.number || ''}`, 14, y);
-    doc.text(`Data documento: ${ret.date || ''}`, rightX, y);
-    y += 7;
-    doc.text('Causale: Reso al fornitore', 14, y);
-    y += 7;
-    doc.text(`Rif. Ordine fornitore: ${ret.sourceOrderNumber || '—'}`, 14, y);
-    doc.text(`Rif. DDT origine: ${ret.sourceDdtNumber || '—'}`, rightX, y);
-    y += 9;
-
-    const rows = (ret.lines || []).map(l => [
-      l.productId || '',
-      l.description || l.productName || '',
-      String(l.qty || 0),
-      l.reason || ret.returnReason || ret.notes || '—'
-    ]);
-
-    if (doc.autoTable) {
-      doc.autoTable({
-        startY: y,
-        head: [['Codice', 'Descrizione articolo', 'Qtà resa', 'Motivazione del reso']],
-        body: rows,
-        theme: 'grid',
-        styles: { fontSize: 9, cellPadding: 2 },
-        headStyles: { fillColor: [230, 230, 230], textColor: 20 },
-        columnStyles: {
-          0: { cellWidth: 30 },
-          1: { cellWidth: 70 },
-          2: { cellWidth: 22, halign: 'right' },
-          3: { cellWidth: 58 }
-        }
-      });
-      y = doc.lastAutoTable.finalY + 8;
-    } else {
-      doc.text('Articoli resi:', 14, y);
-      y += 6;
-      rows.forEach(r => {
-        doc.text(`${r[0]} - ${r[1]} - Qtà ${r[2]} - ${r[3]}`, 14, y);
-        y += 6;
-      });
-      y += 2;
-    }
-
-    const transportNotes = ret.transportNotes || ret.notes || '—';
-    const footerLines = [
-      `Colli: ${Number(ret.packageCount || 1)}`,
-      `Vettore: ${ret.carrier || '—'}`,
-      `Stato reso: ${ret.status || 'Preparato'}`,
-      ret.shippedAt ? `Data spedizione: ${ret.shippedAt}` : ''
-    ].filter(Boolean);
-    footerLines.forEach(line => {
-      doc.text(String(line), 14, y);
-      y += 6;
-    });
-    const splitNotes = doc.splitTextToSize ? doc.splitTextToSize(`Note di trasporto: ${transportNotes}`, pageWidth - 28) : [`Note di trasporto: ${transportNotes}`];
-    doc.text(splitNotes, 14, y);
-
-    doc.save(`${ret.number || 'reso-fornitore'}.pdf`);
-  } catch (e) {
-    console.error(e);
-    App.ui.showToast('Errore nella generazione del PDF del reso.', 'danger');
-  }
-};
-
 const Fornitori = {
     renderOrders() {
       const db = App.db.ensure();
-      const tbody = document.getElementById('supplier-orders-table-body');
-      if (!tbody) return;
-      const canDelete = canDeleteDocs();
-      tbody.innerHTML = (db.supplierOrders || []).map(o => `
-        <tr>
-          <td>${o.number}</td>
-          <td>${o.date}</td>
-          <td>${o.supplierName}</td>
-          <td class="text-end">${App.utils.fmtMoney(o.total || 0)}</td>
-          <td>${o.status || 'Inviato'}</td>
-          <td class="text-end">
-            <button class="btn btn-sm btn-outline-primary" data-action="view" data-num="${o.number}">Visualizza</button>
-            ${canDelete ? `<button class="btn btn-sm btn-outline-danger ms-1" data-action="delete-order" data-num="${o.number}"><i class="fas fa-trash-alt"></i></button>` : ''}
-          </td>
-        </tr>
-      `).join('');
+      renderSupplierOrdersTable({
+        db,
+        tbody: document.getElementById('supplier-orders-table-body'),
+        canDelete: canDeleteDocs(),
+        h,
+        fmtMoney: App.utils.fmtMoney
+      });
     },
 
     initNewOrderForm() {
@@ -228,8 +88,8 @@ const Fornitori = {
         const curDb = App.db.ensure();
         const prevSup = supSel.value;
         const prevProd = prodSel.value;
-        supSel.innerHTML = (curDb.suppliers || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-        prodSel.innerHTML = (curDb.products || []).map(p => `<option value="${p.id}" data-price="${p.purchasePrice||0}">${p.code} - ${p.description}</option>`).join('');
+        supSel.innerHTML = (curDb.suppliers || []).map(s => `<option value="${h(s.id)}">${h(s.name)}</option>`).join('');
+        prodSel.innerHTML = (curDb.products || []).map(p => `<option value="${h(p.id)}" data-price="${Number(p.purchasePrice||0)}">${h(p.code)} - ${h(p.description)}</option>`).join('');
         if (prevSup) supSel.value = prevSup;
         if (prevProd) prodSel.value = prevProd;
       };
@@ -270,7 +130,7 @@ const Fornitori = {
         totEl.textContent = App.utils.fmtMoney(tot);
         linesTbody.innerHTML = tmp.map((r,i)=>`
           <tr>
-            <td>${r.productName}</td>
+            <td>${h(r.productName)}</td>
             <td class="text-end">${r.qty}</td>
             <td class="text-end">${App.utils.fmtMoney(r.price)}</td>
             <td class="text-end">${App.utils.fmtMoney(r.qty*r.price)}</td>
@@ -301,19 +161,20 @@ const Fornitori = {
         const sup = (db.suppliers||[]).find(x=>x.id===supSel.value);
         if (!sup || tmp.length===0) return App.ui.showToast('Seleziona fornitore e aggiungi almeno una riga.', 'warning');
         const finalOrderNumber = App.utils.finalizeSupplierOrderNumber(db, numEl.value);
-        const order = {
+        const order = buildSupplierOrder({
           id: App.utils.uuid(),
           number: finalOrderNumber,
           date: dateEl.value,
-          supplierId: sup.id,
-          supplierName: sup.name,
-          lines: tmp.map(r=>({ ...r })),
-          total: tmp.reduce((a,r)=>a+r.qty*r.price,0),
-          status: 'Inviato'
-        };
-        db.supplierOrders.push(order);
+          supplier: sup,
+          lines: tmp
+        });
+        App.db.mutate('purchasing:create-supplier-order', currentDb => {
+          currentDb.supplierOrders = currentDb.supplierOrders || [];
+          currentDb.supplierOrders.push(order);
+          return { orderNumber: order.number };
+        });
+        db = App.db.ensure();
         numEl.value = finalOrderNumber;
-        App.db.save(db);
         App.ui.showToast('Ordine fornitore salvato', 'success');
         tmp.splice(0); recalc();
         // precompila il prossimo numero e ripulisce i campi
@@ -344,9 +205,12 @@ const Fornitori = {
           return App.ui.showToast('Impossibile eliminare: esistono DDT collegati a questo ordine.', 'warning');
         }
         if (!confirm(`Eliminare l'ordine ${order.number}?`)) return;
-        const idx = (db.supplierOrders || []).findIndex(x => x.number === order.number);
-        if (idx >= 0) db.supplierOrders.splice(idx, 1);
-        App.db.save(db);
+        App.db.mutate('purchasing:delete-supplier-order', currentDb => {
+          const idx = (currentDb.supplierOrders || []).findIndex(x => x.number === order.number);
+          if (idx >= 0) currentDb.supplierOrders.splice(idx, 1);
+          return { orderNumber: order.number };
+        });
+        db = App.db.ensure();
         Fornitori.renderOrders();
         App.ui.showToast('Ordine eliminato', 'success');
         try { bootstrap.Modal.getOrCreateInstance(document.getElementById('supplierOrderDetailModal')).hide(); } catch {}
@@ -364,7 +228,7 @@ const Fornitori = {
         const title = document.getElementById('supplierOrderDetailModalTitle');
         const body = document.getElementById('supplierOrderDetailModalBody');
         const delBtn = document.getElementById('delete-supplier-order-btn');
-        if (title) title.textContent = `Dettaglio Ordine Fornitore ${o.number}`;
+        if (title) title.textContent = `Dettaglio Ordine Fornitore ${h(o.number)}`;
 
         let html = `<div class="mb-2"><strong>Fornitore:</strong> ${o.supplierName || ''}</div>`;
         html += `<div class="mb-2"><strong>Data:</strong> ${o.date || ''}</div>`;
@@ -384,10 +248,10 @@ const Fornitori = {
           const qty = Number(l.qty || 0);
           const rec = Number(l.receivedQty || 0);
           const quar = Number(l.quarantineQty || 0);
-          const resid = Math.max(0, qty - rec - quar);
+          const resid = getSupplierOrderResidual(l);
           const price = Number(l.price || 0);
           html += `<tr>
-            <td>${l.productName || l.description || ''}</td>
+            <td>${h(l.productName || l.description || '')}</td>
             <td class="text-end">${qty}</td>
             <td class="text-end">${rec}</td>
             <td class="text-end">${resid}</td>
@@ -424,40 +288,30 @@ const Fornitori = {
         if (!ddt) return;
         if (!confirm(`Eliminare il DDT fornitore ${ddt.number}?`)) return;
 
-        const order = (db.supplierOrders || []).find(o => o.number === ddt.orderNumber);
-        if (order) {
-          (ddt.lines || []).forEach(dl => {
-            const line = (order.lines || []).find(l => String(l.productId || '') === String(dl.productId || ''))
-              || (order.lines || []).find(l => String(l.productName || l.description || '') === String(dl.description || ''));
-            if (line) {
-              line.receivedQty = Math.max(0, Number(line.receivedQty || 0) - Number(dl.acceptedQty || 0));
-              line.quarantineQty = Math.max(0, Number(line.quarantineQty || 0) - Number(dl.reserveQty || 0));
-            }
-          });
-          recomputeSupplierOrderStatus(order);
-        }
-
         try {
-          const restoreStock = (ddt.lines || []).map(dl => {
-            const pid = dl.productId || (db.products || []).find(pp => String(pp.description || '') === String(dl.description || ''))?.id;
-            const q = Number(dl.acceptedQty || 0);
-            return pid && q ? { productId: pid, delta: -q } : null;
-          }).filter(Boolean);
-          const restoreQuarantine = (ddt.lines || []).map(dl => {
-            const pid = dl.productId || (db.products || []).find(pp => String(pp.description || '') === String(dl.description || ''))?.id;
-            const q = Number(dl.reserveQty || 0);
-            return pid && q ? { productId: pid, delta: -q } : null;
-          }).filter(Boolean);
-          if (restoreStock.length) adjustStockBatch(restoreStock, { reason: 'CANCELLA_DDT_FORNITORE', ref: ddt.number });
-          if (restoreQuarantine.length) adjustQuarantineBatch(restoreQuarantine, { reason: 'CANCELLA_DDT_FORNITORE', ref: ddt.number });
+          App.db.mutate('purchasing:delete-supplier-ddt', currentDb => {
+            const liveDDT = (currentDb.supplierDDTs || []).find(x => x.number === num);
+            if (!liveDDT) return { ddtNumber: num, deleted: false };
+            const order = (currentDb.supplierOrders || []).find(o => o.number === liveDDT.orderNumber);
+            rollbackSupplierDDT(order, liveDDT);
+            const { stockChanges, quarantineChanges } = getSupplierDDTRestoreChanges(currentDb, liveDDT);
+            if (stockChanges.length) {
+              validateStockBatch(currentDb, stockChanges);
+              applyStockBatch(currentDb, stockChanges);
+            }
+            if (quarantineChanges.length) {
+              validateQuarantineBatch(currentDb, quarantineChanges);
+              applyQuarantineBatch(currentDb, quarantineChanges);
+            }
+            currentDb.supplierQuarantine = (currentDb.supplierQuarantine || []).filter(q => String(q.ddtNumber || '') !== String(num));
+            const idx = (currentDb.supplierDDTs || []).findIndex(x => x.number === num);
+            if (idx >= 0) currentDb.supplierDDTs.splice(idx, 1);
+            return { ddtNumber: num, deleted: idx >= 0 };
+          });
+          db = App.db.ensure();
         } catch (err) {
           return App.ui.showToast((err && err.message) ? err.message : 'Ripristino magazzino non completato', 'warning');
         }
-
-        db.supplierQuarantine = (db.supplierQuarantine || []).filter(q => String(q.ddtNumber||'') !== String(num));
-        const idx = (db.supplierDDTs || []).findIndex(x => x.number === num);
-        if (idx >= 0) db.supplierDDTs.splice(idx, 1);
-        App.db.save(db);
         Fornitori.renderOrders();
         Fornitori.renderDDTs();
         App.ui.showToast('DDT fornitore eliminato', 'success');
@@ -476,17 +330,17 @@ const Fornitori = {
         const title = document.getElementById('supplierDdtDetailModalTitle');
         const body = document.getElementById('supplierDdtDetailModalBody');
         const delBtn = document.getElementById('delete-supplier-ddt-btn');
-        if (title) title.textContent = `Dettaglio DDT Fornitore ${d.number}`;
+        if (title) title.textContent = `Dettaglio DDT Fornitore ${h(d.number)}`;
 
         const dest = d.customerName || (db.company?.name || 'Nostra Sede');
 
-        let html = `<div class="mb-2"><strong>Fornitore:</strong> ${d.supplierName || ''}</div>`;
-        html += `<div class="mb-2"><strong>Data:</strong> ${d.date || ''}</div>`;
-        html += `<div class="mb-2"><strong>Destinazione:</strong> ${dest}</div>`;
-        html += `<div class="mb-3"><strong>Riferimento Ordine:</strong> ${d.orderNumber || ''}</div>`;
+        let html = `<div class="mb-2"><strong>Fornitore:</strong> ${h(d.supplierName || '')}</div>`;
+        html += `<div class="mb-2"><strong>Data:</strong> ${h(d.date || '')}</div>`;
+        html += `<div class="mb-2"><strong>Destinazione:</strong> ${h(dest)}</div>`;
+        html += `<div class="mb-3"><strong>Riferimento Ordine:</strong> ${h(d.orderNumber || '')}</div>`;
         html += `<table class="table table-sm"><thead><tr><th>Descrizione</th><th class="text-end">Qtà gestita</th><th class="text-end">Accettata</th><th class="text-end">Riserva</th><th class="text-end">Respinta</th><th>Esito</th><th>Motivazione</th><th class="text-end">Prezzo</th></tr></thead><tbody>`;
         (d.lines || []).forEach(l => {
-          html += `<tr><td>${l.description || ''}</td><td class="text-end">${l.qty || 0}</td><td class="text-end">${l.acceptedQty || 0}</td><td class="text-end">${l.reserveQty || 0}</td><td class="text-end">${l.refusedQty || 0}</td><td>${lineOutcomeLabel(l,d)}</td><td>${l.lineNotes || '—'}</td><td class="text-end">${App.utils.fmtMoney(l.price || 0)}</td></tr>`;
+          html += `<tr><td>${h(l.description || '')}</td><td class="text-end">${l.qty || 0}</td><td class="text-end">${l.acceptedQty || 0}</td><td class="text-end">${l.reserveQty || 0}</td><td class="text-end">${l.refusedQty || 0}</td><td>${h(lineOutcomeLabel(l,d))}</td><td>${h(l.lineNotes || '—')}</td><td class="text-end">${App.utils.fmtMoney(l.price || 0)}</td></tr>`;
         });
         html += `</tbody></table>`;
 
@@ -503,39 +357,21 @@ const Fornitori = {
     // DDT fornitore (merce in entrata)
     renderDDTs() {
       const db = App.db.ensure();
-      const tbody = document.getElementById('supplier-ddts-table-body');
-      if (!tbody) return;
-      const canDelete = canDeleteDocs();
-      tbody.innerHTML = (db.supplierDDTs || []).map(d => `
-        <tr>
-          <td>${d.number}</td>
-          <td>${d.date}</td>
-          <td>${d.supplierName}</td>
-          <td>${d.customerName || (db.company?.name || 'Nostra Sede')}</td>
-          <td>${d.orderNumber}</td>
-          <td class="text-end">
-            <button class="btn btn-sm btn-outline-primary" data-action="view-supplier-ddt" data-num="${d.number}">Dettaglio</button>
-            ${canDelete ? `<button class="btn btn-sm btn-outline-danger ms-1" data-action="del-supplier-ddt" data-num="${d.number}"><i class="fas fa-trash-alt"></i></button>` : ''}
-          </td>
-        </tr>
-      `).join('');
+      renderSupplierDDTsTable({
+        db,
+        tbody: document.getElementById('supplier-ddts-table-body'),
+        canDelete: canDeleteDocs(),
+        h
+      });
     },
 
     renderReturnDDTs() {
       const db = App.db.ensure();
-      const tbody = document.getElementById('supplier-return-ddts-table-body');
-      if (!tbody) return;
-      tbody.innerHTML = (db.supplierReturnDDTs || []).length ? (db.supplierReturnDDTs || []).map(r => `
-        <tr>
-          <td>${r.number || ''}</td>
-          <td>${r.date || ''}</td>
-          <td>${r.supplierName || ''}</td>
-          <td>${r.sourceOrderNumber || ''}</td>
-          <td>${r.sourceDdtNumber || ''}</td>
-          <td>${r.status || 'Preparato'}</td>
-          <td class="text-end"><button class="btn btn-sm btn-outline-primary" data-action="view-supplier-return" data-num="${r.number}">Dettaglio</button></td>
-        </tr>
-      `).join('') : `<tr><td colspan="7" class="text-muted">Nessun reso fornitore registrato.</td></tr>`;
+      renderSupplierReturnDDTsTable({
+        db,
+        tbody: document.getElementById('supplier-return-ddts-table-body'),
+        h
+      });
     },
 
     wireSupplierReturnDetail() {
@@ -557,7 +393,7 @@ const Fornitori = {
         if (printBtn) printBtn.onclick = () => {
           const live = (App.db.ensure().supplierReturnDDTs || []).find(x => x.number === ret.number) || ret;
           Object.assign(live, readSupplierReturnMetaFromDetail());
-          printSupplierReturnPdf(live);
+          printSupplierReturnPdf({ ret: live, db: App.db.ensure(), jsPDFCtor: getJsPDFConstructor() });
         };
       };
       if (!tbody || tbody.dataset.wiredDetail === '1') return;
@@ -575,13 +411,18 @@ const Fornitori = {
         saveBtn.dataset.bound = '1';
         saveBtn.addEventListener('click', () => {
           if (!currentReturnNumber) return;
-          const curDb = App.db.ensure();
-          const ret = (curDb.supplierReturnDDTs || []).find(x => x.number === currentReturnNumber);
-          if (!ret) return;
-          Object.assign(ret, readSupplierReturnMetaFromDetail());
-          App.db.save(curDb);
+          let updatedReturn = null;
+          App.db.mutate('purchasing:update-supplier-return-meta', currentDb => {
+            const ret = (currentDb.supplierReturnDDTs || []).find(x => x.number === currentReturnNumber);
+            if (!ret) return null;
+            Object.assign(ret, readSupplierReturnMetaFromDetail());
+            updatedReturn = ret;
+            return { returnNumber: ret.number };
+          });
+          db = App.db.ensure();
+          if (!updatedReturn) return;
           this.renderReturnDDTs();
-          renderDetail(ret);
+          renderDetail(updatedReturn);
           App.ui.showToast('Dati del reso salvati.', 'success');
         });
       }
@@ -589,16 +430,21 @@ const Fornitori = {
         markBtn.dataset.bound = '1';
         markBtn.addEventListener('click', () => {
           if (!currentReturnNumber) return;
-          const curDb = App.db.ensure();
-          const ret = (curDb.supplierReturnDDTs || []).find(x => x.number === currentReturnNumber);
-          if (!ret) return;
-          if (ret.status === 'Spedito al fornitore') return App.ui.showToast('Il reso è già segnato come spedito.', 'info');
-          Object.assign(ret, readSupplierReturnMetaFromDetail());
-          ret.status = 'Spedito al fornitore';
-          ret.shippedAt = App.utils.todayISO();
-          App.db.save(curDb);
+          let updatedReturn = null;
+          App.db.mutate('purchasing:mark-supplier-return-shipped', currentDb => {
+            const ret = (currentDb.supplierReturnDDTs || []).find(x => x.number === currentReturnNumber);
+            if (!ret) return null;
+            if (ret.status === 'Spedito al fornitore') return { alreadyShipped: true };
+            Object.assign(ret, readSupplierReturnMetaFromDetail());
+            ret.status = 'Spedito al fornitore';
+            ret.shippedAt = App.utils.todayISO();
+            updatedReturn = ret;
+            return { returnNumber: ret.number };
+          });
+          db = App.db.ensure();
+          if (!updatedReturn) return App.ui.showToast('Il reso è già segnato come spedito.', 'info');
           this.renderReturnDDTs();
-          renderDetail(ret);
+          renderDetail(updatedReturn);
           App.ui.showToast('Reso segnato come spedito al fornitore.', 'success');
         });
       }
@@ -624,7 +470,7 @@ const Fornitori = {
         const prev = selOrder.value;
         const openOrders = (curDb.supplierOrders || []).filter(o => (o.lines||[]).some(l => (Number(l.receivedQty||0) + Number(l.quarantineQty||0)) < Number(l.qty||0) || Number(l.quarantineQty||0) > 0));
         selOrder.innerHTML = '<option selected disabled value="">Seleziona un ordine...</option>'
-          + openOrders.map(o => `<option value="${o.number}">${o.number} - ${o.supplierName}</option>`).join('');
+          + openOrders.map(o => `<option value="${h(o.number)}">${h(o.number)} - ${h(o.supplierName)}</option>`).join('');
         if (prev && openOrders.some(o => o.number === prev)) selOrder.value = prev;
       };
       fillOpenOrders();
@@ -651,13 +497,12 @@ const Fornitori = {
         supName.value = order.supplierName;
         ddtNum.value = App.utils.nextSupplierDDTNumber(db);
         ddtDate.value = App.utils.todayISO();
-        App.db.save(db);
 
         const rows = order.lines.map((l,i) => {
-          const residual = Math.max(0, Number(l.qty || 0) - Number(l.receivedQty || 0) - Number(l.quarantineQty || 0));
+          const residual = getSupplierOrderResidual(l);
           if (residual <= 0) return '';
           return `<tr data-i="${i}">
-            <td>${l.productName}</td>
+            <td>${h(l.productName)}</td>
             <td class="text-end">${l.qty}</td>
             <td class="text-end">${residual}</td>
             <td class="text-end"><input type="number" min="0" max="${residual}" value="${residual}" class="form-control form-control-sm text-end ddt-acc-qty"></td>
@@ -697,7 +542,7 @@ const Fornitori = {
           if (validationError) return;
           const i = parseInt(tr.getAttribute('data-i'), 10);
           const l = order.lines[i];
-          const residual = Math.max(0, Number(l.qty || 0) - Number(l.receivedQty || 0) - Number(l.quarantineQty || 0));
+          const residual = getSupplierOrderResidual(l);
           const acceptedQty = Math.max(0, Number(tr.querySelector('.ddt-acc-qty')?.value || 0));
           const reserveQty = Math.max(0, Number(tr.querySelector('.ddt-res-qty')?.value || 0));
           const refusedQty = Math.max(0, Number(tr.querySelector('.ddt-ref-qty')?.value || 0));
@@ -719,77 +564,46 @@ const Fornitori = {
         if (validationError) return App.ui.showToast(validationError, 'warning');
         if (handledLines.length === 0) return App.ui.showToast('Nessuna quantità da registrare.', 'warning');
 
+        const generalNotes = (notesEl?.value || '').trim();
         try {
-          const stockChanges = handledLines
-            .map(s => ({ productId: order.lines[s.i].productId, delta: Number(s.acceptedQty || 0) }))
-            .filter(x => x.delta > 0);
-          const quarantineChanges = handledLines
-            .map(s => ({ productId: order.lines[s.i].productId, delta: Number(s.reserveQty || 0) }))
-            .filter(x => x.delta > 0);
-          if (stockChanges.length) adjustStockBatch(stockChanges, { reason: 'DDT_FORNITORE', ref: ddtNum.value });
-          if (quarantineChanges.length) adjustQuarantineBatch(quarantineChanges, { reason: 'DDT_FORNITORE_RISERVA', ref: ddtNum.value });
+          App.db.mutate('purchasing:create-supplier-ddt', currentDb => {
+          const currentOrder = (currentDb.supplierOrders || []).find(o => o.number === number);
+          if (!currentOrder) throw new Error('Ordine non trovato.');
+          const { stockChanges, quarantineChanges } = getSupplierReceiptInventoryChanges(currentOrder, handledLines);
+          if (stockChanges.length) {
+            validateStockBatch(currentDb, stockChanges);
+            applyStockBatch(currentDb, stockChanges);
+          }
+          if (quarantineChanges.length) {
+            validateQuarantineBatch(currentDb, quarantineChanges);
+            applyQuarantineBatch(currentDb, quarantineChanges);
+          }
+          applySupplierReceiptToOrder(currentOrder, handledLines);
+          const newDDT = buildSupplierDDT({
+            id: App.utils.uuid(),
+            number: ddtNum.value,
+            date: ddtDate.value,
+            order: currentOrder,
+            handledLines,
+            notes: generalNotes
+          });
+          currentDb.supplierDDTs = currentDb.supplierDDTs || [];
+          currentDb.supplierQuarantine = currentDb.supplierQuarantine || [];
+          currentDb.supplierDDTs.push(newDDT);
+          currentDb.supplierQuarantine.push(...buildSupplierQuarantineRecords({
+            uuid: App.utils.uuid,
+            date: ddtDate.value,
+            order: currentOrder,
+            ddt: newDDT,
+            handledLines,
+            notes: generalNotes
+          }));
+          return { ddtNumber: newDDT.number, orderNumber: currentOrder.number };
+          });
+          db = App.db.ensure();
         } catch (err) {
           return App.ui.showToast(err.message || 'Errore aggiornamento magazzino', 'danger');
         }
-
-        handledLines.forEach(s => {
-          const line = order.lines[s.i];
-          line.receivedQty = Number(line.receivedQty || 0) + Number(s.acceptedQty || 0);
-          line.quarantineQty = Number(line.quarantineQty || 0) + Number(s.reserveQty || 0);
-        });
-        recomputeSupplierOrderStatus(order);
-
-        const generalNotes = (notesEl?.value || '').trim();
-        const totalReserved = handledLines.reduce((a, s) => a + Number(s.reserveQty || 0), 0);
-        const totalRefused = handledLines.reduce((a, s) => a + Number(s.refusedQty || 0), 0);
-        db.supplierQuarantine = db.supplierQuarantine || [];
-        const newDDT = {
-          id: App.utils.uuid(),
-          number: ddtNum.value,
-          date: ddtDate.value,
-          supplierId: order.supplierId,
-          supplierName: order.supplierName,
-          orderNumber: order.number,
-          withReserve: totalReserved > 0,
-          refused: totalRefused > 0 && handledLines.every(s => Number(s.acceptedQty || 0) + Number(s.reserveQty || 0) === 0),
-          notes: generalNotes,
-          lines: handledLines.map(s => {
-            const l = order.lines[s.i];
-            return {
-              productId: l.productId,
-              description: l.productName,
-              qty: s.qty,
-              acceptedQty: s.acceptedQty,
-              reserveQty: s.reserveQty,
-              refusedQty: s.refusedQty,
-              lineNotes: s.lineNotes,
-              price: l.price
-            };
-          })
-        };
-        newDDT.status = computeSupplierDDTStatus(newDDT);
-        db.supplierDDTs.push(newDDT);
-        handledLines.forEach(s => {
-          if (Number(s.reserveQty || 0) > 0) {
-            const l = order.lines[s.i];
-            db.supplierQuarantine.push({
-              id: App.utils.uuid(),
-              date: ddtDate.value,
-              supplierId: order.supplierId,
-              supplierName: order.supplierName,
-              orderId: order.id,
-              orderNumber: order.number,
-              ddtId: newDDT.id,
-              ddtNumber: newDDT.number,
-              productId: l.productId,
-              description: l.productName || l.description,
-              qty: Number(s.reserveQty || 0),
-              note: s.lineNotes || generalNotes || '',
-              status: 'In quarantena'
-            });
-          }
-        });
-        App.db.save(db);
         App.ui.showToast('DDT fornitore registrato', 'success');
         Fornitori.renderOrders();
         Fornitori.renderDDTs();
@@ -801,48 +615,23 @@ const Fornitori = {
 
     renderQuarantine() {
       const db = App.db.ensure();
-      const tbody = document.getElementById('supplier-quarantine-table-body');
-      const histBody = document.getElementById('supplier-quarantine-history-table-body');
-      if (!tbody) return;
-      const canManage = canDeleteDocs();
-      const rows = (db.supplierQuarantine || []).filter(q => q.status === 'In quarantena');
-      tbody.innerHTML = rows.length ? rows.map(q => `
-        <tr>
-          <td>${q.date || ''}</td>
-          <td>${q.supplierName || ''}</td>
-          <td>${q.orderNumber || ''}</td>
-          <td>${q.ddtNumber || ''}</td>
-          <td>${q.description || ''}</td>
-          <td class="text-end">${q.qty || 0}</td>
-          <td>${q.note || '—'}</td>
-          <td class="text-end">
-            ${canManage ? `<button class="btn btn-sm btn-outline-primary" data-action="manage-q" data-id="${q.id}">Gestisci quantità quarantena</button>` : '<span class="text-muted">Solo Supervisor</span>'}
-          </td>
-        </tr>`).join('') : `<tr><td colspan="8" class="text-muted">Nessuna merce in quarantena.</td></tr>`;
-      if (histBody) {
-        const historyRows = (db.supplierQuarantine || []).filter(q => q.status !== 'In quarantena');
-        histBody.innerHTML = historyRows.length ? historyRows.map(q => `
-          <tr>
-            <td>${q.resolvedAt || ''}</td>
-            <td>${q.supplierName || ''}</td>
-            <td>${q.orderNumber || ''}</td>
-            <td>${q.description || ''}</td>
-            <td class="text-end">${q.qty || 0}</td>
-            <td>${q.status || ''}</td>
-            <td>${q.returnDdtNumber || '—'}</td>
-            <td>${q.note || '—'}</td>
-          </tr>`).join('') : `<tr><td colspan="8" class="text-muted">Nessuna quarantena chiusa.</td></tr>`;
-      }
+      renderSupplierQuarantineTables({
+        db,
+        tbody: document.getElementById('supplier-quarantine-table-body'),
+        histBody: document.getElementById('supplier-quarantine-history-table-body'),
+        canManage: canDeleteDocs(),
+        h
+      });
     },
 
     openQuarantineManageModal(rec) {
       const modalEl = document.getElementById('supplierQuarantineManageModal');
       if (!modalEl || !rec) return;
       this._quarantineManageId = rec.id;
-      document.getElementById('supplierQuarantineManageModalTitle').textContent = `Gestisci quantità quarantena - ${rec.description || ''}`;
+      document.getElementById('supplierQuarantineManageModalTitle').textContent = `Gestisci quantità quarantena - ${h(rec.description || '')}`;
       document.getElementById('supplierQuarantineManageMeta').innerHTML = `
-        <div><strong>Fornitore:</strong> ${rec.supplierName || ''}</div>
-        <div><strong>Ordine:</strong> ${rec.orderNumber || ''} &nbsp; <strong>DDT origine:</strong> ${rec.ddtNumber || ''}</div>
+        <div><strong>Fornitore:</strong> ${h(rec.supplierName || '')}</div>
+        <div><strong>Ordine:</strong> ${h(rec.orderNumber || '')} &nbsp; <strong>DDT origine:</strong> ${h(rec.ddtNumber || '')}</div>
       `;
       document.getElementById('quarantine-total-qty').value = Number(rec.qty || 0);
       document.getElementById('quarantine-release-qty').value = 0;
@@ -875,7 +664,7 @@ const Fornitori = {
 
     processQuarantineManage() {
       if (!canDeleteDocs()) return App.ui.showToast('Permesso negato: serve ruolo Supervisor.', 'warning');
-      const db = App.db.ensure();
+      let db = App.db.ensure();
       const id = this._quarantineManageId;
       const rec = (db.supplierQuarantine || []).find(x => String(x.id) === String(id));
       if (!rec || rec.status !== 'In quarantena') return App.ui.showToast('Riga di quarantena non più disponibile.', 'warning');
@@ -889,66 +678,49 @@ const Fornitori = {
 Svincolo: ${releaseQty}
 Reso: ${returnQty}
 Distruzione: ${destroyQty}`)) return;
-      const order = (db.supplierOrders || []).find(o => String(o.id) === String(rec.orderId) || String(o.number) === String(rec.orderNumber));
-      const line = (order?.lines || []).find(l => String(l.productId || '') === String(rec.productId || '')) || (order?.lines || []).find(l => String(l.productName || l.description || '') === String(rec.description || ''));
+      let returnNumber = null;
       try {
-        adjustQuarantineBatch([{ productId: rec.productId, delta: -Number(total || 0) }], { reason: 'CHIUSURA_QUARANTENA', ref: rec.ddtNumber });
-        if (releaseQty > 0) adjustStockBatch([{ productId: rec.productId, delta: Number(releaseQty || 0) }], { reason: 'SVINCOLO_QUARANTENA', ref: rec.ddtNumber });
+        App.db.mutate('purchasing:resolve-quarantine', currentDb => {
+          const liveRec = (currentDb.supplierQuarantine || []).find(x => String(x.id) === String(rec.id));
+          if (!liveRec) throw new Error('Riga di quarantena non più disponibile.');
+          validateQuarantineBatch(currentDb, [{ productId: liveRec.productId, delta: -Number(total || 0) }]);
+          applyQuarantineBatch(currentDb, [{ productId: liveRec.productId, delta: -Number(total || 0) }]);
+          if (releaseQty > 0) {
+            validateStockBatch(currentDb, [{ productId: liveRec.productId, delta: Number(releaseQty || 0) }]);
+            applyStockBatch(currentDb, [{ productId: liveRec.productId, delta: Number(releaseQty || 0) }]);
+          }
+          const order = (currentDb.supplierOrders || []).find(o => String(o.id) === String(liveRec.orderId) || String(o.number) === String(liveRec.orderNumber));
+          applyQuarantineResolutionToOrder(order, liveRec, { total, releaseQty });
+          if (returnQty > 0) {
+            currentDb.supplierReturnDDTs = Array.isArray(currentDb.supplierReturnDDTs) ? currentDb.supplierReturnDDTs : [];
+            returnNumber = App.utils.nextSupplierReturnDDTNumber(currentDb);
+            currentDb.supplierReturnDDTs.push(buildSupplierReturnFromQuarantine({
+              id: App.utils.uuid(),
+              number: returnNumber,
+              date: App.utils.todayISO(),
+              rec: liveRec,
+              qty: returnQty,
+              note
+            }));
+          }
+          currentDb.supplierQuarantine = currentDb.supplierQuarantine || [];
+          currentDb.supplierQuarantine.push(...buildQuarantineHistoryRecords({
+          uuid: App.utils.uuid,
+          today: App.utils.todayISO(),
+            rec: liveRec,
+            note,
+            releaseQty,
+            returnQty,
+            destroyQty,
+            returnDdtNumber: returnNumber
+          }));
+          currentDb.supplierQuarantine = currentDb.supplierQuarantine.filter(x => String(x.id) !== String(liveRec.id));
+          return { quarantineId: liveRec.id, returnDdtNumber: returnNumber };
+        });
+        db = App.db.ensure();
       } catch (err) {
         return App.ui.showToast(err.message || 'Errore aggiornamento quarantena', 'danger');
       }
-      if (line) {
-        line.quarantineQty = Math.max(0, Number(line.quarantineQty || 0) - Number(total || 0));
-        if (releaseQty > 0) line.receivedQty = Number(line.receivedQty || 0) + Number(releaseQty || 0);
-      }
-      const pushHistory = (status, qty, extra = {}) => {
-        if (!(qty > 0)) return;
-        db.supplierQuarantine.push({
-          ...rec,
-          ...extra,
-          id: App.utils.uuid(),
-          qty: Number(qty || 0),
-          status,
-          note: (extra.note ?? (note || rec.note || '')), 
-          resolvedAt: App.utils.todayISO(),
-          sourceQuarantineId: rec.id
-        });
-      };
-      if (returnQty > 0) {
-        db.supplierReturnDDTs = Array.isArray(db.supplierReturnDDTs) ? db.supplierReturnDDTs : [];
-        const returnNumber = App.utils.nextSupplierReturnDDTNumber(db);
-        const returnDoc = {
-          id: App.utils.uuid(),
-          number: returnNumber,
-          date: App.utils.todayISO(),
-          supplierId: rec.supplierId,
-          supplierName: rec.supplierName,
-          sourceOrderId: rec.orderId,
-          sourceOrderNumber: rec.orderNumber,
-          sourceDdtId: rec.ddtId,
-          sourceDdtNumber: rec.ddtNumber,
-          status: 'Preparato',
-          returnReason: 'Reso da quarantena',
-          packageCount: 1,
-          carrier: '',
-          transportNotes: note,
-          notes: note,
-          lines: [{
-            productId: rec.productId,
-            productName: rec.description,
-            description: rec.description,
-            qty: Number(returnQty || 0),
-            reason: note
-          }]
-        };
-        db.supplierReturnDDTs.push(returnDoc);
-        pushHistory('Resa al fornitore', returnQty, { returnDdtNumber: returnNumber, resolutionType: 'return' });
-      }
-      pushHistory('Svincolata', releaseQty, { resolutionType: 'release', note: note || rec.note || '' });
-      pushHistory('Da distruggere', destroyQty, { resolutionType: 'destroy' });
-      db.supplierQuarantine = (db.supplierQuarantine || []).filter(x => String(x.id) !== String(rec.id));
-      if (order) recomputeSupplierOrderStatus(order);
-      App.db.save(db);
       try { bootstrap.Modal.getOrCreateInstance(document.getElementById('supplierQuarantineManageModal')).hide(); } catch {}
       this.renderOrders();
       this.renderQuarantine();
@@ -998,9 +770,11 @@ Distruzione: ${destroyQty}`)) return;
         if (sid === 'nuovo-ddt-fornitore') {
           try { this.initNewSupplierDDT(); } catch {}
         }
-        if (sid === 'elenco-ddt-fornitore') this.renderDDTs();
+        if (sid === 'elenco-ddt-fornitore') {
+          this.renderDDTs();
+          this.renderReturnDDTs();
+        }
         if (sid === 'quarantena-fornitori') this.renderQuarantine();
-        if (sid === 'elenco-resi-fornitore') this.renderReturnDDTs();
       };
 
       App.events.on('logged-in', () => {

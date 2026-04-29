@@ -45,6 +45,8 @@ export function initProductsUI() {
     try { bootstrap.Modal.getOrCreateInstance(modalEl).hide(); } catch {}
   };
 
+  const h = value => App.utils.escapeHtml(value);
+
   const render = (filter = '') => {
     const db = App.db.ensure();
     const t = String(filter || '').toLowerCase();
@@ -54,16 +56,16 @@ export function initProductsUI() {
     });
     tbody.innerHTML = items.map(p => `
       <tr>
-        <td>${p.code || ''}</td>
-        <td>${p.description || ''}</td>
+        <td>${h(p.code || '')}</td>
+        <td>${h(p.description || '')}</td>
         <td class="text-end">${App.utils.fmtMoney(p.purchasePrice || 0)}</td>
         <td class="text-end">${App.utils.fmtMoney(p.salePrice || 0)}</td>
-        <td>${[p.locCorsia,p.locScaffale,p.locPiano].filter(Boolean).join('-')}</td>
+        <td>${h([p.locCorsia,p.locScaffale,p.locPiano].filter(Boolean).join('-'))}</td>
         <td class="text-end">${p.stockQty || 0}</td>
         <td class="text-end">${p.quarantineQty || 0}</td>
         <td class="text-end">
-          <button type="button" class="btn btn-sm btn-outline-primary" data-action="edit" data-id="${String(p.id || '')}">Modifica</button>
-          <button type="button" class="btn btn-sm btn-outline-danger" data-action="del" data-id="${String(p.id || '')}">Elimina</button>
+          <button type="button" class="btn btn-sm btn-outline-primary" data-action="edit" data-id="${h(p.id || '')}">Modifica</button>
+          <button type="button" class="btn btn-sm btn-outline-danger" data-action="del" data-id="${h(p.id || '')}">Elimina</button>
         </td>
       </tr>`).join('');
   };

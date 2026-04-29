@@ -57,10 +57,11 @@ export function createHome({ db, ui, events }) {
     ta.value = (curDb.notes && curDb.notes[key]) || '';
 
     btn.addEventListener('click', () => {
-      const d = db.ensure();
-      d.notes = d.notes || {};
-      d.notes[key] = ta.value || '';
-      db.save(d);
+      db.mutate('home:save-user-notes', draft => {
+        draft.notes = draft.notes || {};
+        draft.notes[key] = ta.value || '';
+        return { userKey: key };
+      });
       ui.showToast('Note salvate', 'success');
     });
   }

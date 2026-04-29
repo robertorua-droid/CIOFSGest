@@ -1,6 +1,6 @@
 import { utils } from './utils.js';
 /**
- * DB schema iniziale (localStorage).
+ * DB schema iniziale Firebase-only.
  * Mantieni qui la "fonte di verità" della struttura dati.
  */
 export function createInitialDb() {
@@ -38,7 +38,7 @@ export function createInitialDb() {
 }
 
 /**
- * Normalizza un DB caricato (da localStorage / Firestore / import) assicurando
+ * Normalizza un DB caricato (da Firestore o import) assicurando
  * che tutte le chiavi e i tipi attesi esistano.
  *
  * Obiettivo: evitare crash quando il DB proviene da versioni precedenti
@@ -87,7 +87,7 @@ export function normalizeDb(input) {
   }
 
   // Assegna id stabili mancanti ai record, così la sync Firebase non perde gli elementi
-  // creati dal gestionale e i backup restano coerenti tra locale e remoto.
+  // creati dal gestionale e i backup restano coerenti tra schema e Firestore.
   for (const k of arrKeys) {
     for (const item of (db[k] || [])) {
       if (item && !item.id) item.id = utils.uuid();

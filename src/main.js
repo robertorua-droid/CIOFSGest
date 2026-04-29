@@ -13,10 +13,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Theme toggle (works even before login UI is shown)
   try { initThemeToggle(); } catch {}
 
-  // bootstrap (DB locale o Firestore)
-  await App.boot();
+  // bootstrap Firebase-only: inizializza Firebase e carica Firestore solo se esiste già una sessione
+  try {
+    await App.boot();
+  } catch (e) {
+    console.error(e);
+    const box = document.getElementById('error-message');
+    if (box) {
+      box.textContent = 'Errore caricamento Firebase: ' + String(e?.message || e);
+      box.classList.remove('d-none');
+    }
+  }
 
-  // Badge sorgente dati (Firebase/Local)
+  // Badge sorgente dati Firebase
   try { initDataSourceBadge(App); } catch {}
 
   // Sidebar mobile/collassabile
