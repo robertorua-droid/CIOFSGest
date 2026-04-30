@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.68.0 - Pulizia classe supervisor
+- Aggiunta in Impostazioni la sezione `Azioni amministrative classe`, visibile solo al supervisor autorizzato `roberto.rua@gmail.com`.
+- Aggiunta l'azione `Svuota dati classe` per cancellare i dataset Firestore di tutti gli utenti della classe.
+- Aggiunta l'azione `Rimuovi utenti classe` per eliminare dalla directory applicativa gli utenti classe mantenendo il supervisor autorizzato.
+- Le operazioni richiedono conferme testuali forti e ricordano che gli account Firebase Authentication vanno eliminati manualmente dalla Firebase Console.
+
 ## 1.67.1 - Patch gestione quarantena fornitori
 - Ripristinato il collegamento eventi della modal Gestisci quantità quarantena.
 - Il controllo somma si aggiorna di nuovo quando si compilano Svincola, Reso fornitore e Da distruggere.

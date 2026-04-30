@@ -1,4 +1,4 @@
-# Gestionale OL - Versione modularizzata Firebase-only v1.42.0
+# Gestionale OL - Versione modularizzata Firebase-only v1.68.0
 
 Questa versione mantiene il refactoring Firebase-only e avvia la separazione della logica di dominio delle vendite dalla UI. L'applicazione è organizzata per aree funzionali, con un core condiviso per bootstrap, eventi, utilità, cache di sessione e sincronizzazione Firestore.
 
@@ -151,3 +151,14 @@ La sezione Magazzino include ora la vista `Registro Prodotti Macerati`, implemen
 - Il controllo somma si aggiorna di nuovo quando si compilano Svincola, Reso fornitore e Da distruggere.
 - La conferma della gestione quarantena torna a generare il DDT di reso al fornitore quando previsto.
 - Aggiunto test Node.js dedicato al wiring della UI quarantena per evitare regressioni.
+
+## Aggiornamento 1.68.0 - Pulizia classe supervisor
+
+La release 1.68.0 aggiunge `src/domain/classReset.service.js` e integra in `src/features/impostazioni/advanced.ui.js` le azioni amministrative classe riservate al supervisor autorizzato.
+
+Le operazioni disponibili sono:
+
+- `Svuota dati classe`: cancella i dataset Firestore `users/{uid}` degli utenti presenti in `appUsers`;
+- `Rimuovi utenti classe`: elimina dalla directory applicativa Firestore gli utenti classe, mantenendo gli account presenti in `SUPERVISOR_EMAILS`.
+
+Gli account Firebase Authentication non vengono cancellati dal frontend: vanno rimossi manualmente dalla Firebase Console oppure tramite strumenti server/Admin SDK.

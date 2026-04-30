@@ -8,15 +8,14 @@ service cloud.firestore {
     function isBootstrapSupervisor() {
       return signedIn() && request.auth.token.email != null
         && (request.auth.token.email in [
-          // ESEMPIO:
-          // 'docente@scuola.it'
+          'roberto.rua@gmail.com'
         ]);
     }
 
     // Utenti: ogni utente può leggere/scrivere SOLO il proprio spazio dati
     match /users/{uid}/{document=**} {
-      allow read: if signedIn() && (request.auth.uid == uid || isSupervisor());
-      allow write: if signedIn() && request.auth.uid == uid;
+      allow read: if signedIn() && (request.auth.uid == uid || isBootstrapSupervisor());
+      allow write: if signedIn() && (request.auth.uid == uid || isBootstrapSupervisor());
     }
 
     // Directory utenti per gestione ruoli: appUsers/{uid}

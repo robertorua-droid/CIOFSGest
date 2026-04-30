@@ -1,4 +1,4 @@
-# Firebase + GitHub Pages - Gestionale Firebase-only v1.41.0
+# Firebase + GitHub Pages - Gestionale Firebase-only v1.68.0
 
 Il gestionale usa Firebase Authentication e Firestore come unico archivio operativo dei dati applicativi. I dati di ciascun utente sono salvati sotto:
 
@@ -69,7 +69,7 @@ service cloud.firestore {
     }
 
     match /users/{uid}/{document=**} {
-      allow read, write: if signedIn() && request.auth.uid == uid;
+      allow read, write: if signedIn() && (request.auth.uid == uid || isSupervisor());
     }
 
     match /appUsers/{uid} {
@@ -100,7 +100,7 @@ match /users/{uid}/{document=**} {
 }
 ```
 
-Questo permette al Supervisor di leggere i dati degli studenti per la stima, ma non di modificarli.
+Questo permette al Supervisor di leggere e, dalla versione 1.68.0, cancellare/riscrivere i dataset degli studenti per la pulizia classe. Usa questa regola solo per account docente/supervisor affidabili.
 
 ## 6) Verifica finale del pacchetto
 
@@ -193,3 +193,16 @@ Il Registro Prodotti Macerati legge lo storico già salvato nella collezione `su
 - Il controllo somma si aggiorna di nuovo quando si compilano Svincola, Reso fornitore e Da distruggere.
 - La conferma della gestione quarantena torna a generare il DDT di reso al fornitore quando previsto.
 - Aggiunto test Node.js dedicato al wiring della UI quarantena per evitare regressioni.
+
+
+## Pulizia classe supervisor - v1.68.0
+
+La funzione Azioni amministrative classe richiede che il supervisor autorizzato possa:
+
+- leggere `appUsers`;
+- cancellare documenti `appUsers/{uid}` degli allievi;
+- leggere/cancellare i dataset `users/{uid}` degli utenti della classe.
+
+Il frontend non cancella account Firebase Authentication: per la rimozione completa degli allievi occorre cancellare manualmente gli account da Firebase Console → Authentication, oppure predisporre una Cloud Function/Admin SDK dedicata.
+
+Il file `FIREBASE_RULES_WITH_ROLES.txt` contiene un esempio aggiornato compatibile con la pulizia classe supervisor.

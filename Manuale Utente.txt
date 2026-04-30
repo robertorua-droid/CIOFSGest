@@ -1,4 +1,4 @@
-Manuale Utente - Gestionale Magazzino Didattico Firebase-only (v1.42.0)
+Manuale Utente - Gestionale Magazzino Didattico Firebase-only (v1.68.0)
 
 Introduzione
 ============
@@ -153,3 +153,16 @@ Nel gruppo Magazzino è disponibile la voce Prodotti Macerati. La pagina mostra 
 - Il controllo somma si aggiorna di nuovo quando si compilano Svincola, Reso fornitore e Da distruggere.
 - La conferma della gestione quarantena torna a generare il DDT di reso al fornitore quando previsto.
 - Aggiunto test Node.js dedicato al wiring della UI quarantena per evitare regressioni.
+
+
+Pulizia classe - Supervisor (v1.68.0)
+=====================================
+In Impostazioni, il supervisor autorizzato vede la sezione Azioni amministrative classe.
+
+Prima di procedere è consigliato esportare un backup Firebase.
+
+Azioni disponibili:
+1. Svuota dati classe: cancella i dati di lavoro Firestore di tutti gli utenti della classe. Per confermare occorre scrivere SVUOTA CLASSE.
+2. Rimuovi utenti classe: elimina gli utenti dalla directory applicativa, mantenendo il supervisor autorizzato. Per confermare occorre scrivere RIMUOVI UTENTI.
+
+Dopo la rimozione dalla directory applicativa, gli account Firebase Authentication degli allievi vanno eliminati manualmente dalla Firebase Console.

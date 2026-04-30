@@ -1,4 +1,4 @@
-Manuale Tecnico - Gestionale Magazzino Didattico Firebase-only (v1.42.0)
+Manuale Tecnico - Gestionale Magazzino Didattico Firebase-only (v1.68.0)
 
 Scopo della release
 ===================
@@ -147,3 +147,14 @@ Aggiunta una vista consultiva sotto Magazzino per mostrare le quantità distrutt
 - Il controllo somma si aggiorna di nuovo quando si compilano Svincola, Reso fornitore e Da distruggere.
 - La conferma della gestione quarantena torna a generare il DDT di reso al fornitore quando previsto.
 - Aggiunto test Node.js dedicato al wiring della UI quarantena per evitare regressioni.
+
+
+Release 1.68.0 - Pulizia classe supervisor
+========================================
+La release aggiunge una procedura amministrativa di cambio classe in Impostazioni. La logica è isolata in src/domain/classReset.service.js e usa la directory applicativa appUsers per individuare gli utenti della classe.
+
+Azioni disponibili per il supervisor autorizzato:
+- Svuota dati classe: cancella i dataset Firestore di tutti gli utenti elencati in appUsers.
+- Rimuovi utenti classe: cancella dalla directory applicativa gli utenti non inclusi in SUPERVISOR_EMAILS.
+
+Limite tecnico: Firebase Authentication non consente la cancellazione degli account utente dal solo frontend. Dopo la rimozione da appUsers, gli account Auth vanno cancellati manualmente dalla Firebase Console o con Admin SDK.

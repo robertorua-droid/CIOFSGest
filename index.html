@@ -672,6 +672,20 @@
             </div>
 </div>
 </div>
+<div class="card mt-4 border-danger d-none" id="class-admin-actions-card">
+<div class="card-body">
+<h5 class="card-title text-danger"><i class="fas fa-user-shield"></i> Azioni amministrative classe</h5>
+<p class="card-text mb-2">Azioni riservate al supervisor autorizzato per ripulire dati e utenti applicativi al cambio classe.</p>
+<div class="alert alert-warning small mb-3">
+  Prima di svuotare una classe, esporta un backup Firebase se vuoi conservare il lavoro svolto. La rimozione utenti riguarda la directory applicativa Firestore: gli account Firebase Authentication vanno poi eliminati manualmente dalla Firebase Console.
+</div>
+<div class="d-flex flex-wrap gap-2">
+  <button class="btn btn-outline-danger" id="class-wipe-data-btn"><i class="fas fa-broom"></i> Svuota dati classe</button>
+  <button class="btn btn-danger" id="class-remove-users-btn"><i class="fas fa-user-slash"></i> Rimuovi utenti classe</button>
+</div>
+<div class="small text-muted mt-2" id="class-admin-actions-note"></div>
+</div>
+</div>
 <div class="card mt-4 bg-light border-danger">
 <div class="card-body">
 <h5 class="card-title text-danger">Dati Firebase</h5>
