@@ -8,6 +8,7 @@ import {
   getDocs,
   setDoc,
   updateDoc,
+  deleteDoc,
   writeBatch,
   serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js';
@@ -103,5 +104,34 @@ export const userDirectory = {
     const ref = doc(firebase.fs, `appUsers/${uid}`);
     const safe = { ...(patch || {}), updatedAt: serverTimestamp() };
     await updateDoc(ref, safe);
+  },
+
+  async deleteMany(uids) {
+    await firebase.init();
+    if (!firebase.uid) throw new Error('Firebase non autenticato');
+    const list = (uids || []).map(u => String(u)).filter(Boolean);
+    if (!list.length) return 0;
+
+    const CHUNK = 450;
+    let deleted = 0;
+    for (let i = 0; i < list.length; i += CHUNK) {
+      const batch = writeBatch(firebase.fs);
+      const slice = list.slice(i, i + CHUNK);
+      for (const uid of slice) {
+        const ref = doc(firebase.fs, `appUsers/${uid}`);
+        batch.delete(ref);
+      }
+      await batch.commit();
+      deleted += slice.length;
+    }
+    return deleted;
+  },
+
+  async deleteOne(uid) {
+    await firebase.init();
+    if (!uid) throw new Error('uid mancante');
+    const ref = doc(firebase.fs, `appUsers/${uid}`);
+    await deleteDoc(ref);
+    return true;
   }
 };

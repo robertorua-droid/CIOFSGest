@@ -1,17 +1,29 @@
 {
   "current": {
-    "version": "1.67.1",
+    "version": "1.68.0",
     "date": "2026-04-29",
-    "name": "Patch gestione quarantena fornitori",
-    "title": "Patch gestione quarantena fornitori",
+    "name": "Pulizia classe supervisor",
+    "title": "Pulizia classe supervisor",
     "changes": [
-      "Ripristinato il collegamento eventi della modal Gestisci quantità quarantena.",
-      "Il controllo somma si aggiorna di nuovo quando si compilano Svincola, Reso fornitore e Da distruggere.",
-      "La conferma della gestione quarantena torna a generare il DDT di reso al fornitore quando previsto.",
-      "Aggiunto test Node.js dedicato al wiring della UI quarantena per evitare regressioni."
+      "Aggiunta in Impostazioni la sezione Azioni amministrative classe visibile solo al supervisor autorizzato.",
+      "Aggiunta l'azione Svuota dati classe per cancellare i dataset Firestore di tutti gli utenti della classe.",
+      "Aggiunta l'azione Rimuovi utenti classe per eliminare dalla directory applicativa gli utenti mantenendo il supervisor autorizzato.",
+      "Le operazioni richiedono conferme testuali forti e ricordano che gli account Firebase Authentication vanno eliminati manualmente dalla console."
     ]
   },
   "history": [
+    {
+      "version": "1.68.0",
+      "date": "2026-04-29",
+      "name": "Pulizia classe supervisor",
+      "title": "Pulizia classe supervisor",
+      "changes": [
+        "Aggiunta in Impostazioni la sezione Azioni amministrative classe visibile solo al supervisor autorizzato.",
+        "Aggiunta l'azione Svuota dati classe per cancellare i dataset Firestore di tutti gli utenti della classe.",
+        "Aggiunta l'azione Rimuovi utenti classe per eliminare dalla directory applicativa gli utenti mantenendo il supervisor autorizzato.",
+        "Le operazioni richiedono conferme testuali forti e ricordano che gli account Firebase Authentication vanno eliminati manualmente dalla console."
+      ]
+    },
     {
       "version": "1.67.1",
       "date": "2026-04-29",

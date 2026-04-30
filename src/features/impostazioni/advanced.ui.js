@@ -7,12 +7,22 @@ import {
   wipeFirebaseDataset
 } from '../../domain/backup.service.js';
 import { firestoreRepo } from '../../core/firestoreRepo.js';
+import {
+  assertClassResetConfirmation,
+  isClassResetSupervisor,
+  removeClassUsersExceptSupervisors,
+  wipeClassDatasets
+} from '../../domain/classReset.service.js';
 export function initAdvancedSettings() {
       let db = App.db.ensure();
       App.events.on('db:changed', d => { db = d; });
       const btnSend = document.getElementById('send-data-btn');
       const btnExportCurrent = document.getElementById('backup-export-current-btn');
       const btnDeleteFirebaseData = document.getElementById('delete-firebase-data-btn');
+      const classAdminCard = document.getElementById('class-admin-actions-card');
+      const btnWipeClassData = document.getElementById('class-wipe-data-btn');
+      const btnRemoveClassUsers = document.getElementById('class-remove-users-btn');
+      const classAdminNote = document.getElementById('class-admin-actions-note');
       const fsUsageCard = document.getElementById('fs-usage-card');
       const elFsJson = document.getElementById('fs-json-size');
       const elFsEst = document.getElementById('fs-est-size');
@@ -27,10 +37,15 @@ export function initAdvancedSettings() {
       // Permessi: alcune azioni sono riservate ai Supervisor
       const role = App.currentUser?.role || 'User';
       const isSupervisor = (role === 'Supervisor' || role === 'Admin');
+      const isClassAdmin = isClassResetSupervisor(App.currentUser, App.config?.SUPERVISOR_EMAILS);
       // Nasconde la card 'Dati Firebase' per gli User
       if (!isSupervisor) {
         const card = btnDeleteFirebaseData?.closest('.card');
         if (card) card.classList.add('d-none');
+      }
+      if (classAdminCard) classAdminCard.classList.toggle('d-none', !isClassAdmin);
+      if (classAdminNote && isClassAdmin) {
+        classAdminNote.textContent = `Supervisor autorizzato: ${App.currentUser?.email || ''}`;
       }
 
 
@@ -324,6 +339,63 @@ export function initAdvancedSettings() {
       // inizializza preview
       enableBackupActions(false);
       setPreview(null);
+
+
+      const listClassUsersForReset = async () => {
+        const users = await App.userDirectory.listAll();
+        return (users || []).map(u => ({ ...u, uid: u.uid || u.id }));
+      };
+
+      btnWipeClassData?.addEventListener('click', async () => {
+        if (!isClassAdmin) return App.ui.showToast('Azione riservata al supervisor autorizzato.', 'warning');
+        try {
+          const users = await listClassUsersForReset();
+          const txt = prompt(
+            'Operazione irreversibile: verranno cancellati i dati Firestore di tutti gli utenti della classe.\n\n' +
+            'Prima di procedere esporta un backup se necessario.\n\n' +
+            'Per confermare scrivi: SVUOTA CLASSE'
+          );
+          assertClassResetConfirmation(txt, 'SVUOTA CLASSE');
+          App.ui.showToast('Pulizia dati classe in corso…', 'warning');
+          await App.firebase.init();
+          await wipeClassDatasets({
+            users,
+            createRepoForUid: (uid) => firestoreRepo(App.firebase.fs, `users/${uid}`),
+            resetCurrentCache: () => App.db.resetCache()
+          });
+          App.ui.showToast(`Dati classe cancellati per ${users.length} utente/i. Ricarico…`, 'success');
+          setTimeout(() => location.reload(), 900);
+        } catch (e) {
+          if (String(e?.message || e).includes('Conferma non valida')) return;
+          App.ui.showToast('Pulizia dati classe fallita: ' + (e?.message || e), 'danger');
+        }
+      });
+
+      btnRemoveClassUsers?.addEventListener('click', async () => {
+        if (!isClassAdmin) return App.ui.showToast('Azione riservata al supervisor autorizzato.', 'warning');
+        try {
+          const users = await listClassUsersForReset();
+          const txt = prompt(
+            'Operazione irreversibile: verranno rimossi dalla directory applicativa tutti gli utenti classe tranne il supervisor autorizzato.\n\n' +
+            'Gli account Firebase Authentication vanno poi eliminati manualmente dalla Firebase Console.\n\n' +
+            'Per confermare scrivi: RIMUOVI UTENTI'
+          );
+          assertClassResetConfirmation(txt, 'RIMUOVI UTENTI');
+          App.ui.showToast('Rimozione utenti classe in corso…', 'warning');
+          const result = await removeClassUsersExceptSupervisors({
+            users,
+            supervisorEmails: App.config?.SUPERVISOR_EMAILS,
+            deleteUsersByUid: (uids) => App.userDirectory.deleteMany(uids)
+          });
+          App.ui.showToast(`Utenti rimossi dalla directory applicativa: ${result.removed}. Supervisor mantenuti: ${result.kept}.`, 'success');
+          if (classAdminNote) classAdminNote.textContent = 'Utenti applicativi rimossi. Ora elimina manualmente gli account da Firebase Authentication se necessario.';
+          App.events.emit('db:changed', App.db.ensure());
+        } catch (e) {
+          if (String(e?.message || e).includes('Conferma non valida')) return;
+          App.ui.showToast('Rimozione utenti classe fallita: ' + (e?.message || e), 'danger');
+        }
+      });
+
       // Cancella dati su Firebase (utente)
       btnDeleteFirebaseData?.addEventListener('click', async () => {
         const txt = prompt('Operazione irreversibile.\n\nScrivi CANCELLA per confermare la cancellazione dei dati su Firebase (utente).');

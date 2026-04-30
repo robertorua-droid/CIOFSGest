@@ -3,6 +3,7 @@ set -euo pipefail
 tests=(
   tests/backup.service.test.mjs
   tests/dbMutation.test.mjs
+  tests/classReset.service.test.mjs
   tests/domain-regressions.test.mjs
   tests/firestore.state.test.mjs
   tests/firestore.conflict.test.mjs
